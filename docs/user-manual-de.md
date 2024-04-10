@@ -4,10 +4,10 @@ Aus Benutzersicht wird der Datahub hauptsächlich mittels REST-API verwendet. Di
 
 ## Daten anliefern
 
-Anlieferung des Operates `2622` des Themas `IPW_2020`. Der Dateiname `2622_gep.xtf` kann frei gewählt werden und muss keiner Logik folgen:
+Anlieferung des Operates `2471` des Themas `IPW_2020`. Der Dateiname `2471_gep.xtf` kann frei gewählt werden und muss keiner Logik folgen:
 
 ```
-curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" -F 'file=@2622_gep.xtf' -F 'theme=IPW_2020' -F 'operat=2622' https://geo.so.ch/datahub/api/deliveries
+curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" -F 'file=@2471_gep.xtf' -F 'theme=IPW_2020' -F 'operat=2471' https://geo.so.ch/datahub/api/deliveries
 ```
 
 **Achtung:** Es muss zwingend `https` verwendet werden. Wird die Anfrage nur mit `http` gemacht, wird der API-Key auf dem Server sofort ungültig gemacht.
@@ -59,5 +59,15 @@ Die Attribute haben folgende Bedeutung:
 Nach Beendigung des Jobs wird eine E-Mail verschickt. Im E-Mail-Betreff stehen der `validationStatus` sowie Operats- und Themenname. 
 
 
+
+....
+
+
+401 und 403
+
+
+Keys
+
+web/jobs
 
 
