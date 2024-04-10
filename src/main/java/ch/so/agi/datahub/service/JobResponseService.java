@@ -27,8 +27,8 @@ import ch.so.agi.datahub.model.JobResponse;
 public class JobResponseService {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Value("${app.responseListLimit}")
-    private int responseListLimit;
+    @Value("${app.jobResponseListLimit}")
+    private int jobResponseListLimit;
 
     private ObjectContext objectContext;
     
@@ -57,7 +57,7 @@ public class JobResponseService {
             // Achtung: Es wird immer eine like-Query gemacht. Dies funktioniert nicht mit boolean.
             query.where(entry.getKey().toLowerCase() + " likeIgnoreCase $"+entry.getKey().toLowerCase(), entry.getValue().getFilterValue()+"%");
         }
-        query.orderBy(VJobresponse.CREATEDAT.getName(), SortOrder.DESCENDING).limit(responseListLimit);
+        query.orderBy(VJobresponse.CREATEDAT.getName(), SortOrder.DESCENDING).limit(jobResponseListLimit);
 
         List<DataRow> rows = query.select(objectContext);
         logger.trace("DataRow: {}", rows);

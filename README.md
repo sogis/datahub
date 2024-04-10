@@ -20,6 +20,27 @@ Die Daten werden nach erfolgreicher Prüfung an einen definierten Ort im Filesys
 
 ## Komponenten
 
+Die funktionale Einheit besteht aus dieser Webanwendung und einer Datenbank für die Speicherung von Autorisierungsobjekten und Lieferinformationen. Ebenfalls wird die Datenbank für die Jobqueue-Bibliothek benötigt. Die eingesetzte Technologie liesse einen Betrieb mit einer filebasierten DB zu, jedoch wird Stand heute eine PostgreSQL-Datenbank erwartet. 
+
+## Konfigurieren und Starten
+
+Siehe [Betriebshandbuch](docs/admin-manual-de.md).
+
+## Externe Abhängigkeiten
+
+Keine.
+
+## Konfiguration und Betrieb in der GDI
+
+Siehe [Betriebshandbuch](docs/admin-manual-de.md).
+
+## Interne Struktur
+
+Siehe [Entwicklerhandbuch](docs/develop-manual-de.md).
+
+
+
+
 ## Issues
 
 Tests (auskommentiert in GH Action):
