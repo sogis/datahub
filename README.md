@@ -14,7 +14,7 @@ Die Daten werden nach erfolgreicher Prüfung an einen definierten Ort im Filesys
 
 ## Anleitungen
 
-- [Benutzerhandbuch](docs/user-manual-de.md).
+- [Benutzerhandbuch](docs/user-manual-de.md)
 - [Betriebshandbuch](docs/admin-manual-de.md)
 
 ## Komponenten
