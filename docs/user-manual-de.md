@@ -143,7 +143,10 @@ Date: Thu, 11 Apr 2024 06:16:02 GMT
 {"message":"Sent email with new api key.","timestamp":"2024-04-11T06:16:02.329886Z"}
 ```
 
-Der API-Key erscheint bewusst nicht in der Ausgabe, sondern wird an die hinterlegte E-Mail-Adresse verschickt. Die E-Mail-Adresse kann nur vom Admin-Account in der Datenbank verändert werden.
+Der API-Key erscheint bewusst nicht in der Ausgabe, sondern wird an die hinterlegte E-Mail-Adresse verschickt. Die E-Mail-Adresse kann nur vom Admin-Account in der Datenbank verändert werden. Der Key wird _nicht_ als Plaintext in der Datenbank gespeichert, sondern randonmässig gesaltet und gehashed und sind vom Betreiber nicht einsehbar. 
+
+**Achtung:** Sie sind ggf. in den Log-Messages des E-Mail-Dienstes sichtbar.
+
 
 Wenn die Organisation selber einen neuen API-Key erstellen will, reicht gleiche Befehl ohne Angabe der Organisation:
 
@@ -196,9 +199,16 @@ Connection: close
 
 Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmässig neue Keys angefordert werden.
 
-## Endbenutzer (Datenempfänger)
+## Endablage
 
 Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben.
 
-## Autorisierung
-... modell
+## Autorisierung / Konfiguration
+
+Für die Autorisierung und Konfiguration wurde ein INTERLIS-Modell `SO_AGI_Datahub_Config_20240403` erstellt:
+
+![authorization-model](./images/authorization-model.png)
+
+Die Nachführung dieser Informationen wird nicht über die datahub-Anwendung gemacht, sondern von der Admin-Organisation direkt in den DB-Tabellen mit z.B. _dbeaver_.
+
+Jedes Thema hat einen optionalen `config`- und `metaConfig`-Eintrag. Dabei handelt es sich um die ID der Konfiguration in einem ilidata-Repository. Denkbar ist, dass auch Operate optinale Einträge erhalten, die einen Thema-Eintrag überschreiben würden.
