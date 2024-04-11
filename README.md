@@ -28,7 +28,7 @@ Siehe [Betriebshandbuch](docs/admin-manual-de.md).
 
 ## Externe Abhängigkeiten
 
-Keine.
+- SMTP-Server
 
 ## Konfiguration und Betrieb in der GDI
 

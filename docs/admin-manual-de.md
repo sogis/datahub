@@ -1,10 +1,104 @@
-# Benutzerhandbuch
+# Betriebshandbuch
+
+## Abhängigkeiten
+
+Der Betrieb der Anwendung erfordert eine vorhandene PostgreSQL-Datenbank und ein Filesystem.
+
+### Datenbank
+
+Die Datenbank wird für die Autorisierung und für das Registrieren (aka Logging) der Datenlieferungen verwendet. Die verwendete Bibliothek für die Jobqueue benötigt ebenfalls eine Datenbank zum Tracken der Jobs. Für die ersten beiden fälle wurde je ein INTERLIS-Datenmodell geschrieben:
+
+- `SO_AGI_Datahub_Config_20240403`: Autorisierung
+- `SO_AGI_Datahub_Log_20240403`: Logging
+
+Die zwei Datenbankschemen können mit _ili2pg_ erzeugt werden:
+
+```
+java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --defaultSrsCode 2056 --createGeomIdx  --createFk --createFkIdx --createEnumTabs --createMetaInfo --nameByTopic --strokeArcs --createUnique --createNumChecks --createTextChecks --createDateTimeChecks --createImportTabs --createUnique --dbschema agi_datahub_config_v1 --models SO_AGI_Datahub_Config_20240403 --schemaimport
+```
+
+```
+java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --defaultSrsCode 2056 --createGeomIdx  --createFk --createFkIdx --createEnumTabs --createMetaInfo --nameByTopic --strokeArcs --createUnique --createNumChecks --createTextChecks --createDateTimeChecks --createImportTabs --createUnique --dbschema agi_datahub_log_v1 --models SO_AGI_Datahub_Log_20240403 --schemaimport
+```
+
+_Jobrunr_ (die Jobqueue-Bibliothek) erzeugt das DDL entweder automatisch (z.B. während der Entwicklung) oder man kann mit einem Java-Tool die SQL-Dateien selber herstellen. Dazu müssen die beiden Jar-Dateien `jobrunr-6.3.4.jar` und `slf4j-api-2.0.12.jar` heruntergeladen werden. 
+
+```
+java -cp jobrunr-6.3.4.jar:slf4j-api-2.0.12.jar org.jobrunr.storage.sql.common.DatabaseSqlMigrationFileProvider postgres agi_datahub_jobrunr_v1.
+```
+
+**Achtung:** Der Punkt am Ende des Schemanamens ist zwingend notwendig.
+
+Die Inbetriebname in die GDI-SO ist im [Kapitel Konfiguration GDI](#Konfiguration-GDI) beschrieben.
+
+### Filesystem
+
+Es wird ein Filesystem für das temporäre Speichern der Dateien (während der Anlieferungsphase) und ein Zielverzeichnis für das Ablegen der Daten nach erfolgreicher Validierung benötigt. In einer geclusterten Umgebung müssen sämtliche Nodes (o.ä.) Zugriff auf das gleiche Filesystem haben. Die beiden Verzeichnisse sind als Option exponiert.
+
+### SMTP-Server
+
+Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die notwendigen Einstellungen sind als Optionen exponiert. Die Optionen müssen gesetzt werden, sonst kann die Anwendung nicht gestartet werden. Es können jedoch auch Fantisiewerte eingesetzt werden. Dies führt zu einer Exception auf dem Server. Die Anlieferung kann trotzdem erfolgen, nur erhält der Lieferant keine E-Mail.
+
+## Optionen
+
+| Name | Beschreibung | Standard |
+|-----|-----|-----|
+| `MAX_FILE_SIZE` | Die maximale Grösse einer Datei, die hochgeladen werden kann in Megabyte. | `200` |
+| `LOG_LEVEL` | Das Logging-Level des Spring Boot Frameworks. | `INFO` |
+| `LOG_LEVEL_DB_CONNECTION_POOL` | Das Logging-Level des DB-Connection-Poolsocket. | `INFO` |
+| `LOG_LEVEL_CAYENNE` | Das Logging-Level der ORM-Bibliothek. | `WARN` |
+| `LOG_LEVEL_APPLICATION` | Das Logging-Level der Anwendung (= selber geschriebener Code). | `INFO` |
+| `TOMCAT_THREADS_MAX` | Maximale Anzahl Threads, welche die Anwendung gleichzeitig bearbeitet. Muss abgestimmt sein mit der Anwendungscharakteristik (z.B. lange DB-Queries) und der Anzahl DB-Connections im Pool. | `5` |
+| `TOMCAT_ACCEPT_COUNT` | Maximale Grösser der Queue, falls keine Threads mehr verfügbar. | `50` |
+| `TOMCAT_MAX_CONNECTIONS` | Maximale Threads des Servers. | `200` |
+| `HIKARI_MAX_POOL_SIZE` | Grösse des DB-Connections-Pools | `5` |
+| `DBURL` | JDBC-Url für die Datenbank | `jdbc:postgresql://localhost:54321/edit` |
+| `DBUSR` | Datenbankbenutzer | `postgres` |
+| `DBPWD` | Datenbankpasswort | `secret` |
+| `JOBRUNR_SERVER_ENABLED` | Dient die Instanz als sogenannter Background-Jobserver, d.h. werden mittels REST-API hochgeladene INTERLIS-Transferdateien validiert. Wird nur eine Instanz betrieben, muss die Option zwingend `true` sein, da sonst der Job nicht ausgeführt wird. | `true` |
+| `JOBRUNR_POLL_INTERVAL` | Es wird im Intervall (in Sekunden) nach neuen Validierungsjobs geprüft. | `10` |
+| `JOBRUNR_WORKER_COUNT` | Anzahl Jobs, die in einem "Worker"/Background-Server gleichzeitig durchgeführt werden können. Im Prinzip nicht sehr relevant, da der Validierungsjob synchronisiert ist (nicht thread safe). | `1` |
+| `JOBRUNR_DASHBOARD_ENABLED` | Das Jobrunr-Dashboard wird auf dem Port 8000 gestartet. | `false` |
+| `JOBRUNR_DASHBOARD_USER` | Username für Jobrunr-Dasboard. Achtung: Basic Authentication. | `admin` |
+| `JOBRUNR_DASHBOARD_PWD` | Passwort für Jobrunr-Dasboard. Achtung: Basic Authentication. | `admin` |
+| `JOBRUNR_DB_SCHEMA` | Schemanamen für Jobrunr-Tabellen und -views. Abschliessender Punkt ist zwingend. | `agi_datahub_jobrunr_v1.` |
+| `MAIL_HOST` | SMTP-Host. | `smtp.elasticemail.com` |
+| `MAIL_PORT` | SMTP-Port. | `2525` |
+| `MAIL_USERNAME` | Benutzername / Absender der E-Mail. | |
+| `MAIL_PASSWORD` | E-Mail-Passwort. | |
+| `MAIL_SMTP_AUTH` | - | `true` |
+| `MAIL_SMTP_STARTTLS` | - | `true` |
+| `CONFIG_DB_SCHEMA` | Schemanamen für die Autorisierungstabellen.  | `agi_datahub_config_v1` |
+| `LOG_DB_SCHEMA` | Schemanamen für die Logtabellen | `agi_datahub_log_v1` |
+| `JOB_RESPONSE_LIST_LIMIT` | Anzahl der Lieferungen, die zurückgeliefert werden sollen. Betrifft REST-API (`/api/jobs`) und GUI (`/web/jobs.xhtml`) | `300` |
+| `API_KEY_HEADER_NAME` | Name des API-Key-Headers. | `X-API-KEY` |
+| `ADMIN_ACCOUNT_INIT` | Soll beim Starten der Anwendung eine Admin-Organisation im Autorisierungschema erstellt werden? Fall bereits eine Organisation mit gleichem Namen vorhanden ist, wird nichts gemacht. Der API-Key wird einmalig nach Stdout geloggt. | `true` |
+| `ADMIN_ACCOUNT_NAME` | Name der Admin-Organisation | `AGI SO` |
+| `ADMIN_ACCOUNT_MAIL` | E-Mail-Adresse der Admin-Organisation | `stefan.ziegler@bd.so.ch` |
+| `WORK_DIRECTORY` | Verzeichnis, in das die hochgeladenen Dateien temporär gespeichter werden. | `/Users/stefan/tmp/` |
+| `FOLDER_PREFIX` | Prefix für das pro Anlieferung temporär erstellt Verzeichnis im `WORK_DIRECTORY` | `datahub_` |
+| `TARGET_DIRECTORY` | Zielverzeichnis, in das erfolgreich geprüfte Daten gespeichert werden. Nicht vorhandene Themenverzeichnisse werden erstellt. | `/Users/stefan/tmp/target_datahub/` |
+| `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
+| `CLEANER_ENABLED` | Soll der Cronjob, welcher veraltete Daten aus dem  `WORK_DIRECTORY` löscht, eingeschaltet werden. | `true` |
+
+
+Beispiel mit docker-compose. DB etc. secrets?
+
+
+## Autorisierung
+
+## Cluster
+
+## Konfiguration GDI
+
+- DB/DDL: Mit Andi diskutieren
+- Email
 
 Aus Benutzersicht wird der Datahub hauptsächlich mittels REST-API verwendet. Die Authentifizerung der meisten Operationen der API erfolgt über einen API-Key. Die Autorisierung über die dem Key zugeordnete Organisation und der Organisation zugewiesenen Operate (`operat=xxxx`) eines Themas (`theme=yyyyy`).
 
 ## Daten anliefern
 
-Anlieferung des Operates `2471` des Themas `IPW_2020`. Der Dateiname `2471_gep.xtf` kann frei gewählt werden und muss keiner Logik folgen. Die Datei darf nicht gezippt sein:
+Anlieferung des Operates `2471` des Themas `IPW_2020`. Der Dateiname `2471_gep.xtf` kann frei gewählt werden und muss keiner Logik folgen:
 
 ```
 curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" -F 'file=@2471_gep.xtf' -F 'theme=IPW_2020' -F 'operat=2471' https://geo.so.ch/datahub/api/deliveries
@@ -57,8 +151,6 @@ Die Attribute haben folgende Bedeutung:
 - `logFileLocation`: URL des Logfiles. Insbesondere bei einer nicht erfolgreichen Prüfung zwecks Fehlerkorrektur notwendig.
 
 Nach Beendigung des Jobs wird eine E-Mail verschickt. Im E-Mail-Betreff stehen der `validationStatus` sowie Operats- und Themenname. 
-
-**Achtung:** Nach einer erfolgreichen Validierung werden die Daten mit der Logdatei in ein Zielverzeichnis kopiert. Bereits vorhandene Operate werden überschrieben.
 
 Für eine rasche Gesamtübersicht steht eine Webseite mit einer Tabelle sämtlicher Jobs zur Verfügung: https://geo.so.ch/datahub/web/jobs.xhtml. Es wird keine Authentisierung benötigt. Verschiedene Attribute (z.B. Organisation) könnten gefiltert werden.
 
@@ -196,9 +288,4 @@ Connection: close
 
 Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmässig neue Keys angefordert werden.
 
-## Endbenutzer (Datenempfänger)
 
-Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben.
-
-## Autorisierung
-... modell
