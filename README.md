@@ -150,8 +150,10 @@ curl -i -X POST --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http:/
 ```
 
 ```
-curl -i -X DELETE --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http://localhost:8080/api/keys/5b4fd340-adbb-441a-b9c3-e1d2f13cb1e0
+curl -i -X DELETE --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http://localhost:8080/api/keys/085abd5b-c420-4540-9cef-728d94f73502
 ```
+
+
 
 ```
 curl -i -X DELETE --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http://localhost:8080/api/keys/e2b76dce-5160-429b-96ec-0c64ed7c5027
