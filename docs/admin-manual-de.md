@@ -31,6 +31,20 @@ java -cp jobrunr-6.3.4.jar:slf4j-api-2.0.12.jar org.jobrunr.storage.sql.common.D
 
 Die Inbetriebname in die GDI-SO ist im [Kapitel Konfiguration GDI](#Konfiguration-GDI) beschrieben.
 
+Es steht ein _jbang_-Skript zur Verfügung, das die SQL-DDL-Skripte vollständig erzeugt und vom DB-Admin anschliessend verwendet werden können, um alle Schemen und Tabelle anzulegen:
+
+```
+jbang create_schema_sql.java
+```
+
+Oder falls _jbang_ nicht vorhanden ist:
+
+```
+curl -Ls https://sh.jbang.dev | bash -s - create_schema_sql.java
+```
+
+Die Schemanamen und Rollennamen sind hardcodiert im Quellcode.
+
 ### Filesystem
 
 Es wird ein Filesystem für das temporäre Speichern der Dateien (während der Anlieferungsphase) und ein Zielverzeichnis für das Ablegen der Daten nach erfolgreicher Validierung benötigt. In einer geclusterten Umgebung müssen sämtliche Nodes (o.ä.) Zugriff auf das gleiche Filesystem haben. Die beiden Verzeichnisse sind als Option exponiert.

@@ -55,9 +55,23 @@ Besonderheiten:
 - UUID-Datentyp hat Probleme gemacht und wurde mit `TEXT*36` umgesetzt.
 - Bei Views muss darauf geachtet werden, dass Cayenne nicht zu grosse VARCHAR-Typen interpretiert. Dies führt zu einem Fehler und ist nachvollziehbar und einsehbar in der `datamap.map.xml`-Datei: `VARCHAR(123456789123456)` (nicht genau so, aber einfach zu gross). Damit das nicht vorkommt, muss man in der View-Definition explizit die Länge von Text-Attributen setzen.
 
+### Jbang-Skript
+
+Das _jbang_-Skript dient zum Erstellen der DDL-SQL-Skripte, die v.a. in der Produktion verwendet werden können.
+
+```
+jbang edit -b create_schema_sql.java
+```
+
+Mit der Option `-b` wird es in einer Sandbox ausgeführt. Das ist zwingend notwendig, wenn _VSCodium_ irritiert ist wegen vorhandener build.gradle-Dateien.
+
+```
+jbang create_schema_sql.java
+```
+
 ### Testrequests
 
-#### Admin-Account
+#### Admin-Account
 
 Testrequest auf geschützten Endpunkt:
 
