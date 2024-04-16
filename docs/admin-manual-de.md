@@ -57,6 +57,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 
 | Name | Beschreibung | Standard |
 |-----|-----|-----|
+| `TZ` | Zeitzone des Linux-Betriebssystems. Muss auf `Europe/Zurich` gesetzt werden, falls Cluster eine andere Zeitzone verwendet. | |
 | `MAX_FILE_SIZE` | Die maximale Grösse einer Datei, die hochgeladen werden kann in Megabyte. | `200` |
 | `LOG_LEVEL` | Das Logging-Level des Spring Boot Frameworks. | `INFO` |
 | `LOG_LEVEL_DB_CONNECTION_POOL` | Das Logging-Level des DB-Connection-Poolsocket. | `INFO` |
