@@ -57,7 +57,7 @@ Besonderheiten:
 
 ### Jbang-Skript
 
-Das _jbang_-Skript dient zum Erstellen der DDL-SQL-Skripte, die v.a. in der Produktion verwendet werden können.
+Das _jbang_-Skript dient zum Erstellen der DDL-SQL-Skripte, die v.a. auch in der Produktion verwendet werden können.
 
 ```
 jbang edit -b create_schema_sql.java

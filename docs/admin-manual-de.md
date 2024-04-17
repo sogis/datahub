@@ -106,16 +106,5 @@ Idealerweise wird _datahub_ in einem einfachen Cluster betrieben. Eine Instanz i
 
 ## Konfiguration GDI
 
-**TODO**: Eventuell zügeln nach sogis/dox.
+Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md)
 
-### E-Mail
-
-Es können die gleichen Werte wie bei z.B. Jenkins verwendet werden. Als `MAIL_USERNAME` wird `datahub-noreply@bd.so.ch` verwendet. Das Passwort kann leer bleiben. `MAIL_SMTP_AUTH` und `MAIL_SMTP_STARTTLS` müssen `false` sein.
-
-### DB-Schemas
-
-- DB/DDL: Mit Andi diskutieren
-
-### Volumes
-
-...
