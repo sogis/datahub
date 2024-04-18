@@ -29,7 +29,6 @@ import org.jobrunr.storage.sql.common.migrations.RunningOnJava11OrLowerWithinFat
 import org.jobrunr.storage.sql.common.migrations.SqlMigration;
 import org.jobrunr.storage.sql.common.migrations.SqlMigrationProvider;
 import org.jobrunr.storage.sql.common.tables.AnsiDatabaseTablePrefixStatementUpdater;
-import org.jobrunr.storage.sql.common.tables.NoOpTablePrefixStatementUpdater;
 import org.jobrunr.storage.sql.common.tables.TablePrefixStatementUpdater;
 import org.jobrunr.storage.sql.postgres.PostgresStorageProvider;
 import org.jobrunr.utils.RuntimeUtils;
@@ -44,6 +43,8 @@ public class create_schema_sql {
     private static final String DB_SCHEMA_CONFIG = "agi_datahub_config_v1";
     private static final String DB_SCHEMA_LOG = "agi_datahub_log_v1";
     private static final String DB_SCHEMA_JOBRUNR = "agi_datahub_jobrunr_v1";
+
+    private static final String DB_APP_USER = "datahub";
 
     private static final Map<String,String> iliSchemas = Map.of(
             DB_SCHEMA_CONFIG, "SO_AGI_Datahub_Config_20240403", 
@@ -89,11 +90,12 @@ public class create_schema_sql {
             Ili2db.run(config, null);
 
             String content = new String(Files.readAllBytes(Paths.get(fileName)));
-            contentBuilder.append(content);
+            contentBuilder.append(content);        
         }
 
         // Jobrunr-Schema und -Tabellen erzeugen
-        contentBuilder.append("CREATE SCHEMA IF NOT EXIST " + DB_SCHEMA_JOBRUNR + ";");
+        contentBuilder.append("\n");
+        contentBuilder.append("CREATE SCHEMA IF NOT EXISTS " + DB_SCHEMA_JOBRUNR + ";");
 
         Class<? extends SqlStorageProvider> sqlStorageProviderClass = databaseTypes.get("postgres");
         DatabaseMigrationsProvider databaseMigrationsProvider = new DatabaseMigrationsProvider(sqlStorageProviderClass);
@@ -123,6 +125,15 @@ public class create_schema_sql {
             Files.delete(migrationFile);
         }
 
+        contentBuilder.append("\n");
+        contentBuilder.append("COMMENT ON SCHEMA "+DB_SCHEMA_JOBRUNR+" IS 'Schema für Jobrunr';");
+        contentBuilder.append("\n");
+        contentBuilder.append("GRANT USAGE ON SCHEMA "+DB_SCHEMA_JOBRUNR+" TO datahub;");
+        contentBuilder.append("\n");
+        contentBuilder.append("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "+DB_SCHEMA_JOBRUNR+" TO datahub;");
+        contentBuilder.append("\n");
+        contentBuilder.append("GRANT USAGE ON ALL SEQUENCES IN SCHEMA "+DB_SCHEMA_JOBRUNR+" TO datahub;");
+
         // View-Definition aus Datei lesen und hinzufügen
         String viewSql = Files.readString(Paths.get("view.sql"))
             .replace("${DB_SCHEMA_CONFIG}", DB_SCHEMA_CONFIG)
@@ -130,11 +141,27 @@ public class create_schema_sql {
             .replace("${DB_SCHEMA_JOBRUNR}", DB_SCHEMA_JOBRUNR);
         contentBuilder.append("\n").append(viewSql);
 
-        // TODO
-        String outputFile = Paths.get(tempDir, "setup_tmp.sql").toString();
-        FileOutputStream tmpFos = new FileOutputStream(outputFile);
-        tmpFos.write(contentBuilder.toString().getBytes());
-        tmpFos.close();
+        // Rechte für datahub user setzen. Kann erst nach View-Definition gemacht werden.
+        for (Map.Entry<String, String> entry : iliSchemas.entrySet()) {
+            String schema = entry.getKey();
+
+            contentBuilder.append("\n");
+            contentBuilder.append("COMMENT ON SCHEMA "+schema+" IS 'Schema für Datahub';");
+            contentBuilder.append("\n");
+            contentBuilder.append("GRANT USAGE ON SCHEMA "+schema+" TO datahub;");
+            contentBuilder.append("\n");
+            contentBuilder.append("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "+schema+" TO datahub;");
+            contentBuilder.append("\n");
+            contentBuilder.append("GRANT USAGE ON ALL SEQUENCES IN SCHEMA "+schema+" TO datahub;");
+        }
+
+
+
+        //String outputFile = Paths.get(tempDir, "setup_gdi.sql").toString();
+        String outputFile = Paths.get( "setup_gdi.sql").toString();
+        FileOutputStream fos = new FileOutputStream(outputFile);
+        fos.write(contentBuilder.toString().getBytes());
+        fos.close();
         System.err.println(outputFile);
     }
 
