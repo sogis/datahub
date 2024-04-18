@@ -43,7 +43,7 @@ Oder falls _jbang_ nicht vorhanden ist:
 curl -Ls https://sh.jbang.dev | bash -s - create_schema_sql.java
 ```
 
-Die Schemanamen und Rollennamen sind hardcodiert im Quellcode.
+Die Schemanamen und Rollennamen sind hardcodiert im Quellcode. Im Repository ist eine `setup_gdi.sql`-Datei bereits eingecheckt.
 
 ### Filesystem
 
