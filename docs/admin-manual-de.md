@@ -77,6 +77,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `JOBRUNR_DASHBOARD_USER` | Username für Jobrunr-Dasboard. Achtung: Basic Authentication. | `admin` |
 | `JOBRUNR_DASHBOARD_PWD` | Passwort für Jobrunr-Dasboard. Achtung: Basic Authentication. | `admin` |
 | `JOBRUNR_DB_SCHEMA` | Schemanamen für Jobrunr-Tabellen und -views. Abschliessender Punkt ist zwingend. | `agi_datahub_jobrunr_v1.` |
+| `JOBRUNR_SKIP_CREATE` | Sollen die Jobrunr-Tabellen automatisch erstellt werden? | `false` |
 | `MAIL_HOST` | SMTP-Host. | `smtp.elasticemail.com` |
 | `MAIL_PORT` | SMTP-Port. | `2525` |
 | `MAIL_USERNAME` | Benutzername / Absender der E-Mail. | |
