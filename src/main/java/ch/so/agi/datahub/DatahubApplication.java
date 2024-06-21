@@ -29,6 +29,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 
@@ -71,6 +72,11 @@ public class DatahubApplication {
 //        }
     }
 
+    @Bean
+    ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
+    }
+    
     @Bean
     ObjectContext objectContext() {        
         ServerRuntime cayenneRuntime = ServerRuntime.builder()

@@ -8,7 +8,7 @@ Die Authentifizierung und Autorisierung ist mit Spring Security umgesetzt. Nach 
 
 Speziell autorisiert mittels Spring-Filter-Implementierung wird nur der Delivery-Request. Die Key-Requests werden entweder (neuer Key) nicht autorisiert (da die anfordernde Organisation einen neuen Key bekommt) oder implizt (beim Löschen): Es kann nur gelöscht werden, wenn der zu löschende Key der gleichen Organisation wie der Key im Request-Header zugewiesen ist.
 
-Die Keys werden randonmässig gesaltet und gehashed in der Datenbank abgespeichert.
+Die Keys werden randommässig gesaltet und gehashed in der Datenbank abgespeichert.
 
 Job-Requests sind nicht authentifiziert.
 
@@ -22,7 +22,7 @@ Das Frontend (die Jobübersicht) ist mit Jakarta Faces umgesetzt (Joinfaces und 
 
 ### Datenbank
 
-Es müssen mit _ili2pg_ das Autorisierungsschema und das Logschema erstellt werden. Siehe dazu Betriebshandbuch. Die Tabellen für Jobrunr werden bei genügender Berechtigung des Datenbankusers beim Starten der Anwendung selberständig erstellt. Das Schema muss jedoch bereits vorhanden sein. Erstmalig muss es manuell erstellt werden:
+Es müssen mit _ili2pg_ das Autorisierungsschema und das Logschema erstellt werden. Siehe dazu Betriebshandbuch. Die Tabellen für Jobrunr werden bei genügender Berechtigung des Datenbankusers und beim Setzen der Konfiguration `org.jobrunr.database.skip-create` resp. `JOBRUNR_SKIP_CREATE` auf `false` beim Starten der Anwendung selbständig erstellt. Das Schema muss jedoch bereits vorhanden sein. Erstmalig muss es manuell erstellt werden:
 
 ```
 CREATE SCHEMA IF NOT EXISTS agi_datahub_jobrunr_v1;
