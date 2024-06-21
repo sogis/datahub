@@ -71,11 +71,6 @@ public class DatahubApplication {
 //            System.out.println(beanName);
 //        }
     }
-
-//    @Bean
-//    ForwardedHeaderFilter forwardedHeaderFilter() {
-//        return new ForwardedHeaderFilter();
-//    }
     
     @Bean
     ObjectContext objectContext() {        
