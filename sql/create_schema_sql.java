@@ -155,7 +155,17 @@ public class create_schema_sql {
             contentBuilder.append("GRANT USAGE ON ALL SEQUENCES IN SCHEMA "+schema+" TO datahub;");
         }
 
-
+        contentBuilder.append("CREATE ROLE datahub_read;");
+        contentBuilder.append("GRANT USAGE ON SCHEMA " + DB_SCHEMA_CONFIG + " TO datahub_read;");
+        contentBuilder.append("GRANT SELECT ON ALL TABLES IN SCHEMA " + DB_SCHEMA_CONFIG + " TO datahub_read;");
+        contentBuilder.append("GRANT USAGE ON SCHEMA " + DB_SCHEMA_LOG + " TO datahub_read;");
+        contentBuilder.append("GRANT SELECT ON ALL TABLES IN SCHEMA " + DB_SCHEMA_LOG + " TO datahub_read;");
+        contentBuilder.append("GRANT USAGE ON SCHEMA " + DB_SCHEMA_JOBRUNR + " TO datahub_read;");
+        contentBuilder.append("GRANT SELECT ON ALL TABLES IN SCHEMA " + DB_SCHEMA_JOBRUNR + " TO datahub_read;");
+        contentBuilder.append("CREATE ROLE datahub_write;");
+        contentBuilder.append("GRANT USAGE ON SCHEMA " + DB_SCHEMA_CONFIG + "  TO datahub_write;");
+        contentBuilder.append("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA " + DB_SCHEMA_CONFIG + " TO datahub_write;");
+        contentBuilder.append("GRANT USAGE ON ALL SEQUENCES IN SCHEMA " + DB_SCHEMA_CONFIG + " TO datahub_write;");
 
         //String outputFile = Paths.get(tempDir, "setup_gdi.sql").toString();
         String outputFile = Paths.get( "setup_gdi.sql").toString();
