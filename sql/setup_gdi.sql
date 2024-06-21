@@ -996,3 +996,20 @@ COMMENT ON SCHEMA agi_datahub_log_v1 IS 'Schema für Datahub';
 GRANT USAGE ON SCHEMA agi_datahub_log_v1 TO datahub;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA agi_datahub_log_v1 TO datahub;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA agi_datahub_log_v1 TO datahub;
+
+CREATE ROLE datahub_read;
+
+GRANT USAGE ON SCHEMA agi_datahub_config_v1 TO datahub_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA agi_datahub_config_v1 TO datahub_read;
+
+GRANT USAGE ON SCHEMA agi_datahub_log_v1 TO datahub_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA agi_datahub_log_v1 TO datahub_read;
+
+GRANT USAGE ON SCHEMA agi_datahub_jobrunr_v1 TO datahub_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA agi_datahub_jobrunr_v1 TO datahub_read;
+
+CREATE ROLE datahub_write;
+
+GRANT USAGE ON SCHEMA agi_datahub_config_v1 TO datahub_write;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA agi_datahub_config_v1 TO datahub_write;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA agi_datahub_config_v1 TO datahub_write;
