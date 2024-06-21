@@ -120,7 +120,8 @@ Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbes
 - DELETE:
   - "/api/keys/{apiKey}"
 
-### Statuscodes
+
+### Statuscode
 
 - 200
 - 202
@@ -128,6 +129,7 @@ Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbes
 - 403
 
 ### Varia
+
 - Dateigrössen bis 200 MB müssen hochgeladen werden können.
 
 ## Cluster
