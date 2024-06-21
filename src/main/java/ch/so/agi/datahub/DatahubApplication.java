@@ -72,10 +72,10 @@ public class DatahubApplication {
 //        }
     }
 
-    @Bean
-    ForwardedHeaderFilter forwardedHeaderFilter() {
-        return new ForwardedHeaderFilter();
-    }
+//    @Bean
+//    ForwardedHeaderFilter forwardedHeaderFilter() {
+//        return new ForwardedHeaderFilter();
+//    }
     
     @Bean
     ObjectContext objectContext() {        
