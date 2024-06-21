@@ -120,6 +120,9 @@ Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbes
 - DELETE:
   - "/api/keys/{apiKey}"
 
+### Header
+
+- "X-API-KEY" muss von WAF etc. weitergeleitet werden.
 
 ### Statuscode
 
