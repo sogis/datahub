@@ -101,6 +101,35 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 
 Siehe [Benutzerhandbuch](user-manual-de.md) -> Autorisierung / Konfiguration
 
+## Rest-API
+
+Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbesondere die Statuscodes müssen transparent dem Benutzer transparent zurückgeliefert werden.
+
+### Befehle
+
+- GET:
+  - "/api/jobs"
+  - "/api/jobs/{jobId}"
+  - "/api/logs/{jobId}"
+  - "/ping"
+  - "/protected/hello"
+  - "/public/hello"
+- POST:
+  - "/api/deliveries"
+  - "/api/keys"
+- DELETE:
+  - "/api/keys/{apiKey}"
+
+### Statuscodes
+
+- 200
+- 202
+- 401
+- 403
+
+### Varia
+- Dateigrössen bis 200 MB müssen hochgeladen werden können.
+
 ## Cluster
 
 Idealerweise wird _datahub_ in einem einfachen Cluster betrieben. Eine Instanz ist verantworlich für die Entgegennahme der Dateien und die Jobqueue. Mindestens eine zweite Instanz ist für das Abbarbeiten der Jobs aus der Jobqueue zuständig. Somit verhindert man, dass eine hohe Joblast auf die Kommunikation mit dem Benutzer negativen Einfluss hat. Es können beliebig viele "Worker"-Instanzen hochgefahren werden. Diese müssten nicht im Internet exponiert werden. Sie müssen lediglich Zugriff auf die Datenbank haben und das gleiche Filesystem (Volume) teilen (Optionen `WORK_DIRECTORY` und `TARGET_DIRECTORY`)
