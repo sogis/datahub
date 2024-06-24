@@ -65,7 +65,7 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           context: .
-          file: Dockerfile
+          file: Dockerfile.ubi
           labels: ${{ steps.meta.outputs.labels }}
           pull: true
           push: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') && !env.ACT }}
