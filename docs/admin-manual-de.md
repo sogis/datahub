@@ -91,7 +91,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `ADMIN_ACCOUNT_INIT` | Soll beim Starten der Anwendung eine Admin-Organisation im Autorisierungschema erstellt werden? Fall bereits eine Organisation mit gleichem Namen vorhanden ist, wird nichts gemacht. Der API-Key wird einmalig nach Stdout geloggt. | `true` |
 | `ADMIN_ACCOUNT_NAME` | Name der Admin-Organisation | `AGI SO` |
 | `ADMIN_ACCOUNT_MAIL` | E-Mail-Adresse der Admin-Organisation | `stefan.ziegler@bd.so.ch` |
-| `WORK_DIRECTORY` | Verzeichnis, in das die hochgeladenen Dateien temporär gespeichter werden. | `/Users/stefan/tmp/` |
+| `WORK_DIRECTORY` | Verzeichnis, in das die hochgeladenen Dateien temporär gespeichtert werden. | `/Users/stefan/tmp/` |
 | `FOLDER_PREFIX` | Prefix für das pro Anlieferung temporär erstellt Verzeichnis im `WORK_DIRECTORY` | `datahub_` |
 | `TARGET_DIRECTORY` | Zielverzeichnis, in das erfolgreich geprüfte Daten gespeichert werden. Nicht vorhandene Themenverzeichnisse werden erstellt. | `/Users/stefan/tmp/target_datahub/` |
 | `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
