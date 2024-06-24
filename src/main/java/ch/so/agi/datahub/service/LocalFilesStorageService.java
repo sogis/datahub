@@ -39,8 +39,7 @@ public class LocalFilesStorageService implements FilesStorageService {
 
         try {
             Files.createDirectories(fileDirectoryPath); // does not throw exception if directory exists
-            Files.copy(is, fileDirectoryPath.resolve(fileName), StandardCopyOption.REPLACE_EXISTING
-                    );
+            Files.copy(is, fileDirectoryPath.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
         } catch (Exception e) {
             e.printStackTrace();
             throw new IOException();

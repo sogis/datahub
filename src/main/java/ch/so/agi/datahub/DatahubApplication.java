@@ -1,5 +1,8 @@
 package ch.so.agi.datahub;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -46,6 +49,15 @@ public class DatahubApplication {
     @Value("${app.adminAccountMail}")
     private String adminAccountMail;
 
+    @Value("${app.workDirectory}")
+    private String workDirectory;
+
+    @Value("${app.targetDirectory}")
+    private String targetDirectory;
+
+    @Value("${app.createDirectories}")
+    private boolean createDirectories;
+
     @Autowired 
     private DataSource dataSource;
     
@@ -89,27 +101,39 @@ public class DatahubApplication {
 
                 if (existingOrg != null) {
                     logger.warn("Account name '{}' already exists.", adminAccountName);
-                    return;
+                } else {
+                    CoreOrganisation coreOrganisation = objectContext.newObject(CoreOrganisation.class);
+                    coreOrganisation.setAname(adminAccountName);
+                    coreOrganisation.setArole(AppConstants.ROLE_NAME_ADMIN);
+                    coreOrganisation.setEmail(adminAccountMail);
+                    
+                    String apiKey = UUID.randomUUID().toString();
+                    String encodedApiKey = encoder().encode(apiKey);
+                    
+                    CoreApikey coreApiKey = objectContext.newObject(CoreApikey.class);
+                    coreApiKey.setApikey(encodedApiKey);
+                    coreApiKey.setCreatedat(LocalDateTime.now());
+                    coreApiKey.setCoreOrganisation(coreOrganisation);
+                    
+                    objectContext.commitChanges();
+                    
+                    logger.warn("************************************************************");
+                    logger.warn(apiKey);
+                    logger.warn("************************************************************");
                 }
-
-                CoreOrganisation coreOrganisation = objectContext.newObject(CoreOrganisation.class);
-                coreOrganisation.setAname(adminAccountName);
-                coreOrganisation.setArole(AppConstants.ROLE_NAME_ADMIN);
-                coreOrganisation.setEmail(adminAccountMail);
-                
-                String apiKey = UUID.randomUUID().toString();
-                String encodedApiKey = encoder().encode(apiKey);
-                
-                CoreApikey coreApiKey = objectContext.newObject(CoreApikey.class);
-                coreApiKey.setApikey(encodedApiKey);
-                coreApiKey.setCreatedat(LocalDateTime.now());
-                coreApiKey.setCoreOrganisation(coreOrganisation);
-                
-                objectContext.commitChanges();
-                
-                logger.warn("************************************************************");
-                logger.warn(apiKey);
-                logger.warn("************************************************************");
+            }
+            
+            // Create work and target directory.
+            // Application user must have permissions to do so.
+            if (createDirectories) {
+                try {
+                    Files.createDirectories(Paths.get(workDirectory));
+                    Files.createDirectories(Paths.get(targetDirectory));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    logger.error(e.getMessage());
+                    throw new Exception(); // Shuts down application.
+                }                
             }
         };
     }

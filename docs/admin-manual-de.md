@@ -94,6 +94,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `WORK_DIRECTORY` | Verzeichnis, in das die hochgeladenen Dateien temporär gespeichtert werden. | `/Users/stefan/tmp/` |
 | `FOLDER_PREFIX` | Prefix für das pro Anlieferung temporär erstellt Verzeichnis im `WORK_DIRECTORY` | `datahub_` |
 | `TARGET_DIRECTORY` | Zielverzeichnis, in das erfolgreich geprüfte Daten gespeichert werden. Nicht vorhandene Themenverzeichnisse werden erstellt. | `/Users/stefan/tmp/target_datahub/` |
+| `CREATE_DIRECTORIES` | Die Anwendung versucht beim Starten die beiden Verzeichnisse `WORK_DIRECTORY` und `TARGET_DIRECTORY` zu erstellen. | `true` |
 | `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
 | `CLEANER_ENABLED` | Soll der Cronjob, welcher veraltete Daten aus dem  `WORK_DIRECTORY` löscht, eingeschaltet werden. | `true` |
 
