@@ -3,6 +3,8 @@ package ch.so.agi.datahub.auth;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -46,15 +48,18 @@ public class RevokeApiKeyFilter extends OncePerRequestFilter {
     
     final String headerName;
     
+    String[] httpWhitelistArray;
+    
     ResourceBundle resourceBundle;
     
     public RevokeApiKeyFilter(final String headerName, ObjectContext objectContext, PasswordEncoder encoder,
-            EmailService emailService, ObjectMapper mapper, ResourceBundle resourceBundle) {
+            EmailService emailService, ObjectMapper mapper, String[] httpWhitelistArray, ResourceBundle resourceBundle) {
         this.headerName = headerName;
         this.objectContext = objectContext;
         this.encoder = encoder;
         this.emailService = emailService;
         this.mapper = mapper;
+        this.httpWhitelistArray = httpWhitelistArray;
         this.resourceBundle = resourceBundle;
     }
     
@@ -64,9 +69,11 @@ public class RevokeApiKeyFilter extends OncePerRequestFilter {
         String host = ServletUriComponentsBuilder.fromCurrentRequest().build().getHost();
         String proto = ServletUriComponentsBuilder.fromCurrentRequest().build().getScheme();
         String key = request.getHeader(headerName);
-
+        
+        List<String> httpWhitelist = Arrays.asList(httpWhitelistArray);
+        
         if (key != null) {
-            if (proto.equalsIgnoreCase("http") && !host.equalsIgnoreCase("localhost")) {                
+            if (proto.equalsIgnoreCase("http") && !httpWhitelist.contains(host)) {                
                 List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
                         .where(CoreApikey.REVOKEDAT.isNull())
                         .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))

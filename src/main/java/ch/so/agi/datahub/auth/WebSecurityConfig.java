@@ -31,9 +31,9 @@ public class WebSecurityConfig {
     @Value("${app.apiKeyHeaderName}")
     private String apiKeyHeaderName;
     
-    @Autowired
-    @Qualifier("customAuthenticationEntryPoint")
-    AuthenticationEntryPoint authEntryPoint;
+//    @Autowired
+//    @Qualifier("customAuthenticationEntryPoint")
+//    AuthenticationEntryPoint authEntryPoint;
 
     @Autowired
     ObjectContext objectContext;
@@ -49,6 +49,9 @@ public class WebSecurityConfig {
     
     @Autowired
     ResourceBundle resourceBundle;
+    
+    @Value("${app.httpWhitelist}")
+    String[] httpWhitelistArray;
   
     // Bean-Methode darf nicht den gleichen Namen wie die Klasse haben.
     @Bean
@@ -72,7 +75,7 @@ public class WebSecurityConfig {
 
     @Bean
     RevokeApiKeyFilter getRevokeApiKeyFilter() {
-        RevokeApiKeyFilter revokeApiKeyFilter = new RevokeApiKeyFilter(apiKeyHeaderName, objectContext, encoder, emailService, mapper, resourceBundle);
+        RevokeApiKeyFilter revokeApiKeyFilter = new RevokeApiKeyFilter(apiKeyHeaderName, objectContext, encoder, emailService, mapper, httpWhitelistArray, resourceBundle);
         return revokeApiKeyFilter;
     }
     
