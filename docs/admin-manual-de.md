@@ -62,6 +62,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `LOG_LEVEL` | Das Logging-Level des Spring Boot Frameworks. | `INFO` |
 | `LOG_LEVEL_DB_CONNECTION_POOL` | Das Logging-Level des DB-Connection-Poolsocket. | `INFO` |
 | `LOG_LEVEL_CAYENNE` | Das Logging-Level der ORM-Bibliothek. | `WARN` |
+| `LOG_LEVEL_FTP` | Das Logging-Level des FTP-Servers. | `INFO` |
 | `LOG_LEVEL_APPLICATION` | Das Logging-Level der Anwendung (= selber geschriebener Code). | `INFO` |
 | `TOMCAT_THREADS_MAX` | Maximale Anzahl Threads, welche die Anwendung gleichzeitig bearbeitet. Muss abgestimmt sein mit der Anwendungscharakteristik (z.B. lange DB-Queries) und der Anzahl DB-Connections im Pool. | `5` |
 | `TOMCAT_ACCEPT_COUNT` | Maximale Grösser der Queue, falls keine Threads mehr verfügbar. | `50` |
@@ -98,6 +99,10 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
 | `CLEANER_ENABLED` | Soll der Cronjob, welcher veraltete Daten aus dem  `WORK_DIRECTORY` löscht, eingeschaltet werden. | `true` |
 | `HTTP_WHITELIST` | Liste mit Hostnamen für die ein HTTP-Request (ohne "s") _nicht_ zum deaktiveren des API-Keys führt. | `localhost,datahub-agi-apps-test.apps.ocp.so.ch` |
+| `FTP_USERS_FILE` | Dateipfad der Userdatei für den FTP-Server, die beim Hochfahren leer erstellt wird. Eine vorhandende Datei wird überschrieben. | `/tmp/ftp_user.properties` |
+| `FTP_PORT` | Port des FTP-Servers. | `2221` |
+| `FTP_USERNAME` | Read-only FTP-Benutzer. | `admin` |
+| `FTP_PASSWORD` | Read-only FTP-Passwort. | `admin` |
 
 ## Autorisierung
 
