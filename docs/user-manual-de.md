@@ -201,7 +201,7 @@ Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmäss
 
 ## Endablage
 
-Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben.
+Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. Für die Admin-Organisation steht ein FTP-Zugang (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann.
 
 ## Autorisierung / Konfiguration
 
