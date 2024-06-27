@@ -101,7 +101,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `HTTP_WHITELIST` | Liste mit Hostnamen für die ein HTTP-Request (ohne "s") _nicht_ zum deaktiveren des API-Keys führt. | `localhost,datahub-agi-apps-test.apps.ocp.so.ch` |
 | `FTP_ENABLED` | FTP-Server einschalten. | `true` |
 | `FTP_USERS_FILE` | Dateipfad der Userdatei für den FTP-Server, die beim Hochfahren leer erstellt wird. Eine vorhandende Datei wird überschrieben. | `/tmp/ftp_user.properties` |
-| `FTP_PORT` | Port des FTP-Servers. | `2221` |
+| `FTP_PORT` | Port des FTP-Servers. | `21` |
 | `FTP_USERNAME` | Read-only FTP-Benutzer. | `admin` |
 | `FTP_PASSWORD` | Read-only FTP-Passwort. | `admin` |
 
@@ -146,6 +146,16 @@ Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbes
 ## Cluster
 
 Idealerweise wird _datahub_ in einem einfachen Cluster betrieben. Eine Instanz ist verantworlich für die Entgegennahme der Dateien und die Jobqueue. Mindestens eine zweite Instanz ist für das Abbarbeiten der Jobs aus der Jobqueue zuständig. Somit verhindert man, dass eine hohe Joblast auf die Kommunikation mit dem Benutzer negativen Einfluss hat. Es können beliebig viele "Worker"-Instanzen hochgefahren werden. Diese müssten nicht im Internet exponiert werden. Sie müssen lediglich Zugriff auf die Datenbank haben und das gleiche Filesystem (Volume) teilen (Optionen `WORK_DIRECTORY` und `TARGET_DIRECTORY`)
+
+## FTP-Server
+
+Der FTP-Server kann ein- und ausgeschaltet (`FTP_ENABLED`). Standardmässig läuft er auf dem Port 21 (`FTP_PORT`). Es müssten zwingend die passiv Ports geöffnet sein. Diese sind momentan hardodiert (2121-2199).
+
+Folgender Docker-Befehl funktioniert lokal:
+
+```
+docker run -p8080:8080 -p21:21 -p 2121-2199:2121-2199 -e MAIL_PASSWORD=foo -e MAIL_USERNAME=bar -e DBURL=jdbc:postgresql://docker.for.mac.host.internal:54321/edit -e CREATE_DIRECTORIES=false -e WORK_DIRECTORY=/tmp -e TARGET_DIRECTORY=/tmp  sogis/datahub:0
+```
 
 ## Konfiguration GDI
 

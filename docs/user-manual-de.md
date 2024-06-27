@@ -212,3 +212,7 @@ Für die Autorisierung und Konfiguration wurde ein INTERLIS-Modell `SO_AGI_Datah
 Die Nachführung dieser Informationen wird nicht über die datahub-Anwendung gemacht, sondern von der Admin-Organisation direkt in den DB-Tabellen mit z.B. _dbeaver_.
 
 Jedes Thema hat einen optionalen `config`- und `metaConfig`-Eintrag. Dabei handelt es sich um die ID der Konfiguration in einem ilidata-Repository. Denkbar ist, dass auch Operate optinale Einträge erhalten, die einen Thema-Eintrag überschreiben würden.
+
+## FTP-Server
+
+Der FTP-Server dient der Admin-Organisation einfach eine Sicht auf das Target-Directory zu erlangen (insb. im Betrieb in Kubernetes/OpenShift). 
