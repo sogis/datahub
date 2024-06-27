@@ -63,7 +63,6 @@ public class MyFtpServer {
         ListenerFactory factory = new ListenerFactory();
         factory.setPort(port);
 
-        
         DataConnectionConfigurationFactory dataConnectionConfFactory = new DataConnectionConfigurationFactory();
         dataConnectionConfFactory.setPassivePorts(passivePorts);
         factory.setDataConnectionConfiguration(dataConnectionConfFactory.createDataConnectionConfiguration());
