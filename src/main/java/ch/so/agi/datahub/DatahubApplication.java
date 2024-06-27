@@ -74,7 +74,7 @@ public class DatahubApplication {
     
     @Bean
     ObjectContext objectContext() {        
-        ServerRuntime cayenneRuntime = ServerRuntime.builder()
+        cayenneRuntime = ServerRuntime.builder()
                 .dataSource(dataSource)
                 .addConfig("cayenne/cayenne-project.xml")
                 .build();
