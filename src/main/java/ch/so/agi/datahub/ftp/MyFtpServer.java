@@ -61,10 +61,12 @@ public class MyFtpServer {
         ListenerFactory factory = new ListenerFactory();
         factory.setPort(port);
 
-        serverFactory.addListener("default", factory.createListener());
         
         DataConnectionConfigurationFactory dataConnectionConfFactory = new DataConnectionConfigurationFactory();
         dataConnectionConfFactory.setPassivePorts("2121-2199");
+        factory.setDataConnectionConfiguration(dataConnectionConfFactory.createDataConnectionConfiguration());
+
+        serverFactory.addListener("default", factory.createListener());
 
         // Wir erstellen eine leere Datei. Diese wird benötigt, um
         // anschliessend (programmtisch) einen Benutzer erstellen
