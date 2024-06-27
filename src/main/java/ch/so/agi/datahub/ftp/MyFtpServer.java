@@ -20,11 +20,16 @@ import org.apache.ftpserver.usermanager.impl.ConcurrentLoginPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
+@ConditionalOnProperty(
+        value="app.ftp.enabled", 
+        havingValue = "true", 
+        matchIfMissing = false)
 @Component
 public class MyFtpServer {
     private Logger logger = LoggerFactory.getLogger(this.getClass());

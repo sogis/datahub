@@ -99,6 +99,7 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
 | `CLEANER_ENABLED` | Soll der Cronjob, welcher veraltete Daten aus dem  `WORK_DIRECTORY` löscht, eingeschaltet werden. | `true` |
 | `HTTP_WHITELIST` | Liste mit Hostnamen für die ein HTTP-Request (ohne "s") _nicht_ zum deaktiveren des API-Keys führt. | `localhost,datahub-agi-apps-test.apps.ocp.so.ch` |
+| `FTP_ENABLED` | FTP-Server einschalten. | `true` |
 | `FTP_USERS_FILE` | Dateipfad der Userdatei für den FTP-Server, die beim Hochfahren leer erstellt wird. Eine vorhandende Datei wird überschrieben. | `/tmp/ftp_user.properties` |
 | `FTP_PORT` | Port des FTP-Servers. | `2221` |
 | `FTP_USERNAME` | Read-only FTP-Benutzer. | `admin` |
