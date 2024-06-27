@@ -1,0 +1,46 @@
+FROM eclipse-temurin:21.0.3_9-jre-ubi9-minimal as builder
+
+WORKDIR application
+ARG JAR_FILE=build/libs/datahub-*-exec.jar
+COPY ${JAR_FILE} application.jar
+RUN java -Djarmode=layertools -jar application.jar extract
+
+
+FROM eclipse-temurin:21.0.3_9-jre-ubi9-minimal
+
+ARG UID=1001
+# --system kann nicht verwendet werden, weil dann keine Repo-Verzeichnisse angelegt werden können.
+RUN adduser -u $UID sodata 
+
+WORKDIR /work
+RUN chown $UID:0 . && \
+    chmod 0775 . && \
+    ls -la
+VOLUME ["/work"]
+
+WORKDIR /datahub
+RUN chown $UID:0 . && \
+    chmod 0775 . && \
+    ls -la
+VOLUME ["/datahub"]
+
+WORKDIR application
+COPY --from=builder application/dependencies/ ./
+COPY --from=builder application/spring-boot-loader/ ./
+COPY --from=builder application/snapshot-dependencies/ ./
+COPY --from=builder application/application/ ./
+
+RUN chown $UID:0 . && \
+    chmod 0775 . && \
+    ls -la
+
+USER $UID
+
+EXPOSE 8080
+EXPOSE 20
+EXPOSE 21
+EXPOSE 2221
+EXPOSE 2122-2199
+
+ENV LOG4J_FORMAT_MSG_NO_LOOKUPS=true
+ENTRYPOINT ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=80.0", "org.springframework.boot.loader.launch.JarLauncher"]
