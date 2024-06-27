@@ -26,6 +26,10 @@ RUN chown $UID:0 . && \
     ls -la
 
 USER $UID
+
 EXPOSE 8080
+EXPOSE 21
+EXPOSE 2122-2199
+
 ENV LOG4J_FORMAT_MSG_NO_LOOKUPS=true
 CMD java -XX:+UseParallelGC -XX:MaxRAMPercentage=80.0 -jar application.jar

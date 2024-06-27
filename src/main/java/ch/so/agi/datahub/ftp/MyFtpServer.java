@@ -32,6 +32,9 @@ public class MyFtpServer {
     @Value("${app.ftp.usersFile}")
     private String usersFile;
 
+    @Value("${app.ftp.port}")
+    private int port;
+
     @Value("${app.ftp.username}")
     private String username;
 
@@ -44,8 +47,6 @@ public class MyFtpServer {
     private static final int MAX_IDLE_TIME = 300;
 
     private FtpServer ftpServer;
-
-    private int port = 2221;
     
     @PostConstruct
     private void start() throws FtpException, IOException {
