@@ -215,4 +215,4 @@ Jedes Thema hat einen optionalen `config`- und `metaConfig`-Eintrag. Dabei hande
 
 ## FTP-Server
 
-Der FTP-Server dient der Admin-Organisation einfach eine Sicht auf das Target-Directory zu erlangen (insb. im Betrieb in Kubernetes/OpenShift). 
+Der FTP-Server dient der Admin-Organisation einfach eine Sicht auf das Target-Directory zu erlangen (insb. im Betrieb in Kubernetes/OpenShift).

@@ -149,12 +149,12 @@ Idealerweise wird _datahub_ in einem einfachen Cluster betrieben. Eine Instanz i
 
 ## FTP-Server
 
-Der FTP-Server kann ein- und ausgeschaltet (`FTP_ENABLED`). Standardmässig läuft er auf dem Port 21 (`FTP_PORT`). Es müssten zwingend die passiv Ports geöffnet sein. Diese sind momentan hardodiert (2121-2199).
+Der FTP-Server kann ein- und ausgeschaltet (`FTP_ENABLED`). Standardmässig läuft er auf dem Port 2221 (`FTP_PORT`). In Openshift darf ein not-root-Image nicht Ports < 1024 verwenden. Es müssten zwingend die passiv Ports geöffnet sein. Diese sind momentan hardodiert (2121-2199).
 
 Folgender Docker-Befehl funktioniert lokal:
 
 ```
-docker run -p8080:8080 -p21:21 -p 2121-2199:2121-2199 -e MAIL_PASSWORD=foo -e MAIL_USERNAME=bar -e DBURL=jdbc:postgresql://docker.for.mac.host.internal:54321/edit -e CREATE_DIRECTORIES=false -e WORK_DIRECTORY=/tmp -e TARGET_DIRECTORY=/tmp  sogis/datahub:0
+docker run -p8080:8080 -p2221:2221 -p 2121-2199:2121-2199 -e MAIL_PASSWORD=foo -e MAIL_USERNAME=bar -e DBURL=jdbc:postgresql://docker.for.mac.host.internal:54321/edit -e CREATE_DIRECTORIES=false -e WORK_DIRECTORY=/tmp -e TARGET_DIRECTORY=/tmp  sogis/datahub:0
 ```
 
 ## Konfiguration GDI
