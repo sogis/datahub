@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.ftpserver.DataConnectionConfigurationFactory;
 import org.apache.ftpserver.FtpServer;
 import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.ftplet.Authority;
@@ -61,6 +62,9 @@ public class MyFtpServer {
         factory.setPort(port);
 
         serverFactory.addListener("default", factory.createListener());
+        
+        DataConnectionConfigurationFactory dataConnectionConfFactory = new DataConnectionConfigurationFactory();
+        dataConnectionConfFactory.setPassivePorts("2121-2199");
 
         // Wir erstellen eine leere Datei. Diese wird benötigt, um
         // anschliessend (programmtisch) einen Benutzer erstellen
