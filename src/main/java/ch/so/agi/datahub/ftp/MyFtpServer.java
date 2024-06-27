@@ -51,6 +51,8 @@ public class MyFtpServer {
     private String targetDirectory;
 
     private static final int MAX_IDLE_TIME = 300;
+    
+    private static final String passivePorts = "2121-2199";
 
     private FtpServer ftpServer;
     
@@ -63,7 +65,7 @@ public class MyFtpServer {
 
         
         DataConnectionConfigurationFactory dataConnectionConfFactory = new DataConnectionConfigurationFactory();
-        dataConnectionConfFactory.setPassivePorts("2121-2199");
+        dataConnectionConfFactory.setPassivePorts(passivePorts);
         factory.setDataConnectionConfiguration(dataConnectionConfFactory.createDataConnectionConfiguration());
 
         serverFactory.addListener("default", factory.createListener());
