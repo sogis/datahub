@@ -68,6 +68,7 @@ jobs:
           file: Dockerfile.ubi-layered
           labels: ${{ steps.meta.outputs.labels }}
           pull: true
+          no-cache: false
           push: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') && !env.ACT }}
           tags: |
             ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:latest
