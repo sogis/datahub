@@ -24,6 +24,11 @@ RUN chown $UID:0 . && \
     ls -la
 VOLUME ["/datahub"]
 
+
+RUN chown -R $UID:0 ./application && \
+    chmod -R 0775 ./application && \
+    ls -la
+
 WORKDIR application
 COPY --chown=$UID:0 --chmod=0775 --from=builder application/dependencies/ ./
 COPY --chown=$UID:0 --chmod=0775 --from=builder application/spring-boot-loader/ ./
