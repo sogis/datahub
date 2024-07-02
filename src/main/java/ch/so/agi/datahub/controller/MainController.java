@@ -28,7 +28,8 @@ public class MainController {
         logger.info("server name: " + request.getServerName());
         logger.info("context path: " + request.getContextPath());
         
-        logger.info("ping");        
+        logger.info("ping"); 
+        
         return new ResponseEntity<String>("datahub", HttpStatus.OK);
     }
     
