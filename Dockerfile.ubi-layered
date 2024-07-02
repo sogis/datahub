@@ -18,12 +18,13 @@ RUN chown $UID:0 . && \
     ls -la
 VOLUME ["/work"]
 
-WORKDIR /datahub
+ENV HOME=/datahub
+WORKDIR $HOME
+
 RUN chown $UID:0 . && \
     chmod 0775 . && \
     ls -la
 VOLUME ["/datahub"]
-
 
 WORKDIR application
 
