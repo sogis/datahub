@@ -60,7 +60,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') && !env.ACT }}
 
-      - name: Build 
+      - name: Pull previous image from repo 
         run: |
           docker pull ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
           docker images
@@ -70,7 +70,6 @@ jobs:
         with:
           cache-from: |
             ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
-            type=local
 #          platforms: linux/amd64,linux/arm64
           platforms: linux/amd64
           context: .
