@@ -43,11 +43,7 @@ COPY --chown=$UID:0 --chmod=0775 --from=builder application/application/ ./
 
 USER $UID
 
-EXPOSE 8080
-EXPOSE 20
-EXPOSE 21
-EXPOSE 2221
-EXPOSE 2122-2199
+EXPOSE 8080, 20, 21, 2221, 2122-2199
 
 ENV LOG4J_FORMAT_MSG_NO_LOOKUPS=true
 ENTRYPOINT ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=80.0", "org.springframework.boot.loader.launch.JarLauncher"]
