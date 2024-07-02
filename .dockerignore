@@ -5,5 +5,7 @@ gradle
 src
 # exclude build binaries
 build/*
+# except build artefacts
+!build/libs
 # except files for docker
 !build/docker
