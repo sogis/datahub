@@ -60,18 +60,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') && !env.ACT }}
 
-      - name: Pull previous image from repo 
-        run: |
-          docker pull ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
-          docker images
+      # - name: Pull previous image from repo 
+      #   run: |
+      #     docker pull ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
+      #     docker images
 
       - name: Build and push to registries
         uses: docker/build-push-action@v2
         with:
           cache-from: |
-            ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
+            ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:cache
           cache-to: |
-            ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
+            ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:cache
 #          platforms: linux/amd64,linux/arm64
           platforms: linux/amd64
           context: .
