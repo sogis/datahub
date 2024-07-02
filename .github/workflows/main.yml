@@ -72,8 +72,8 @@ jobs:
             ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:cache
           cache-to: |
             ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:cache
-#          platforms: linux/amd64,linux/arm64
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
+          #platforms: linux/amd64
           context: .
           file: Dockerfile.ubi-layered
           labels: ${{ steps.meta.outputs.labels }}
