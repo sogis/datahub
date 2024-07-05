@@ -4,6 +4,7 @@ tasks.register('copyJar', Copy) {
     into file("$projectDir/docker/image/tmp")
 }
 
+// Zum Testen des Images mit den Integrationstest
 tasks.register('buildImage', Exec) {
     dependsOn 'copyJar'
     def githash = getCheckedOutGitCommitHash()
@@ -16,6 +17,7 @@ tasks.register('buildImage', Exec) {
                 '-f', 'Dockerfile.alpine',  '.'
 }
 
+// Zum Publizieren der Images
 tasks.register('buildAndPushMultiArchImage', Exec) {
     dependsOn 'copyJar'
     def githash = getCheckedOutGitCommitHash()
@@ -23,8 +25,8 @@ tasks.register('buildAndPushMultiArchImage', Exec) {
 
     workingDir "$projectDir/docker/image"
     commandLine 'docker', 'buildx', 'build',
-                '--cache-from', 'sogis/datahub-cache',
-                '--cache-to', 'sogis/datahub-cache',
+                '--cache-from', 'sogis/datahub:cache',
+                '--cache-to', 'sogis/datahub:cache',
                 '--platform', 'linux/amd64,linux/arm64',
                 '-t', "sogis/datahub:$version.major",
                 '-t', "sogis/datahub:$version.major.$version.minor",
@@ -33,7 +35,7 @@ tasks.register('buildAndPushMultiArchImage', Exec) {
                 '--label', "datahub.created=$build_timestamp", 
                 '--label', "datahub.git_commit=$githash",
                 '--label', "datahub.version=$version",
-                '-f', 'Dockerfile.alpine',  '.', '--push'
+                '-f', 'Dockerfile.ubi-layered',  '.', '--push'
 }
 
 
