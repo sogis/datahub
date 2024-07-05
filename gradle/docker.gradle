@@ -9,7 +9,7 @@ tasks.register('loginDocker', Exec) {
 }
 
 tasks.register('buildImage', Exec) {
-    dependsOn 'copyJar'
+    dependsOn 'copyJar', 'loginDocker'
     def githash = getCheckedOutGitCommitHash()
     def build_timestamp = getTimestamp()
 
@@ -21,7 +21,7 @@ tasks.register('buildImage', Exec) {
 }
 
 tasks.register('buildAndPushMultiArchImage', Exec) {
-    dependsOn 'copyJar'
+    dependsOn 'copyJar', 'loginDocker'
     def githash = getCheckedOutGitCommitHash()
     def build_timestamp = getTimestamp()
 

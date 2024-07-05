@@ -41,6 +41,9 @@ jobs:
         run: |
           ./gradlew loginDocker
 
+      - name: Build Docker Image 
+        run: |
+          ./gradlew buildAndPushMultiArchImage
 
       # - name: Set up QEMU for amd64
       #   uses: docker/setup-qemu-action@v2
