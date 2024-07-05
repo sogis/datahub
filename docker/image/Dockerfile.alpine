@@ -18,7 +18,7 @@ VOLUME ["/datahub"]
 ENV HOME=/app
 WORKDIR $HOME
 
-COPY build/libs/datahub-*-exec.jar ./application.jar
+COPY tmp/datahub-*-exec.jar ./application.jar
 
 RUN chown $UID:0 . && \
     chmod 0775 . && \
