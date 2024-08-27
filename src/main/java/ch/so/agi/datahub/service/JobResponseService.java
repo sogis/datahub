@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 
 import org.apache.cayenne.DataRow;
 import org.apache.cayenne.ObjectContext;
+import org.apache.cayenne.exp.Expression;
+import org.apache.cayenne.exp.ExpressionFactory;
 import org.apache.cayenne.query.ObjectSelect;
 import org.apache.cayenne.query.SQLSelect;
 import org.apache.cayenne.query.SortOrder;
@@ -57,6 +59,15 @@ public class JobResponseService {
             // Achtung: Es wird immer eine like-Query gemacht. Dies funktioniert nicht mit boolean.
             query.where(entry.getKey().toLowerCase() + " likeIgnoreCase $"+entry.getKey().toLowerCase(), entry.getValue().getFilterValue()+"%");
         }
+        
+        // Nur Lieferungen jünger 2 Wochen.
+        // SUCCEDED Lieferungen werden automatisch gelöscht (siehe application.properties).
+        // Bei FAILED ist dies nicht der Fall. Aus diesem Grund machen wir die WHERE clause.
+        // Shortcut: .where(PropertyFactory.createLocalDateTime("createdAt").gte(thresholdDateTime))
+        LocalDateTime thresholdDateTime = LocalDateTime.now().minusHours(336);
+        Expression expression = ExpressionFactory.greaterOrEqualExp(VJobresponse.CREATEDAT.getName(), thresholdDateTime);
+        query.where(expression);
+
         query.orderBy(VJobresponse.CREATEDAT.getName(), SortOrder.DESCENDING).limit(jobResponseListLimit);
 
         List<DataRow> rows = query.select(objectContext);
