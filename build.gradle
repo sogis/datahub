@@ -55,7 +55,7 @@ dependencies {
     
     implementation 'org.jobrunr:jobrunr-spring-boot-3-starter:6.3.4'
     
-    implementation 'ch.interlis:ilivalidator:1.14.2'
+    implementation 'ch.interlis:ilivalidator:1.14.3'
 
     implementation 'org.apache.cayenne:cayenne-server:4.2'
     
