@@ -6,7 +6,7 @@ Der Betrieb der Anwendung erfordert eine vorhandene PostgreSQL-Datenbank und ein
 
 ### Datenbank
 
-Die Datenbank wird für die Autorisierung und für das Registrieren (aka Logging) der Datenlieferungen verwendet. Die verwendete Bibliothek für die Jobqueue benötigt ebenfalls eine Datenbank zum Tracken der Jobs. Für die ersten beiden fälle wurde je ein INTERLIS-Datenmodell geschrieben:
+Die Datenbank wird für die Autorisierung und für das Registrieren (aka Logging) der Datenlieferungen verwendet. Die verwendete Bibliothek für die Jobqueue benötigt ebenfalls eine Datenbank zum Tracken der Jobs. Für die ersten beiden Fälle wurde je ein INTERLIS-Datenmodell geschrieben:
 
 - `SO_AGI_Datahub_Config_20240403`: Autorisierung
 - `SO_AGI_Datahub_Log_20240403`: Logging
