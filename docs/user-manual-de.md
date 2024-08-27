@@ -64,6 +64,8 @@ Für eine rasche Gesamtübersicht steht eine Webseite mit einer Tabelle sämtlic
 
 ![Jobsübersicht](./images/user-manual/jobs_uebersicht.png)
 
+**Achtung:** Es werden nur die Lieferungen der letzten zwei Wochen angezeigt. 
+
 ### Nicht erfolgreiche Anlieferungen
 
 Anlieferungen können aus verschiedenen Gründen nicht erfolgreich sein:
