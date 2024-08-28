@@ -57,6 +57,10 @@ Besonderheiten:
 - UUID-Datentyp hat Probleme gemacht und wurde mit `TEXT*36` umgesetzt.
 - Bei Views muss darauf geachtet werden, dass Cayenne nicht zu grosse VARCHAR-Typen interpretiert. Dies führt zu einem Fehler und ist nachvollziehbar und einsehbar in der `datamap.map.xml`-Datei: `VARCHAR(123456789123456)` (nicht genau so, aber einfach zu gross). Damit das nicht vorkommt, muss man in der View-Definition explizit die Länge von Text-Attributen setzen.
 
+### E-Mail
+
+Damit die Anwendung gestartet werden kann muss die Variable `MAIL_USERNAME` und `MAIL_PASSWORD` gesetzt werden. Host und Port verwenden standarmässig Elasticmail. Es können auch falsche Werte gesetzt werden, dann funktioniert jedoch das Verschicken der E-Mail nicht.
+
 ### Jbang-Skript
 
 Das _jbang_-Skript dient zum Erstellen der DDL-SQL-Skripte, die v.a. auch in der Produktion verwendet werden können.
