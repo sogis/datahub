@@ -30,6 +30,8 @@ CREATE SCHEMA IF NOT EXISTS agi_datahub_jobrunr_v1;
 
 Mit der `docker-compose.yml`-Datei im `dev/`-Ordner kann die DB mit einem persistierenden Volume gestartet werden. Die Datei `datahub_key_20240403.xtf` beinhaltet bereits einige Organisation, Key, Themen und Operate. Die im XTF vorhanden Keys entsprechen den Testrequests weiter unten.
 
+Für die Ansicht der Jobs wird eine View benötigt, die für das Entwickeln einmalig von Hand erstellt werden muss (siehe /sql/view.sql).
+
 ### Apache Cayenne
 
 Nachdem die beiden leeren Scheman mit _ili2pg_ erstellt wurden, müssen (einmalig) die Java-Klassen für _Apache Cayenne_ erstellt werden. Siehe dazu vor allem die Konfigurationen im  `build.gradle`. Wichtig ist, dass es beide Dateien `cayenne-project.xml` und `datamap.map.xml` bereits gibt. Der Inhalt von `datamap.map.xml` ist minimal:
