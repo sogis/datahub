@@ -68,8 +68,13 @@ public class create_schema_sql {
         config.setModeldir("https://geo.so.ch/models;http://models.geo.admin.ch");
         Config.setStrokeArcs(config, Config.STROKE_ARCS_ENABLE);
         // https://github.com/claeis/ili2db/issues/548
+        // Achtung: Das führt auch dazu, dass der Cayenne-Code-Generator keine
+        // Assoziationen erkennen wird. D.h. die Java-Klassen müssten aus
+        // einem (Dev-)Schema abgeleitet werden, das mit Foregn Keys erzeugt 
+        // wurde.
         //config.setCreateFk(Config.CREATE_FK_YES);
         config.setCreateFkIdx(Config.CREATE_FKIDX_YES);
+        config.setCreateUniqueConstraints(true);
         config.setCreateImportTabs(true);
         config.setCreateMetaInfo(true);
         config.setNameOptimization(Config.NAME_OPTIMIZATION_TOPIC);
