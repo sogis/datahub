@@ -67,7 +67,8 @@ public class create_schema_sql {
         config.setFunction(Config.FC_SCRIPT);
         config.setModeldir("https://geo.so.ch/models;http://models.geo.admin.ch");
         Config.setStrokeArcs(config, Config.STROKE_ARCS_ENABLE);
-        config.setCreateFk(Config.CREATE_FK_YES);
+        // https://github.com/claeis/ili2db/issues/548
+        //config.setCreateFk(Config.CREATE_FK_YES);
         config.setCreateFkIdx(Config.CREATE_FKIDX_YES);
         config.setCreateImportTabs(true);
         config.setCreateMetaInfo(true);

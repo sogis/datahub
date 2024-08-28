@@ -70,7 +70,7 @@ Für eine rasche Gesamtübersicht steht eine Webseite mit einer Tabelle sämtlic
 
 Anlieferungen können aus verschiedenen Gründen nicht erfolgreich sein:
 
-(1) Falls keine API-Key bei der Anlieferung verwendet wird, antwortet der Server mit einem Statuscode `401`. Die vollständige Ausgabe in der Konsole sieht so aus:
+(1) Falls kein API-Key bei der Anlieferung verwendet wird, antwortet der Server mit einem Statuscode `401`. Die vollständige Ausgabe in der Konsole sieht so aus:
 
 ```
 HTTP/1.1 401
