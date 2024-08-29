@@ -120,7 +120,7 @@ CREATE TABLE agi_datahub_config_v1.T_ILI2DB_ATTRNAME (
   ,SqlName varchar(1024) NOT NULL
   ,ColOwner varchar(1024) NOT NULL
   ,Target varchar(1024) NULL
-  ,PRIMARY KEY (SqlName,ColOwner)
+  ,PRIMARY KEY (ColOwner,SqlName)
 )
 ;
 CREATE TABLE agi_datahub_config_v1.T_ILI2DB_COLUMN_PROP (
@@ -147,7 +147,7 @@ CREATE UNIQUE INDEX T_ILI2DB_DATASET_datasetName_key ON agi_datahub_config_v1.T_
 ;
 CREATE UNIQUE INDEX T_ILI2DB_MODEL_iliversion_modelName_key ON agi_datahub_config_v1.T_ILI2DB_MODEL (iliversion,modelName)
 ;
-CREATE UNIQUE INDEX T_ILI2DB_ATTRNAME_SqlName_ColOwner_key ON agi_datahub_config_v1.T_ILI2DB_ATTRNAME (SqlName,ColOwner)
+CREATE UNIQUE INDEX T_ILI2DB_ATTRNAME_ColOwner_SqlName_key ON agi_datahub_config_v1.T_ILI2DB_ATTRNAME (ColOwner,SqlName)
 ;
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_CLASSNAME (IliName,SqlName) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Theme','core_theme');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_CLASSNAME (IliName,SqlName) VALUES ('SO_AGI_Datahub_Config_20240403.Core.ApiKey','core_apikey');
@@ -180,13 +180,13 @@ INSERT INTO agi_datahub_config_v1.T_ILI2DB_TRAFO (iliname,tag,setting) VALUES ('
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_TRAFO (iliname,tag,setting) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Organisation','ch.ehi.ili2db.inheritance','newClass');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_TRAFO (iliname,tag,setting) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Operat_Organisation','ch.ehi.ili2db.inheritance','embedded');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_TRAFO (iliname,tag,setting) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Theme_Operat','ch.ehi.ili2db.inheritance','embedded');
-INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Organisation',NULL);
-INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.ApiKey',NULL);
-INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Theme',NULL);
-INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Organisation_ApiKey',NULL);
-INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Operat',NULL);
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Operat_Organisation',NULL);
+INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Organisation',NULL);
+INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Organisation_ApiKey',NULL);
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Theme_Operat',NULL);
+INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Operat',NULL);
+INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.Theme',NULL);
+INSERT INTO agi_datahub_config_v1.T_ILI2DB_INHERITANCE (thisClass,baseClass) VALUES ('SO_AGI_Datahub_Config_20240403.Core.ApiKey',NULL);
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_COLUMN_PROP (tablename,subtype,columnname,tag,setting) VALUES ('core_operat',NULL,'adescription','ch.ehi.ili2db.typeKind','TEXT');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_COLUMN_PROP (tablename,subtype,columnname,tag,setting) VALUES ('core_operat',NULL,'organisation_r','ch.ehi.ili2db.foreignKey','core_organisation');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_COLUMN_PROP (tablename,subtype,columnname,tag,setting) VALUES ('core_theme',NULL,'config','ch.ehi.ili2db.typeKind','TEXT');
@@ -246,9 +246,6 @@ VERSION "2024-03-01"  =
        */
       name : MANDATORY TEXT*512;
       description : TEXT*1024;
-      /** ID des Operates ist eindeutig.
-       */
-      UNIQUE name;
     END Operat;
 
     CLASS Organisation =
@@ -332,7 +329,7 @@ VERSION "2024-04-03"  =
   END Deliveries;
 
 END SO_AGI_Datahub_Log_20240403.
-','2024-08-28 10:22:17.519');
+','2024-08-29 08:02:02.943');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.createMetaInfo','True');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.interlis.ili2c.ilidirs','https://geo.so.ch/models;http://models.geo.admin.ch');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.arrayTrafo','coalesce');
@@ -345,6 +342,7 @@ INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.eh
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.sqlgen.createGeomIndex','True');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.defaultSrsAuthority','EPSG');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.defaultSrsCode','2056');
+INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.uniqueConstraints','create');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.maxSqlNameLength','60');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.uuidDefaultValue','uuid_generate_v4()');
 INSERT INTO agi_datahub_config_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.inheritanceTrafo','smart1');
@@ -489,7 +487,7 @@ CREATE TABLE agi_datahub_log_v1.T_ILI2DB_MODEL (
   ,modelName text NOT NULL
   ,content text NOT NULL
   ,importDate timestamp NOT NULL
-  ,PRIMARY KEY (iliversion,modelName)
+  ,PRIMARY KEY (modelName,iliversion)
 )
 ;
 CREATE TABLE agi_datahub_log_v1.T_ILI2DB_CLASSNAME (
@@ -502,7 +500,7 @@ CREATE TABLE agi_datahub_log_v1.T_ILI2DB_ATTRNAME (
   ,SqlName varchar(1024) NOT NULL
   ,ColOwner varchar(1024) NOT NULL
   ,Target varchar(1024) NULL
-  ,PRIMARY KEY (ColOwner,SqlName)
+  ,PRIMARY KEY (SqlName,ColOwner)
 )
 ;
 CREATE TABLE agi_datahub_log_v1.T_ILI2DB_COLUMN_PROP (
@@ -527,9 +525,9 @@ CREATE TABLE agi_datahub_log_v1.T_ILI2DB_META_ATTRS (
 ;
 CREATE UNIQUE INDEX T_ILI2DB_DATASET_datasetName_key ON agi_datahub_log_v1.T_ILI2DB_DATASET (datasetName)
 ;
-CREATE UNIQUE INDEX T_ILI2DB_MODEL_iliversion_modelName_key ON agi_datahub_log_v1.T_ILI2DB_MODEL (iliversion,modelName)
+CREATE UNIQUE INDEX T_ILI2DB_MODEL_modelName_iliversion_key ON agi_datahub_log_v1.T_ILI2DB_MODEL (modelName,iliversion)
 ;
-CREATE UNIQUE INDEX T_ILI2DB_ATTRNAME_ColOwner_SqlName_key ON agi_datahub_log_v1.T_ILI2DB_ATTRNAME (ColOwner,SqlName)
+CREATE UNIQUE INDEX T_ILI2DB_ATTRNAME_SqlName_ColOwner_key ON agi_datahub_log_v1.T_ILI2DB_ATTRNAME (SqlName,ColOwner)
 ;
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_CLASSNAME (IliName,SqlName) VALUES ('SO_AGI_Datahub_Log_20240403.Deliveries.Delivery','deliveries_delivery');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_ATTRNAME (IliName,SqlName,ColOwner,Target) VALUES ('SO_AGI_Datahub_Log_20240403.Deliveries.Delivery.organisation','organisation','deliveries_delivery',NULL);
@@ -589,9 +587,6 @@ VERSION "2024-03-01"  =
        */
       name : MANDATORY TEXT*512;
       description : TEXT*1024;
-      /** ID des Operates ist eindeutig.
-       */
-      UNIQUE name;
     END Operat;
 
     CLASS Organisation =
@@ -675,7 +670,7 @@ VERSION "2024-04-03"  =
   END Deliveries;
 
 END SO_AGI_Datahub_Log_20240403.
-','2024-08-28 10:22:17.57');
+','2024-08-29 08:02:02.989');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.createMetaInfo','True');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.interlis.ili2c.ilidirs','https://geo.so.ch/models;http://models.geo.admin.ch');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.arrayTrafo','coalesce');
@@ -688,6 +683,7 @@ INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.i
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.sqlgen.createGeomIndex','True');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.defaultSrsAuthority','EPSG');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.defaultSrsCode','2056');
+INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.uniqueConstraints','create');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.maxSqlNameLength','60');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.uuidDefaultValue','uuid_generate_v4()');
 INSERT INTO agi_datahub_log_v1.T_ILI2DB_SETTINGS (tag,setting) VALUES ('ch.ehi.ili2db.inheritanceTrafo','smart1');
@@ -972,9 +968,9 @@ SELECT
         ELSE state
     END as status, 
     queue_position.queueposition AS queueposition,
-    op.aname AS operat,
-    th.aname AS theme,
-    org.aname AS organisation,
+    d.operat AS operat,
+    d.theme AS theme,
+    d.organisation AS organisation,
     CASE 
         WHEN isvalid IS TRUE THEN CAST('DONE' AS VARCHAR(512)) 
         WHEN isvalid IS FALSE THEN CAST('FAILED' AS VARCHAR(512))
@@ -984,16 +980,8 @@ FROM
     agi_datahub_jobrunr_v1.jobrunr_jobs AS j
     LEFT JOIN agi_datahub_log_v1.deliveries_delivery AS d 
     ON j.id = d.jobid 
-    LEFT JOIN agi_datahub_config_v1.core_organisation AS org 
-    ON org.aname = d.organisation 
-    LEFT JOIN agi_datahub_config_v1.core_operat AS op
-    ON d.operat = op.aname
-    LEFT JOIN agi_datahub_config_v1.core_theme AS th 
-    ON op.theme_r = th.t_id    
     LEFT JOIN queue_position 
     ON queue_position.id = j.id
-WHERE 
-    org.aname IS NOT NULL
 ;
 COMMENT ON SCHEMA agi_datahub_config_v1 IS 'Schema für Datahub';
 GRANT USAGE ON SCHEMA agi_datahub_config_v1 TO datahub;
