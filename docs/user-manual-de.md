@@ -203,7 +203,7 @@ Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmäss
 
 ## Endablage
 
-Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. Für die Admin-Organisation steht ein FTP-Zugang (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann.
+Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. Für die Admin-Organisation steht ein [FTP-Zugang](#ftp-server) (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann.
 
 ## Autorisierung / Konfiguration
 
@@ -218,6 +218,19 @@ Jedes Thema hat einen optionalen `config`- und `metaConfig`-Eintrag. Dabei hande
 ## FTP-Server
 
 Der FTP-Server dient der Admin-Organisation einfach eine Sicht auf das Target-Directory zu erlangen (insb. im Betrieb in Kubernetes/OpenShift).
+
+In jeder Umgebung sind im Intranet read-only FTP-Zugänge vorhanden: 
+
+| Umgebung | URL | PORT |
+| --- | --- | --- |
+| TEST | `datahub-ftp-test.apps.ocp.so.ch`| `32222`|
+| INT | `datahub-ftp-integration.apps.ocp.so.ch`| `32223`|
+| PROD | `datahub-ftp.apps.ocp.so.ch`| `32224`|
+
+### Verbindungsbeispiel
+Aktive FTP-Verbindung verwenden: `ftp datahub-ftp-test.apps.ocp.so.ch 32222`
+
+User/Passwort sind im Secret definiert, default ist `admin`/`admin`.
 
 ## Datenbank
 
