@@ -219,16 +219,12 @@ Jedes Thema hat einen optionalen `config`- und `metaConfig`-Eintrag. Dabei hande
 
 Der FTP-Server dient der Admin-Organisation einfach eine Sicht auf das Target-Directory zu erlangen (insb. im Betrieb in Kubernetes/OpenShift).
 
-In jeder Umgebung sind im Intranet read-only FTP-Zugänge vorhanden: 
+### Konfiguration GDI
 
-| Umgebung | URL | PORT |
-| --- | --- | --- |
-| TEST | `datahub-ftp-test.apps.ocp.so.ch`| `32222`|
-| INT | `datahub-ftp-integration.apps.ocp.so.ch`| `32223`|
-| PROD | `datahub-ftp.apps.ocp.so.ch`| `32224`|
+Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md#ftp-zugang)
 
 ### Verbindungsbeispiel
-Aktive FTP-Verbindung verwenden: `ftp datahub-ftp-test.apps.ocp.so.ch 32222`
+Aktive FTP-Verbindung verwenden: `ftp URL PORT`
 
 User/Passwort sind im Secret definiert, default ist `admin`/`admin`.
 
