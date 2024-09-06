@@ -54,10 +54,10 @@ public class CleanerService {
                             Instant now = Instant.now();
                             
                             long fileAge = now.getEpochSecond() - creationTime.toInstant().getEpochSecond();
-                            log.trace("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
+                            log.info("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
 
                             if (fileAge > deleteFileAge) {
-                                log.debug("deleting {}", tmpDir.getAbsolutePath());
+                                log.info("deleting {}", tmpDir.getAbsolutePath());
                                 FileSystemUtils.deleteRecursively(tmpDir);
                             }
                         } catch (IOException e) {
