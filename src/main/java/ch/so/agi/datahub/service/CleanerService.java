@@ -37,35 +37,39 @@ public class CleanerService {
         this.storageService = storageService;
     }
 
-    // @Async("asyncTaskExecutor")
-    // @Scheduled(cron="0 */30 * * * *")
-    // //@Scheduled(fixedRate = 1 * 30 * 1000) /* Runs every 30 seconds */
-    // public void cleanUp() {    
-    //     long deleteFileAge = 60*60*24*3; // = 3 Tag
-    //     log.info("Deleting files from previous delivery runs older than {} [s]...", deleteFileAge);
+     @Async("asyncTaskExecutor")
+     //@Scheduled(cron="0 */30 * * * *")
+     @Scheduled(fixedRate = 1 * 30 * 1000) /* Runs every 30 seconds */
+     public void cleanUp() {    
+         long deleteFileAge = 60*60*24*3; // = 3 Tag
+         log.info("Deleting files from previous delivery runs older than {} [s]...", deleteFileAge);
 
-    //     if (storageService instanceof LocalFilesStorageService) {
-    //         java.io.File[] tmpDirs = new java.io.File(workDirectory).listFiles();
-    //         if(tmpDirs!=null) {
-    //             for (java.io.File tmpDir : tmpDirs) {
-    //                 if (tmpDir.getName().startsWith(folderPrefix)) {
-    //                     try {
-    //                         FileTime creationTime = (FileTime) Files.getAttribute(Paths.get(tmpDir.getAbsolutePath()), "creationTime");                    
-    //                         Instant now = Instant.now();
-                            
-    //                         long fileAge = now.getEpochSecond() - creationTime.toInstant().getEpochSecond();
-    //                         log.info("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
+         if (storageService instanceof LocalFilesStorageService) {
+             java.io.File[] tmpDirs = new java.io.File(workDirectory).listFiles();
+             if(tmpDirs!=null) {
+                 for (java.io.File tmpDir : tmpDirs) {
+                     if (tmpDir.getName().startsWith(folderPrefix)) {
+                         try {
+                             FileTime creationTime = (FileTime) Files.getAttribute(Paths.get(tmpDir.getAbsolutePath()), "creationTime");                    
+                             Instant now = Instant.now();
+                             log.info("now: " + now.toString());
+                             log.info("now (seconds): {}",now.getEpochSecond());
+                             log.info("creationTime: {}",creationTime.toInstant().toString());
+                             log.info("creationTime (seconds): {}",creationTime.toInstant().getEpochSecond());
 
-    //                         if (fileAge > deleteFileAge) {
-    //                             log.info("deleting {}", tmpDir.getAbsolutePath());
-    //                             FileSystemUtils.deleteRecursively(tmpDir);
-    //                         }
-    //                     } catch (IOException e) {
-    //                         throw new IllegalStateException(e);
-    //                     }
-    //                 }
-    //             }
-    //         }            
-    //     } 
-    // }
+                             long fileAge = now.getEpochSecond() - creationTime.toInstant().getEpochSecond();
+                             log.info("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
+
+//                             if (fileAge > deleteFileAge) {
+//                                 log.info("deleting {}", tmpDir.getAbsolutePath());
+//                                 FileSystemUtils.deleteRecursively(tmpDir);
+//                             }
+                         } catch (IOException e) {
+                             throw new IllegalStateException(e);
+                         }
+                     }
+                 }
+             }            
+         } 
+     }
 }
