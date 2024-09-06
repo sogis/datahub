@@ -50,14 +50,16 @@ public class CleanerService {
                  for (java.io.File tmpDir : tmpDirs) {
                      if (tmpDir.getName().startsWith(folderPrefix)) {
                          try {
-                             FileTime creationTime = (FileTime) Files.getAttribute(Paths.get(tmpDir.getAbsolutePath()), "creationTime");                    
+                             FileTime creationTime = (FileTime) Files.getAttribute(Paths.get(tmpDir.getAbsolutePath()), "creationTime");
+                             FileTime lastModifiedTime = Files.getLastModifiedTime(Paths.get(tmpDir.getAbsolutePath()));
+
                              Instant now = Instant.now();
                              log.info("now: " + now.toString());
                              log.info("now (seconds): {}",now.getEpochSecond());
-                             log.info("creationTime: {}",creationTime.toInstant().toString());
-                             log.info("creationTime (seconds): {}",creationTime.toInstant().getEpochSecond());
+                             log.info("lastModifiedTime: {}",lastModifiedTime.toInstant().toString());
+                             log.info("lastModifiedTime (seconds): {}",lastModifiedTime.toInstant().getEpochSecond());
 
-                             long fileAge = now.getEpochSecond() - creationTime.toInstant().getEpochSecond();
+                             long fileAge = now.getEpochSecond() - lastModifiedTime.toInstant().getEpochSecond();
                              log.info("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
 
 //                             if (fileAge > deleteFileAge) {
