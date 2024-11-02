@@ -37,6 +37,9 @@ public class DeliveryService {
     
     @Value("${app.preferredIliRepo}")
     private String preferredIliRepo;
+    
+    @Value("${app.mailEnabled}")
+    private boolean mailEnabled;
 
     private FilesStorageService filesStorageService;
     
@@ -113,13 +116,15 @@ public class DeliveryService {
         // Send email to delivery organisation
         // HTML content: https://stackoverflow.com/questions/5289849/how-do-i-send-html-email-in-spring-mvc
         // String linkLogFile = "<a href='"+host+"/api/logs"+jobId+"'>"+jobId+"</a>";
-        String mailSubject = resourceBundle.getString("deliveryEmailSubject").formatted(valid?"DONE":"FAILED", theme, operat);
-        String mailBody = resourceBundle.getString("deliveryEmailBody").formatted(jobId, host + "/api/logs/" + jobId, host + "/web/jobs.xhtml");
-        try {
-            emailService.send(email, mailSubject, mailBody);
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("<{}> Error while sending email: {}", jobId, e.getMessage());
+        if (mailEnabled) {
+            String mailSubject = resourceBundle.getString("deliveryEmailSubject").formatted(valid?"DONE":"FAILED", theme, operat);
+            String mailBody = resourceBundle.getString("deliveryEmailBody").formatted(jobId, host + "/api/logs/" + jobId, host + "/web/jobs.xhtml");
+            try {
+                emailService.send(email, mailSubject, mailBody);
+            } catch (Exception e) {
+                e.printStackTrace();
+                logger.error("<{}> Error while sending email: {}", jobId, e.getMessage());
+            }            
         }
     }    
 }
