@@ -39,7 +39,7 @@ public class CleanerService {
 
      @Async("asyncTaskExecutor")
      //@Scheduled(cron="0 */30 * * * *")
-     @Scheduled(fixedRate = 1 * 30 * 1000) /* Runs every 30 seconds */
+     @Scheduled(fixedRate = 60 * 60 * 1000) /* Runs every 60 * 60 seconds */
      public void cleanUp() {    
          long deleteFileAge = 60*60*24*3; // = 3 Tag
          log.info("Deleting files from previous delivery runs older than {} [s]...", deleteFileAge);
