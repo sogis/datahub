@@ -35,6 +35,9 @@ public class ApiKeyController {
     @Value("${app.apiKeyHeaderName}")
     private String apiKeyHeaderName;
 
+    @Value("${app.mailEnabled}")
+    private boolean mailEnabled;
+
     private ObjectContext objectContext;
     
     private PasswordEncoder encoder;
@@ -95,15 +98,17 @@ public class ApiKeyController {
         
         objectContext.commitChanges();
 
-        try {
-            emailService.send(coreOrganisation.getEmail(), resourceBundle.getString("newApiKeyEmailSubject"), apiKey);
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.error(e.getMessage());
-            
-            return ResponseEntity
-                    .internalServerError()
-                    .body(new GenericResponse(this.getClass().getCanonicalName(), "Error while sending email.", Instant.now()));
+        if (mailEnabled) {
+            try {
+                emailService.send(coreOrganisation.getEmail(), resourceBundle.getString("newApiKeyEmailSubject"), apiKey);
+            } catch (Exception e) {
+                e.printStackTrace();
+                logger.error(e.getMessage());
+                
+                return ResponseEntity
+                        .internalServerError()
+                        .body(new GenericResponse(this.getClass().getCanonicalName(), "Error while sending email.", Instant.now()));
+            }            
         }
 
         return ResponseEntity

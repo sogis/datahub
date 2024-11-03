@@ -28,7 +28,13 @@ Es müssen mit _ili2pg_ das Autorisierungsschema und das Logschema erstellt werd
 CREATE SCHEMA IF NOT EXISTS agi_datahub_jobrunr_v1;
 ```
 
-Mit der `docker-compose.yml`-Datei im `dev/`-Ordner kann die DB mit einem persistierenden Volume gestartet werden. Die Datei `datahub_key_20240403.xtf` beinhaltet bereits einige Organisation, Key, Themen und Operate. Die im XTF vorhanden Keys entsprechen den Testrequests weiter unten.
+Mit der `docker-compose.yml`-Datei im `dev/`-Ordner kann die DB mit einem persistierenden Volume gestartet werden. Die Datei `datahub_20241104.xtf` beinhaltet bereits einige Organisation, Key, Themen und Operate. Die im XTF vorhanden Keys entsprechen den Testrequests weiter unten.
+
+Export des Config-Schemas:
+
+```
+java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --dbschema agi_datahub_config_v1 --models SO_AGI_Datahub_Config_20240403 --export datahub_20241104.xtf
+```
 
 Für die Ansicht der Jobs wird eine View benötigt, die für das Entwickeln einmalig von Hand erstellt werden muss (siehe /sql/view.sql).
 
@@ -59,7 +65,7 @@ Besonderheiten:
 
 ### E-Mail
 
-Damit die Anwendung gestartet werden kann muss die Variable `MAIL_USERNAME` und `MAIL_PASSWORD` gesetzt werden. Host und Port verwenden standarmässig Elasticmail. Es können auch falsche Werte gesetzt werden, dann funktioniert jedoch das Verschicken der E-Mail nicht.
+Damit die Anwendung gestartet werden kann muss die Variable `MAIL_USERNAME` und `MAIL_PASSWORD` gesetzt werden. Host und Port verwenden standardmässig Elasticmail. Es können auch falsche Werte gesetzt werden, dann funktioniert jedoch das Verschicken der E-Mail nicht. Man kann den E-Mailversand auch komplett ausschalten (`MAIL_ENABLED=false`), dann folgt auch kein Fehler mit Fantasie-Logindaten.
 
 ### Jbang-Skript
 
@@ -82,7 +88,7 @@ jbang create_schema_sql.java
 Testrequest auf geschützten Endpunkt:
 
 ```
-curl -i -X GET --header "X-API-KEY:c0bb04eb-789b-4063-95ad-bd86a06c6aff" http://localhost:8080/protected/hello
+curl -i -X GET --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" http://localhost:8080/protected/hello
 ```
 
 ```
@@ -103,60 +109,40 @@ Hello, this is a secured endpoint!
 Schlüssel für Organisation erstellen:
 
 ```
-curl -i -X POST --header "X-API-KEY:c0bb04eb-789b-4063-95ad-bd86a06c6aff" -F 'organisation=W+H AG' http://localhost:8080/api/keys
+curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'organisation=acme' http://localhost:8080/api/keys
 ```
 
 ```
-curl -i -X POST --header "X-API-KEY:c0bb04eb-789b-4063-95ad-bd86a06c6aff" -F 'organisation=SWG' http://localhost:8080/api/keys
-```
-
-```
-curl -i -X POST --header "X-API-KEY:c0bb04eb-789b-4063-95ad-bd86a06c6aff" -F 'organisation=Märki AG' http://localhost:8080/api/keys
+curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'organisation=emchberger' http://localhost:8080/api/keys
 ```
 
 Admin darf beliebige Operate schicken:
 
 ```
-curl -i -X POST --header "X-API-KEY:c0bb04eb-789b-4063-95ad-bd86a06c6aff" -F 'file=@Grenchen_LKMap_wasser.xtf' -F 'theme=LKMAP_2015' -F 'operat=2546_was' http://localhost:8080/api/deliveries
+curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'file=@src/test/data/ch.so.avt.kunstbauten.xtf' -F 'theme=SO_AVT_Kunstbauten' -F 'operat=kanton' http://localhost:8080/api/deliveries
 ```
 
 #### Andere Benutzer
 
-Märki AG:
+Acme:
+
 ```
-curl -i -X GET --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" http://localhost:8080/protected/hello
+curl -i -X GET --header "X-API-KEY:74e5f815-f8f3-4b72-8815-a81e89822a4a" http://localhost:8080/protected/hello
 ```
 
 ```
-curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" -F 'file=@2471.xtf' -F 'theme=IPW_2020' -F 'operat=2471' http://localhost:8080/api/deliveries
+curl -i -X POST --header "X-API-KEY:74e5f815-f8f3-4b72-8815-a81e89822a4a" -F 'file=@src/test/data/ch.so.avt.kunstbauten.xtf' -F 'theme=SO_AVT_Kunstbauten' -F 'operat=kanton' http://localhost:8080/api/deliveries
+```
+
+Emchberger:
+
+```
+curl -i -X GET --header "X-API-KEY:b1025370-7fa1-4195-bf03-2a48be85450c" http://localhost:8080/protected/hello
 ```
 
 ```
-curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" -F 'file=@2622_gep.xtf' -F 'theme=IPW_2020' -F 'operat=2622' http://localhost:8080/api/deliveries
+curl -i -X POST --header "X-API-KEY:b1025370-7fa1-4195-bf03-2a48be85450c" -F 'file=@src/test/data/DMAV_Dienstbarkeitsgrenzen_V1_0.449.xtf' -F 'theme=DMAV_Dienstbarkeitsgrenzen_V1_0' -F 'operat=449' http://localhost:8080/api/deliveries
 ```
 
-SWG:
-```
-curl -i -X GET --header "X-API-KEY:ab539116-210a-4ebf-ab9f-ee8786957fb6" http://localhost:8080/protected/hello
-```
 
-```
-curl -i -X POST --header "X-API-KEY:ab539116-210a-4ebf-ab9f-ee8786957fb6" -F 'file=@Grenchen_LKMap_wasser.xtf' -F 'theme=LKMAP_2015' -F 'operat=2546_was' http://localhost:8080/api/deliveries
-```
-
-```
-curl -i -X POST --header "X-API-KEY:ab539116-210a-4ebf-ab9f-ee8786957fb6" -F 'file=@Grenchen_LKMap_wasser_error.xtf' -F 'theme=LKMAP_2015' -F 'operat=2546_was' http://localhost:8080/api/deliveries
-```
-
-W+H AG:
-```
-curl -i -X GET --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http://localhost:8080/protected/hello
-```
-```
-curl -i -X POST --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http://localhost:8080/api/keys
-```
-
-```
-curl -i -X DELETE --header "X-API-KEY:fda5f71f-8875-4d4a-af0c-87d9ba2832b6" http://localhost:8080/api/keys/<vorgängig erzeugter Key>
-```
 

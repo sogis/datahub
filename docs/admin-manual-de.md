@@ -31,7 +31,7 @@ java -cp jobrunr-6.3.4.jar:slf4j-api-2.0.12.jar org.jobrunr.storage.sql.common.D
 
 Die Inbetriebname in die GDI-SO ist im [Kapitel Konfiguration GDI](#Konfiguration-GDI) beschrieben.
 
-Es steht ein _jbang_-Skript zur Verfügung, das die SQL-DDL-Skripte vollständig erzeugt und vom DB-Admin anschliessend verwendet werden können, um alle Schemen und Tabelle anzulegen:
+Es steht ein _jbang_-Skript zur Verfügung, das die SQL-DDL-Skripte vollständig erzeugt und vom DB-Admin anschliessend verwendet werden können, um alle Schemen und Tabellen anzulegen:
 
 ```
 jbang create_schema_sql.java

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TRANSFER xmlns="http://www.interlis.ch/INTERLIS2.3">
+  <HEADERSECTION SENDER="ili2pg-4.9.1-edeb4647bbdea52480a419b5aa605d425fcbd5df" VERSION="2.3">
+    <MODELS>
+      <MODEL NAME="SO_AGI_Datahub_Config_20240403" VERSION="2024-03-01" URI="https://agi.so.ch"/>
+    </MODELS>
+  </HEADERSECTION>
+  <DATASECTION>
+    <SO_AGI_Datahub_Config_20240403.Core BID="SO_AGI_Datahub_Config_20240403.Core">
+      <SO_AGI_Datahub_Config_20240403.Core.Organisation TID="1">
+        <name>AGI SO</name>
+        <role>ADMIN</role>
+        <email>stefan.ziegler@bd.so.ch</email>
+      </SO_AGI_Datahub_Config_20240403.Core.Organisation>
+      <SO_AGI_Datahub_Config_20240403.Core.Organisation TID="3">
+        <name>acme</name>
+        <role>USER</role>
+        <email>stefan.ziegler.de@gmail.com</email>
+      </SO_AGI_Datahub_Config_20240403.Core.Organisation>
+      <SO_AGI_Datahub_Config_20240403.Core.Organisation TID="9">
+        <name>emchberger</name>
+        <role>USER</role>
+        <email>stefan.ziegler.de@gmail.com</email>
+      </SO_AGI_Datahub_Config_20240403.Core.Organisation>
+      <SO_AGI_Datahub_Config_20240403.Core.Theme TID="7">
+        <name>SO_AVT_Kunstbauten</name>
+        <description>Dummy</description>
+      </SO_AGI_Datahub_Config_20240403.Core.Theme>
+      <SO_AGI_Datahub_Config_20240403.Core.Theme TID="11">
+        <name>DMAV_Dienstbarkeitsgrenzen_V1_0</name>
+        <description>Foo</description>
+      </SO_AGI_Datahub_Config_20240403.Core.Theme>
+      <SO_AGI_Datahub_Config_20240403.Core.ApiKey TID="2">
+        <apiKey>$2a$10$ZYnk8.dvt1KKU45EyBTy4ObvsnkvUCjfRqpco/Wjur6qQ18FXIbE2</apiKey>
+        <createdAt>2024-11-03T17:38:28.005</createdAt>
+        <Organisation_R REF="1"/>
+      </SO_AGI_Datahub_Config_20240403.Core.ApiKey>
+      <SO_AGI_Datahub_Config_20240403.Core.ApiKey TID="6">
+        <apiKey>$2a$10$RDvixFjl8J.qqcNwESjHF.1X0JOKo2O5a1p1ImX897xZMNLEjaYLy</apiKey>
+        <createdAt>2024-11-03T18:02:24.430</createdAt>
+        <Organisation_R REF="3"/>
+      </SO_AGI_Datahub_Config_20240403.Core.ApiKey>
+      <SO_AGI_Datahub_Config_20240403.Core.ApiKey TID="13">
+        <apiKey>$2a$10$dgFY9ytgXoFzXCDBVsC54.qIxcWsOxweCjbDr7DDWzefSWk8LSlNu</apiKey>
+        <createdAt>2024-11-03T18:24:09.196</createdAt>
+        <Organisation_R REF="9"/>
+      </SO_AGI_Datahub_Config_20240403.Core.ApiKey>
+      <SO_AGI_Datahub_Config_20240403.Core.Operat TID="8">
+        <name>kanton</name>
+        <description>Kantonsweise Lieferunge</description>
+        <Organisation_R REF="3"/>
+        <Theme_R REF="7"/>
+      </SO_AGI_Datahub_Config_20240403.Core.Operat>
+      <SO_AGI_Datahub_Config_20240403.Core.Operat TID="12">
+        <name>449</name>
+        <description>DMAV-Testdatensatz</description>
+        <Organisation_R REF="9"/>
+        <Theme_R REF="11"/>
+      </SO_AGI_Datahub_Config_20240403.Core.Operat>
+    </SO_AGI_Datahub_Config_20240403.Core>
+  </DATASECTION>
+</TRANSFER>
