@@ -105,6 +105,8 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `FTP_PORT` | Port des FTP-Servers. | `21` |
 | `FTP_USERNAME` | Read-only FTP-Benutzer. | `admin` |
 | `FTP_PASSWORD` | Read-only FTP-Passwort. | `admin` |
+| `FILE_LISTING_USERNAME` | Benutzername für File Listing des `TARGET_DIRECTORY`. | `admin` |
+| `FILE_LISTING_PASSWORD` | Password für File Listing des `TARGET_DIRECTORY`. | `admin` |
 
 ## Autorisierung
 

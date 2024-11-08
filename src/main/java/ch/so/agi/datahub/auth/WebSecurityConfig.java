@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.so.agi.datahub.service.EmailService;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 public class WebSecurityConfig {
 
@@ -117,5 +119,5 @@ public class WebSecurityConfig {
 //                )
                 .logout(AbstractHttpConfigurer::disable)
                 .build();
-    }    
+    }
 }
