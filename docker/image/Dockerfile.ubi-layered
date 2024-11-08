@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21.0.3_9-jre-ubi9-minimal AS builder
+FROM eclipse-temurin:21.0.5_11-jre-ubi9-minimal AS builder
 
 WORKDIR application
 COPY tmp/datahub-*-exec.jar ./application.jar
@@ -8,9 +8,10 @@ COPY ${JAR_FILE} application.jar
 RUN java -Djarmode=layertools -jar application.jar extract
 
 
-FROM eclipse-temurin:21.0.3_9-jre-ubi9-minimal
+FROM eclipse-temurin:21.0.5_11-jre-ubi9-minimal
 
-RUN microdnf reinstall tzdata -y
+RUN microdnf update -y && \
+    microdnf reinstall tzdata -y
 
 ARG UID=1001
 RUN adduser -u $UID datahub 
@@ -43,4 +44,4 @@ COPY --chown=$UID:0 --chmod=0775 --from=builder application/application/ ./
 USER $UID
 
 ENV LOG4J_FORMAT_MSG_NO_LOOKUPS=true
-ENTRYPOINT ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=80.0", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=90.0", "org.springframework.boot.loader.launch.JarLauncher"]
