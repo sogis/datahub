@@ -26,10 +26,10 @@ public class MyTomcatWebServerCustomizer implements WebServerFactoryCustomizer<T
     @Value("${app.targetDirectory}")
     private String targetDirectory;
 
-    @Value("${app.fileListing.username}")
+    @Value("${app.directoryListing.username}")
     private String username;
 
-    @Value("${app.fileListing.password}")
+    @Value("${app.directoryListing.password}")
     private String password;
 
     @Override
