@@ -64,7 +64,7 @@ Für eine rasche Gesamtübersicht steht eine Webseite mit einer Tabelle sämtlic
 
 ![Jobsübersicht](./images/user-manual/jobs_uebersicht.png)
 
-**Achtung:** Es werden nur die Lieferungen der letzten zwei Wochen angezeigt. 
+**Achtung:** Es werden nur die Lieferungen der letzten zwei Wochen angezeigt. Die Logdateien sind nur drei Tage verfügbar.
 
 ### Nicht erfolgreiche Anlieferungen
 
@@ -203,7 +203,9 @@ Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmäss
 
 ## Endablage
 
-Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. Für die Admin-Organisation steht ein [FTP-Zugang](#ftp-server) (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann.
+Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. 
+
+Für die Admin-Organisation steht ein [FTP-Zugang](#ftp-server) (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann. Alternativ gibt es ein geschütztes (basic auth) [Directory Listing](#directory-listing). 
 
 ## Autorisierung / Konfiguration
 
@@ -227,6 +229,12 @@ Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheite
 Aktive FTP-Verbindung verwenden: `ftp URL PORT`
 
 User/Passwort sind im Secret definiert, default ist `admin`/`admin`.
+
+## Directory-Listing
+
+User/Passwort sind im Secret definiert, default ist `admin`/`admin`. 
+
+Der Pfad ist abhängig vom Namen des `TARGET_DIRECTORY`, z.B. http://localhost:8080/target_datahub/ -> /opt/datahub/target_datahub.
 
 ## Datenbank
 
