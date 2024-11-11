@@ -205,7 +205,7 @@ Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmäss
 
 Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. 
 
-Für die Admin-Organisation steht ein [FTP-Zugang](#ftp-server) (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann. Alternativ gibt es ein geschütztes (basic auth) [File Listing](#file-listing). 
+Für die Admin-Organisation steht ein [FTP-Zugang](#ftp-server) (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann. Alternativ gibt es ein geschütztes (basic auth) [Directory Listing](#directory-listing). 
 
 ## Autorisierung / Konfiguration
 
@@ -230,7 +230,7 @@ Aktive FTP-Verbindung verwenden: `ftp URL PORT`
 
 User/Passwort sind im Secret definiert, default ist `admin`/`admin`.
 
-## File-Listing
+## Directory-Listing
 
 User/Passwort sind im Secret definiert, default ist `admin`/`admin`. 
 
