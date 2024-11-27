@@ -160,6 +160,11 @@ Folgender Docker-Befehl funktioniert lokal:
 docker run -p8080:8080 -p2221:2221 -p 2121-2199:2121-2199 -e MAIL_PASSWORD=foo -e MAIL_USERNAME=bar -e DBURL=jdbc:postgresql://docker.for.mac.host.internal:54321/edit -e CREATE_DIRECTORIES=false -e WORK_DIRECTORY=/tmp -e TARGET_DIRECTORY=/tmp  sogis/datahub:0
 ```
 
+## Directory Listing
+
+Auf dem Endpunkt `/datahub`ist ein read-only Directory Listing vorhanden. 
+
+
 ## Konfiguration GDI
 
 Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md)
