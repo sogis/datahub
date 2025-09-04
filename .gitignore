@@ -4,6 +4,8 @@
 *.xtf
 !datahub*.xtf
 !datahub_key.xtf
+!src/test/data/*.xtf
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/maven,gradle,java,groovy,windows,linux,macos,intellij+all,netbeans,eclipse
 # Edit at https://www.toptal.com/developers/gitignore?templates=maven,gradle,java,groovy,windows,linux,macos,intellij+all,netbeans,eclipse
