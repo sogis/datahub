@@ -18,6 +18,8 @@ public class IlidataService {
     
     private final TransferDescription td;
     
+    // Alle Verzeichnisse (=Themen=Datenmodelle), die vom NF-Geometer
+    // beliefert werden.
     private static final List<String> DIRECTORIES = List.of(
             "DMAV_FixpunkteAVKategorie3_V1_0",
             "DMAV_Grundstuecke_V1_0", 
@@ -32,5 +34,9 @@ public class IlidataService {
     
     public void createIlidataXml() {
         log.info("*************");
+        
+        // for loop über DIRECTORIES
+        // Prüfen, ob directory überhaupt existiert
+        
     }
 }
