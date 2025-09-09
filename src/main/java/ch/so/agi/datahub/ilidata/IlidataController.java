@@ -1,6 +1,7 @@
 package ch.so.agi.datahub.ilidata;
 
 import java.io.InputStream;
+import java.nio.file.Path;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,15 +42,12 @@ public class IlidataController {
     }
     
     @GetMapping(value="/ilidata.xml")
-    public ResponseEntity<?> ilidata() {
-//        InputStream is = getClass()
-//                .getResourceAsStream("/ili/ilimodels.xml");
-
-        ilidataService.createIlidataXml();
+    public ResponseEntity<Resource> ilidata() {
+        Path ilidataXml = ilidataService.createXml();
         
         return ResponseEntity
                 .ok()
-                .contentType(MediaType.APPLICATION_XML).body("foo");            
+                .contentType(MediaType.APPLICATION_XML).body(ilidataXml);            
     }
 
 
