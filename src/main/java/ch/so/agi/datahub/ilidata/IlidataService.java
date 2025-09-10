@@ -19,17 +19,18 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import ch.interlis.ili2c.Ili2c;
-import ch.interlis.ili2c.Ili2cFailure;
 import ch.interlis.ili2c.metamodel.TransferDescription;
 import ch.interlis.iom_j.Iom_jObject;
 import ch.interlis.iom_j.xtf.XtfWriter;
 import ch.interlis.iox.IoxException;
 import ch.interlis.iox.IoxWriter;
+import ch.interlis.iox_j.EndBasketEvent;
+import ch.interlis.iox_j.EndTransferEvent;
 import ch.interlis.iox_j.ObjectEvent;
+import ch.interlis.iox_j.StartBasketEvent;
+import ch.interlis.iox_j.StartTransferEvent;
 
 @Service
 public class IlidataService {
@@ -55,14 +56,14 @@ public class IlidataService {
         this.td = td;
     }
     
-    public Path createXml()  {
-        log.info("*************");
-        
+    public Path createXml()  {        
         File dataFile = null;
         try {
             Path tempDir = Files.createTempDirectory("datahub-ilidata-");
             dataFile = Paths.get(tempDir.toString(), "ilidata.xml").toFile();
             IoxWriter ioxWriter = new XtfWriter(dataFile, td);
+            ioxWriter.write(new StartTransferEvent("SOGIS-DATAHUB", "", null));
+            ioxWriter.write(new StartBasketEvent("IliRepository09.RepositoryIndex", "DatasetIdx16.DataIndex"));
 
             int tid=1;
             for (String directory : DIRECTORIES.keySet()) {
@@ -78,15 +79,11 @@ public class IlidataService {
                         e.printStackTrace();
                     }
                     
-                    for (Path xtfFile : xtfFiles) {
-                        log.info("****: " + xtfFile.getFileName());
-                        
+                    for (Path xtfFile : xtfFiles) {                        
                         int lastDotIndex = xtfFile.getFileName().toString().lastIndexOf('.');
                         String fileName = xtfFile.getFileName().toString().substring(0, lastDotIndex);
                         
                         String datasetId = fileName + "." + DIRECTORIES.get(directory);
-                         
-                        log.info(datasetId);
                         
                         Iom_jObject iomObj = new Iom_jObject("DatasetIdx16.DataIndex.DatasetMetadata", String.valueOf(tid));
                         iomObj.setattrvalue("id", datasetId);
@@ -116,11 +113,13 @@ public class IlidataService {
                         
                         ioxWriter.write(new ObjectEvent(iomObj));                            
 
-//                        log.info(iomObj.toString());
                         tid++;
                     }                    
                 }
             }
+            ioxWriter.write(new EndBasketEvent());
+            ioxWriter.write(new EndTransferEvent());
+            ioxWriter.flush();
             ioxWriter.close();
         } catch (IOException | IoxException e) {
             e.printStackTrace();
