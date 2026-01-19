@@ -81,9 +81,11 @@ Pragma: no-cache
 Expires: 0
 X-Frame-Options: DENY
 Content-Type: application/json
-Content-Length: 0
+Transfer-Encoding: chunked
 Date: Thu, 11 Apr 2024 05:45:22 GMT
 Connection: close
+
+{"code":"ch.so.agi.datahub.auth.ApiKeyHeaderAuthenticationFilter","message":"Did not find api key header in request.","timestamp":"2024-04-11T05:45:22.463Z","path":"/api/deliveries"}
 ```
 
 (2) Wird ein falscher API-Key verwendet, antwortet der Server mit dem Statuscode `403` und mit folgendem Inhalt:
@@ -100,7 +102,7 @@ Content-Type: application/json
 Transfer-Encoding: chunked
 Date: Thu, 11 Apr 2024 06:06:20 GMT
 
-{"timestamp":"2024-04-11T06:06:20.463+00:00","status":403,"error":"Forbidden","message":"Forbidden","path":"/api/deliveries"}
+{"code":"ch.so.agi.datahub.auth.ApiKeyHeaderAuthenticationFilter","message":"Forbidden.","timestamp":"2024-04-11T06:06:20.463Z","path":"/api/deliveries"}
 ```
 
 (3) Falls ein API-Key verwendet wird, der existiert, dessen Organisation aber nicht für Lieferung des Operates autorisiert ist, antwortet der Server ebenfalls mit dem Statuscode `403` und diese Inhalt:
@@ -117,7 +119,7 @@ Content-Type: application/json
 Content-Length: 138
 Date: Thu, 11 Apr 2024 06:07:25 GMT
 
-{"code":"ch.so.agi.datahub.auth.DeliveryAuthorizationFilter","message":"User is not authorized","timestamp":"2024-04-11T06:07:25.143747Z"}
+{"code":"ch.so.agi.datahub.auth.DeliveryAuthorizationFilter","message":"User is not authorized","timestamp":"2024-04-11T06:07:25.143747Z","path":"/api/deliveries"}
 ```
 
 ## API-Keys anfordern und löschen
@@ -196,7 +198,7 @@ Transfer-Encoding: chunked
 Date: Thu, 11 Apr 2024 06:24:56 GMT
 Connection: close
 
-{"code":"ch.so.agi.datahub.controller.ApiKeyController","message":"API key not deleted.","timestamp":"2024-04-11T06:24:56.218306Z"}
+{"code":"ch.so.agi.datahub.controller.ApiKeyController","message":"API key not deleted.","timestamp":"2024-04-11T06:24:56.218306Z","path":"/api/keys/5b4fd340-adbb-441a-b9c3-e1d2f13cb1e0"}
 ```
 
 Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmässig neue Keys angefordert werden.

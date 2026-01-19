@@ -139,12 +139,35 @@ Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbes
 
 - 200
 - 202
+- 400
 - 401
 - 403
+- 500
 
 ### Varia
 
 - Dateigrössen bis 200 MB müssen hochgeladen werden können.
+
+### Fehlerformat
+
+Fehlerantworten werden als JSON mit folgendem gemeinsamen Format ausgeliefert:
+
+```
+{
+  "code": "ch.so.agi.datahub.controller.ApiKeyController",
+  "message": "API key not deleted.",
+  "timestamp": "2024-04-11T06:24:56.218306Z",
+  "path": "/api/keys/5b4fd340-adbb-441a-b9c3-e1d2f13cb1e0",
+  "details": [
+    {
+      "field": "organisation",
+      "message": "must not be blank"
+    }
+  ]
+}
+```
+
+`path` und `details` sind optional. `details` wird hauptsächlich für Validierungsfehler (Statuscode `400`) genutzt.
 
 ## Cluster
 
@@ -168,4 +191,3 @@ Auf dem Endpunkt `/datahub`ist ein read-only Directory Listing vorhanden.
 ## Konfiguration GDI
 
 Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md)
-

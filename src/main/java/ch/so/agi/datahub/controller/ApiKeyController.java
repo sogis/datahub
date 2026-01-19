@@ -25,8 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 import ch.so.agi.datahub.AppConstants;
 import ch.so.agi.datahub.cayenne.CoreApikey;
 import ch.so.agi.datahub.cayenne.CoreOrganisation;
+import ch.so.agi.datahub.model.ApiError;
 import ch.so.agi.datahub.model.GenericResponse;
 import ch.so.agi.datahub.service.EmailService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 public class ApiKeyController {
@@ -54,7 +56,9 @@ public class ApiKeyController {
     }
     
     @PostMapping(path = "/api/keys")
-    public ResponseEntity<?> createApiKey(Authentication authentication, @RequestPart(name = "organisation", required = false) String organisationParam) {
+    public ResponseEntity<?> createApiKey(Authentication authentication,
+            @RequestPart(name = "organisation", required = false) String organisationParam,
+            HttpServletRequest request) {
         // Organisation eruieren, für die der neue API-Key erzeugt werden soll.
         // Falls es ein Admin-Key (resp. Org) ist, muss die Organisation als Parameter geliefert 
         // werden.
@@ -74,7 +78,8 @@ public class ApiKeyController {
             logger.error("organisation parameter is required");
             return ResponseEntity
                     .internalServerError()
-                    .body(new GenericResponse(this.getClass().getCanonicalName(), "Parameter 'organisation' is required.", Instant.now()));
+                    .body(new ApiError(this.getClass().getCanonicalName(), "Parameter 'organisation' is required.",
+                            Instant.now(), request.getRequestURI(), null));
         }
         
         CoreOrganisation coreOrganisation = ObjectSelect.query(CoreOrganisation.class)
@@ -85,7 +90,8 @@ public class ApiKeyController {
             logger.error("Organisation '{}' not found.", organisation);
             return ResponseEntity
                     .internalServerError()
-                    .body(new GenericResponse(this.getClass().getCanonicalName(), "Object not found.", Instant.now()));
+                    .body(new ApiError(this.getClass().getCanonicalName(), "Object not found.", Instant.now(),
+                            request.getRequestURI(), null));
         }
         
         String apiKey = UUID.randomUUID().toString();
@@ -107,7 +113,8 @@ public class ApiKeyController {
                 
                 return ResponseEntity
                         .internalServerError()
-                        .body(new GenericResponse(this.getClass().getCanonicalName(), "Error while sending email.", Instant.now()));
+                        .body(new ApiError(this.getClass().getCanonicalName(), "Error while sending email.",
+                                Instant.now(), request.getRequestURI(), null));
             }            
         }
 
@@ -116,7 +123,9 @@ public class ApiKeyController {
     }
     
     @DeleteMapping(path = "/api/keys/{apiKey}") 
-    public ResponseEntity<?> deleteApiKey(Authentication authentication, @PathVariable(name = "apiKey") String apiKeyParam) {        
+    public ResponseEntity<?> deleteApiKey(Authentication authentication,
+            @PathVariable(name = "apiKey") String apiKeyParam,
+            HttpServletRequest request) {        
         List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
                 .where(CoreApikey.REVOKEDAT.isNull())
                 .select(objectContext);
@@ -138,17 +147,24 @@ public class ApiKeyController {
 
         return ResponseEntity
                 .internalServerError()
-                .body(new GenericResponse(this.getClass().getCanonicalName(), "API key not deleted.", Instant.now()));
+                .body(new ApiError(this.getClass().getCanonicalName(), "API key not deleted.", Instant.now(),
+                        request.getRequestURI(), null));
     }
 
     // Notwendig, weil sonst ApiKeyHeaderAuthenticationFilter Exception greift.
     // Wegen filterChain.
     @ExceptionHandler({Exception.class, RuntimeException.class})
-    public ResponseEntity<?> databaseError(Exception e) {
+    public ResponseEntity<?> databaseError(Exception e, HttpServletRequest request) {
         e.printStackTrace();
         logger.error("<{}>", e.getMessage());
+        ApiError error = new ApiError(
+                e.getClass().getCanonicalName(),
+                "Please contact service provider.",
+                Instant.now(),
+                request.getRequestURI(),
+                null);
         return ResponseEntity
                 .internalServerError()
-                .body("Please contact service provider.");
+                .body(error);
     }
 }

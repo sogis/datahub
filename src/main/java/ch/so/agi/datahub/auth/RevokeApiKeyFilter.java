@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.so.agi.datahub.cayenne.CoreApikey;
 import ch.so.agi.datahub.cayenne.CoreOrganisation;
-import ch.so.agi.datahub.model.GenericResponse;
+import ch.so.agi.datahub.model.ApiError;
 import ch.so.agi.datahub.service.EmailService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -102,8 +102,8 @@ public class RevokeApiKeyFilter extends OncePerRequestFilter {
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 ServletOutputStream responseStream = response.getOutputStream();
-                mapper.writeValue(responseStream, new GenericResponse(this.getClass().getCanonicalName(),
-                        "Possible API key was revoked.", Instant.now()));
+                mapper.writeValue(responseStream, new ApiError(this.getClass().getCanonicalName(),
+                        "Possible API key was revoked.", Instant.now(), request.getRequestURI(), null));
                 responseStream.flush();
                 return;
             }            
