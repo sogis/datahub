@@ -20,6 +20,22 @@ Das Frontend (die Jobübersicht) ist mit Jakarta Faces umgesetzt (Joinfaces und 
 
 ## Entwicklung
 
+### Tests
+
+Standard-Testlauf:
+
+```
+./gradlew test
+```
+
+Hinweis: Der `DatahubApplicationTests`-Kontexttest benötigt eine erreichbare PostgreSQL-DB (u.a. für Jobrunr). Ohne DB schlägt der Test mit einer Connection-Exception fehl.
+
+Folgende fokussierte Tests wurden ohne DB erfolgreich ausgeführt (z.B. für Fehlerantworten in Controllern/Filtern):
+
+```
+./gradlew test --tests ch.so.agi.datahub.controller.DeliveryControllerTest --tests ch.so.agi.datahub.controller.ApiKeyControllerTest --tests ch.so.agi.datahub.auth.DeliveryAuthorizationFilterTest --tests ch.so.agi.datahub.auth.RevokeApiKeyFilterTest
+```
+
 ### Datenbank
 
 Es müssen mit _ili2pg_ das Autorisierungsschema und das Logschema erstellt werden. Siehe dazu Betriebshandbuch. Die Tabellen für Jobrunr werden bei genügender Berechtigung des Datenbankusers und beim Setzen der Konfiguration `org.jobrunr.database.skip-create` resp. `JOBRUNR_SKIP_CREATE` auf `false` beim Starten der Anwendung selbständig erstellt. Das Schema muss jedoch bereits vorhanden sein. Erstmalig muss es manuell erstellt werden:
@@ -144,5 +160,4 @@ curl -i -X GET --header "X-API-KEY:b1025370-7fa1-4195-bf03-2a48be85450c" http://
 curl -i -X POST --header "X-API-KEY:b1025370-7fa1-4195-bf03-2a48be85450c" -F 'file=@src/test/data/DMAV_Dienstbarkeitsgrenzen_V1_0.449.xtf' -F 'theme=DMAV_Dienstbarkeitsgrenzen_V1_0' -F 'operat=449' http://localhost:8080/api/deliveries
 ```
  
-
 

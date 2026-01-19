@@ -1,5 +1,6 @@
 package ch.so.agi.datahub.controller;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import ch.so.agi.datahub.AppConstants;
 import ch.so.agi.datahub.cayenne.DeliveriesDelivery;
+import ch.so.agi.datahub.model.ApiError;
 import ch.so.agi.datahub.service.DeliveryService;
 import ch.so.agi.datahub.service.FilesStorageService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -109,12 +111,18 @@ public class DeliveryController {
     }
     
     @ExceptionHandler({Exception.class, RuntimeException.class})
-    public ResponseEntity<?> error(Exception e) {
+    public ResponseEntity<?> error(Exception e, HttpServletRequest request) {
         e.printStackTrace();
         logger.error("<{}>", e.getMessage());
+        ApiError error = new ApiError(
+                e.getClass().getCanonicalName(),
+                "Please contact service provider. Delivery is not queued.",
+                Instant.now(),
+                request.getRequestURI(),
+                null);
         return ResponseEntity
                 .internalServerError()
-                .body("Please contact service provider. Delivery is not queued.");
+                .body(error);
     }
     
     private String getHost() {

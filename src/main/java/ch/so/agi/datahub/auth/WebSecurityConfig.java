@@ -112,7 +112,7 @@ public class WebSecurityConfig {
                         //.requestMatchers(AntPathRequestMatcher.antMatcher("/public/**")).permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new ApiKeyHeaderAuthenticationFilter(authenticationManager(), apiKeyHeaderName), LogoutFilter.class)
+                .addFilterBefore(new ApiKeyHeaderAuthenticationFilter(authenticationManager(), apiKeyHeaderName, mapper), LogoutFilter.class)
                 // TODO
 //                .exceptionHandling(exceptionHandling ->
 //                    exceptionHandling.authenticationEntryPoint(authEntryPoint)

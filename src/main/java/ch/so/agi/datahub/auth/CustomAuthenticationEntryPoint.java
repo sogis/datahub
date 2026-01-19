@@ -2,10 +2,8 @@ package ch.so.agi.datahub.auth;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -13,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import ch.so.agi.datahub.model.GenericResponse;
+import ch.so.agi.datahub.model.ApiError;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +29,8 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         ServletOutputStream responseStream = response.getOutputStream();
-        mapper.writeValue(responseStream, new GenericResponse(authException.getClass().getCanonicalName(), authException.getMessage(), Instant.now()));
+        mapper.writeValue(responseStream, new ApiError(authException.getClass().getCanonicalName(), authException.getMessage(),
+                Instant.now(), request.getRequestURI(), null));
         responseStream.flush();
     }
 }

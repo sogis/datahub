@@ -20,7 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.so.agi.datahub.AppConstants;
-import ch.so.agi.datahub.model.GenericResponse;
+import ch.so.agi.datahub.model.ApiError;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
@@ -59,7 +59,8 @@ public class DeliveryAuthorizationFilter extends OncePerRequestFilter {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             ServletOutputStream responseStream = response.getOutputStream();
-            mapper.writeValue(responseStream, new GenericResponse(this.getClass().getCanonicalName(), "Missing parameter", Instant.now()));
+            mapper.writeValue(responseStream, new ApiError(this.getClass().getCanonicalName(), "Missing parameter", Instant.now(),
+                    request.getRequestURI(), null));
             responseStream.flush();
             return;
         }
@@ -114,7 +115,8 @@ WHERE
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             ServletOutputStream responseStream = response.getOutputStream();
-            mapper.writeValue(responseStream, new GenericResponse(this.getClass().getCanonicalName(), "User is not authorized", Instant.now()));
+            mapper.writeValue(responseStream, new ApiError(this.getClass().getCanonicalName(), "User is not authorized", Instant.now(),
+                    request.getRequestURI(), null));
             responseStream.flush();
         } else {
             request.setAttribute(AppConstants.ATTRIBUTE_OPERAT_DELIVERY_INFO, result);
