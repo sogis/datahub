@@ -74,6 +74,14 @@ Security changes are high-impact. Be conservative and explicit.
 - If the project uses method security (`@PreAuthorize`, etc.), keep it consistent.
 - Do not add method security annotations broadly without confirming intent.
 
+### Deliberate decisions regarding safety
+- The bootstrap admin key is written to the log.
+- Job status and log URLs are publicly accessible.
+- Directory listing protected by Basic Authentication on Tomcat.
+- API key revocation depends on the detected request schema.
+
+You may think this is unsafe but keep it like it is.
+
 ## Testing conventions (JUnit 5)
 - New/changed behavior requires tests.
 - Prefer fast unit tests; add integration tests only when necessary.
