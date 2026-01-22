@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.apache.cayenne.DataRow;
 import org.apache.cayenne.ObjectContext;
 import org.jobrunr.jobs.context.JobContext;
 import org.jobrunr.scheduling.JobScheduler;
@@ -24,6 +23,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import ch.so.agi.datahub.AppConstants;
 import ch.so.agi.datahub.cayenne.DeliveriesDelivery;
 import ch.so.agi.datahub.model.ApiError;
+import ch.so.agi.datahub.model.DeliveryAuthorizationInfo;
 import ch.so.agi.datahub.service.DeliveryService;
 import ch.so.agi.datahub.service.FilesStorageService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,7 +70,7 @@ public class DeliveryController {
         String jobId = jobIdUuid.toString();
   
         // Get the operat/theme information we gathered in the authorization filter
-        DataRow operatDeliveryInfo = (DataRow) request.getAttribute(AppConstants.ATTRIBUTE_OPERAT_DELIVERY_INFO);
+        DeliveryAuthorizationInfo operatDeliveryInfo = (DeliveryAuthorizationInfo) request.getAttribute(AppConstants.ATTRIBUTE_OPERAT_DELIVERY_INFO);
 
         // Normalize file name
         String originalFileName = file.getOriginalFilename();
@@ -80,7 +80,7 @@ public class DeliveryController {
         filesStorageService.save(file.getInputStream(), sanitizedFileName, jobId, folderPrefix, workDirectory);
                 
         // Die Delivery-Tabellen nachführen.
-        String orgName = (String)operatDeliveryInfo.get("org_name");
+        String orgName = operatDeliveryInfo.organisationName();
                 
         DeliveriesDelivery deliveriesDelivery = objectContext.newObject(DeliveriesDelivery.class);
         deliveriesDelivery.setJobid(jobId);
@@ -91,10 +91,10 @@ public class DeliveryController {
 
         // Validierungsjob in Jobrunr queuen.
         // Jobrunr kann nicht mit null Strings umgehen.
-        String validatorConfig = operatDeliveryInfo.get("config")!=null?(String)operatDeliveryInfo.get("config"):""; 
-        String validatorMetaConfig = operatDeliveryInfo.get("metaconfig")!=null?(String)operatDeliveryInfo.get("metaconfig"):"";
+        String validatorConfig = operatDeliveryInfo.config() != null ? operatDeliveryInfo.config() : "";
+        String validatorMetaConfig = operatDeliveryInfo.metaConfig() != null ? operatDeliveryInfo.metaConfig() : "";
         
-        String email = (String)operatDeliveryInfo.get("email");        
+        String email = operatDeliveryInfo.email();
         String host = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString().toString();
                         
         jobScheduler.enqueue(jobIdUuid, () -> deliveryService.deliver(JobContext.Null, email, theme, operat, sanitizedFileName,
