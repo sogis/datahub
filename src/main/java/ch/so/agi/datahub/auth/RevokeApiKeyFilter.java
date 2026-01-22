@@ -3,7 +3,6 @@ package ch.so.agi.datahub.auth;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -12,11 +11,7 @@ import org.apache.cayenne.ObjectContext;
 import org.apache.cayenne.query.ObjectSelect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -74,18 +69,7 @@ public class RevokeApiKeyFilter extends OncePerRequestFilter {
         
         if (key != null) {
             if (proto.equalsIgnoreCase("http") && !httpWhitelist.contains(host)) {                
-                List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
-                        .where(CoreApikey.REVOKEDAT.isNull())
-                        .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))
-                        .select(objectContext);
-                
-                CoreApikey myApiKey = null;
-                for (CoreApikey apiKey : apiKeys) {
-                    if (encoder.matches(key, apiKey.getApikey())) {
-                        myApiKey = apiKey;
-                        break;
-                    }
-                }
+                CoreApikey myApiKey = findApiKeyByHeader(key);
 
                 if (myApiKey != null) {
                     myApiKey.setRevokedat(LocalDateTime.now());
@@ -110,5 +94,31 @@ public class RevokeApiKeyFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private CoreApikey findApiKeyByHeader(String key) {
+        ApiKeyFormat.ApiKeyParts apiKeyParts = ApiKeyFormat.parseApiKey(key).orElse(null);
+        if (apiKeyParts == null) {
+            return null;
+        }
+
+        CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
+                .where(CoreApikey.APIKEY.like(apiKeyParts.keyId() + ":%"))
+                .and(CoreApikey.REVOKEDAT.isNull())
+                .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))
+                .selectOne(objectContext);
+
+        if (apiKey != null && matchesStoredKey(apiKeyParts, apiKey)) {
+            return apiKey;
+        }
+
+        return null;
+    }
+
+    private boolean matchesStoredKey(ApiKeyFormat.ApiKeyParts apiKeyParts, CoreApikey apiKey) {
+        return ApiKeyFormat.parseStoredValue(apiKey.getApikey())
+                .filter(stored -> stored.keyId().equals(apiKeyParts.keyId()))
+                .map(stored -> encoder.matches(apiKeyParts.secret().toString(), stored.hashedSecret()))
+                .orElse(false);
     }
 }

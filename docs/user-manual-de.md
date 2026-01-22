@@ -1,13 +1,13 @@
 # Benutzerhandbuch
 
-Aus Benutzersicht wird der Datahub hauptsächlich mittels REST-API verwendet. Die Authentifizerung der meisten Operationen der API erfolgt über einen API-Key. Die Autorisierung erfolgt über die dem Key zugeordnete Organisation und der Organisation zugewiesenen Operate (`operat=xxxx`) eines Themas (`theme=yyyyy`).
+Aus Benutzersicht wird der Datahub hauptsächlich mittels REST-API verwendet. Die Authentifizerung der meisten Operationen der API erfolgt über einen API-Key. Der API-Key besteht aus zwei UUIDs im Format `keyId.secret` (z.B. `11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222`). Die Autorisierung erfolgt über die dem Key zugeordnete Organisation und der Organisation zugewiesenen Operate (`operat=xxxx`) eines Themas (`theme=yyyyy`).
 
 ## Daten anliefern
 
 Beispiel: Anlieferung des Operates `2471` des Themas `IPW_2020`. Der Dateiname `2471_gep.xtf` kann frei gewählt werden und muss keiner Logik folgen. Die Datei darf nicht gezippt sein:
 
 ```
-curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" -F 'file=@2471_gep.xtf' -F 'theme=IPW_2020' -F 'operat=2471' https://geo.so.ch/datahub/api/deliveries
+curl -i -X POST --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" -F 'file=@2471_gep.xtf' -F 'theme=IPW_2020' -F 'operat=2471' https://geo.so.ch/datahub/api/deliveries
 ```
 
 **Achtung:** Es muss zwingend `https` verwendet werden. Wird die Anfrage nur mit `http` gemacht, wird der API-Key auf dem Server sofort ungültig gemacht.
@@ -127,7 +127,7 @@ Date: Thu, 11 Apr 2024 06:07:25 GMT
 Die API-Keys müssen erstmalig vom Admin-Account erstellt werden:
 
 ```
-curl -i -X POST --header "X-API-KEY:c0bb04eb-789b-4063-95ad-bd86a06c6aff" -F 'organisation=Acme GmbH' https://geo.so.ch/datahub/api/keys
+curl -i -X POST --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" -F 'organisation=Acme GmbH' https://geo.so.ch/datahub/api/keys
 ```
 
 Die Angabe der Organisation ist zwingend. Ohne diese wird eine neuer API-Key für den Admin-Account erstellt. Konnte ein neuer API-Key erstellt werden, erscheint folgend Meldung in der Konsole:
@@ -147,7 +147,7 @@ Date: Thu, 11 Apr 2024 06:16:02 GMT
 {"message":"Sent email with new api key.","timestamp":"2024-04-11T06:16:02.329886Z"}
 ```
 
-Der API-Key erscheint bewusst nicht in der Ausgabe, sondern wird an die hinterlegte E-Mail-Adresse verschickt. Die E-Mail-Adresse kann nur vom Admin-Account in der Datenbank verändert werden. Der Key wird _nicht_ als Plaintext in der Datenbank gespeichert, sondern randonmässig gesaltet und gehashed und sind vom Betreiber nicht einsehbar. 
+Der API-Key erscheint bewusst nicht in der Ausgabe, sondern wird an die hinterlegte E-Mail-Adresse verschickt. Die E-Mail-Adresse kann nur vom Admin-Account in der Datenbank verändert werden. Der Key wird _nicht_ als Plaintext in der Datenbank gespeichert. Stattdessen wird die `secret`-Komponente gesaltet und gehashed; in der Datenbank wird `keyId:hash` abgelegt. 
 
 **Achtung:** Sie sind ggf. in den Log-Messages des E-Mail-Dienstes sichtbar.
 
@@ -155,7 +155,7 @@ Der API-Key erscheint bewusst nicht in der Ausgabe, sondern wird an die hinterle
 Wenn die Organisation selber einen neuen API-Key erstellen will, reicht gleiche Befehl ohne Angabe der Organisation:
 
 ```
-curl -i -X POST --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" https://geo.so.ch/datahub/api/keys
+curl -i -X POST --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" https://geo.so.ch/datahub/api/keys
 ```
 
 Die Ausgabe ist identisch.
@@ -163,7 +163,7 @@ Die Ausgabe ist identisch.
 Will man einen Key löschen, muss folgender Request gemacht werden:
 
 ```
-curl -i -X DELETE --header "X-API-KEY:ca20e14c-faa7-4920-b0a5-c5a44476d80c" https://geo.so.ch/datahub/api/keys/5b4fd340-adbb-441a-b9c3-e1d2f13cb1e0
+curl -i -X DELETE --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" https://geo.so.ch/datahub/api/keys/33333333-3333-3333-3333-333333333333.44444444-4444-4444-4444-444444444444
 ```
 
 Konnte der Schlüssel gelöscht werden, wird der Statuscode `200` zurückgeliefert und diesem Inhalt

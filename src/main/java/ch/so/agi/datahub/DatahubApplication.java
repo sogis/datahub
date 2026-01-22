@@ -27,6 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import ch.so.agi.datahub.auth.ApiKeyFormat;
 import ch.so.agi.datahub.cayenne.CoreApikey;
 import ch.so.agi.datahub.cayenne.CoreOrganisation;
 import jakarta.annotation.PreDestroy;
@@ -107,11 +108,13 @@ public class DatahubApplication {
                     coreOrganisation.setArole(AppConstants.ROLE_NAME_ADMIN);
                     coreOrganisation.setEmail(adminAccountMail);
                     
-                    String apiKey = UUID.randomUUID().toString();
-                    String encodedApiKey = encoder().encode(apiKey);
+                    UUID keyId = UUID.randomUUID();
+                    UUID secret = UUID.randomUUID();
+                    String apiKey = ApiKeyFormat.buildApiKey(keyId, secret);
+                    String encodedApiKey = encoder().encode(secret.toString());
                     
                     CoreApikey coreApiKey = objectContext.newObject(CoreApikey.class);
-                    coreApiKey.setApikey(encodedApiKey);
+                    coreApiKey.setApikey(ApiKeyFormat.buildStoredValue(keyId, encodedApiKey));
                     coreApiKey.setCreatedat(LocalDateTime.now());
                     coreApiKey.setCoreOrganisation(coreOrganisation);
                     
