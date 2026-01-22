@@ -98,32 +98,18 @@ public class RevokeApiKeyFilter extends OncePerRequestFilter {
 
     private CoreApikey findApiKeyByHeader(String key) {
         ApiKeyFormat.ApiKeyParts apiKeyParts = ApiKeyFormat.parseApiKey(key).orElse(null);
-        if (apiKeyParts != null) {
-            CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
-                    .where(CoreApikey.APIKEY.like(apiKeyParts.keyId() + ":%"))
-                    .and(CoreApikey.REVOKEDAT.isNull())
-                    .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))
-                    .selectOne(objectContext);
-
-            if (apiKey != null && matchesStoredKey(apiKeyParts, apiKey)) {
-                return apiKey;
-            }
-
+        if (apiKeyParts == null) {
             return null;
         }
 
-        List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
-                .where(CoreApikey.REVOKEDAT.isNull())
+        CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
+                .where(CoreApikey.APIKEY.like(apiKeyParts.keyId() + ":%"))
+                .and(CoreApikey.REVOKEDAT.isNull())
                 .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))
-                .select(objectContext);
+                .selectOne(objectContext);
 
-        for (CoreApikey apiKey : apiKeys) {
-            if (ApiKeyFormat.parseStoredValue(apiKey.getApikey()).isPresent()) {
-                continue;
-            }
-            if (encoder.matches(key, apiKey.getApikey())) {
-                return apiKey;
-            }
+        if (apiKey != null && matchesStoredKey(apiKeyParts, apiKey)) {
+            return apiKey;
         }
 
         return null;

@@ -2,7 +2,6 @@ package ch.so.agi.datahub.controller;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.ResourceBundle;
 import java.util.UUID;
 
@@ -131,41 +130,24 @@ public class ApiKeyController {
             HttpServletRequest request) {        
         boolean revoked = false;
         ApiKeyFormat.ApiKeyParts apiKeyParts = ApiKeyFormat.parseApiKey(apiKeyParam).orElse(null);
-        if (apiKeyParts != null) {
-            CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
-                    .where(CoreApikey.APIKEY.like(apiKeyParts.keyId() + ":%"))
-                    .and(CoreApikey.REVOKEDAT.isNull())
-                    .selectOne(objectContext);
+        if (apiKeyParts == null) {
+            return ResponseEntity
+                    .internalServerError()
+                    .body(new ApiError(this.getClass().getCanonicalName(), "API key not deleted.", Instant.now(),
+                            request.getRequestURI(), null));
+        }
 
-            if (apiKey != null
-                    && matchesStoredKey(apiKeyParts, apiKey)
-                    && authentication.getName().equalsIgnoreCase(apiKey.getCoreOrganisation().getAname())) {
-                apiKey.setRevokedat(LocalDateTime.now());
-                objectContext.commitChanges();
-                revoked = true;
-            }
-        } else {
-            List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
-                    .where(CoreApikey.REVOKEDAT.isNull())
-                    .select(objectContext);
+        CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
+                .where(CoreApikey.APIKEY.like(apiKeyParts.keyId() + ":%"))
+                .and(CoreApikey.REVOKEDAT.isNull())
+                .selectOne(objectContext);
 
-            for (CoreApikey apiKey : apiKeys) {
-                if (ApiKeyFormat.parseStoredValue(apiKey.getApikey()).isPresent()) {
-                    continue;
-                }
-                // Beim Key-Löschen gibt es keinen Autorisierungsfilter. Es wird jedoch hier
-                // überprüft, ob die dem authentifziertem Key zugehörige Organisation einen
-                // fremden Key löschen will.
-                // Grund für das Nicht-Autorisieren ist die Eintretenswahrscheinlichkeit und
-                // wenn man einen fremden Key hat, kann man sich ja mit diesem authentifizieren.
-                if (encoder.matches(apiKeyParam, apiKey.getApikey())
-                        && authentication.getName().equalsIgnoreCase(apiKey.getCoreOrganisation().getAname())) {
-                    apiKey.setRevokedat(LocalDateTime.now());
-                    objectContext.commitChanges();
-                    revoked = true;
-                    break;
-                }
-            }
+        if (apiKey != null
+                && matchesStoredKey(apiKeyParts, apiKey)
+                && authentication.getName().equalsIgnoreCase(apiKey.getCoreOrganisation().getAname())) {
+            apiKey.setRevokedat(LocalDateTime.now());
+            objectContext.commitChanges();
+            revoked = true;
         }
 
         if (revoked) {

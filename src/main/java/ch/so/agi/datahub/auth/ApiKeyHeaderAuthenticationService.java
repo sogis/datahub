@@ -2,7 +2,6 @@ package ch.so.agi.datahub.auth;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,25 +28,13 @@ public class ApiKeyHeaderAuthenticationService {
     
     public ApiKeyHeaderAuthenticationToken authenticate(ApiKeyHeaderAuthenticationToken apiKeyAuthenticationToken) {        
         Optional<ApiKeyFormat.ApiKeyParts> apiKeyParts = ApiKeyFormat.parseApiKey(apiKeyAuthenticationToken.getApiKey());
-        if (apiKeyParts.isPresent()) {
-            Optional<CoreApikey> apiKey = loadActiveApiKeyById(apiKeyParts.get().keyId());
-            if (apiKey.isPresent() && matchesStoredKey(apiKeyParts.get(), apiKey.get())) {
-                return authenticate(apiKeyAuthenticationToken, apiKey.get());
-            }
+        if (apiKeyParts.isEmpty()) {
             return apiKeyAuthenticationToken;
         }
 
-        List<CoreApikey> apiKeys = loadActiveApiKeys();
-
-        // Weil das Passwort randommässig gesalted wird, muss man die matches-Funktion verwenden und
-        // kann nicht den Plaintext-Key nochmals encoden und mit der DB mittels SQL vergleichen.
-        for (CoreApikey apiKey : apiKeys) {
-            if (ApiKeyFormat.parseStoredValue(apiKey.getApikey()).isPresent()) {
-                continue;
-            }
-            if (encoder.matches(apiKeyAuthenticationToken.getApiKey(), apiKey.getApikey())) {
-                return authenticate(apiKeyAuthenticationToken, apiKey);
-            }
+        Optional<CoreApikey> apiKey = loadActiveApiKeyById(apiKeyParts.get().keyId());
+        if (apiKey.isPresent() && matchesStoredKey(apiKeyParts.get(), apiKey.get())) {
+            return authenticate(apiKeyAuthenticationToken, apiKey.get());
         }
 
         return apiKeyAuthenticationToken;
@@ -61,13 +48,6 @@ public class ApiKeyHeaderAuthenticationService {
                 .selectOne(objectContext);
 
         return Optional.ofNullable(apiKey);
-    }
-
-    protected List<CoreApikey> loadActiveApiKeys() {
-        return ObjectSelect.query(CoreApikey.class)
-                .where(CoreApikey.REVOKEDAT.isNull())
-                .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))
-                .select(objectContext);
     }
 
     private ApiKeyHeaderAuthenticationToken authenticate(ApiKeyHeaderAuthenticationToken apiKeyAuthenticationToken, CoreApikey apiKey) {
