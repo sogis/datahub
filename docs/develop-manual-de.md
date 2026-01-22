@@ -44,12 +44,12 @@ Es müssen mit _ili2pg_ das Autorisierungsschema und das Logschema erstellt werd
 CREATE SCHEMA IF NOT EXISTS agi_datahub_jobrunr_v1;
 ```
 
-Mit der `docker-compose.yml`-Datei im `dev/`-Ordner kann die DB mit einem persistierenden Volume gestartet werden. Die Datei `datahub_20241104.xtf` beinhaltet bereits einige Organisation, Key, Themen und Operate. Die im XTF vorhanden Keys entsprechen den Testrequests weiter unten.
+Mit der `docker-compose.yml`-Datei im `dev/`-Ordner kann die DB mit einem persistierenden Volume gestartet werden. Die Datei `datahub_20260122.xtf` beinhaltet bereits einige Organisation, Key, Themen und Operate. Die im XTF vorhanden Keys entsprechen den Testrequests weiter unten.
 
 Export des Config-Schemas:
 
 ```
-java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --dbschema agi_datahub_config_v1 --models SO_AGI_Datahub_Config_20240403 --export datahub_20241104.xtf
+java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --dbschema agi_datahub_config_v1 --models SO_AGI_Datahub_Config_20240403 --export datahub_20260122.xtf
 ```
 
 Für die Ansicht der Jobs wird eine View benötigt, die für das Entwickeln einmalig von Hand erstellt werden muss (siehe /sql/view.sql).
