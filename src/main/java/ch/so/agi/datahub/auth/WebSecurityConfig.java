@@ -4,7 +4,6 @@ import java.util.ResourceBundle;
 
 import org.apache.cayenne.ObjectContext;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -16,16 +15,13 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.so.agi.datahub.service.EmailService;
 
-import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 public class WebSecurityConfig {
@@ -33,10 +29,6 @@ public class WebSecurityConfig {
     @Value("${app.apiKeyHeaderName}")
     private String apiKeyHeaderName;
     
-//    @Autowired
-//    @Qualifier("customAuthenticationEntryPoint")
-//    AuthenticationEntryPoint authEntryPoint;
-
     @Autowired
     ObjectContext objectContext;
     
@@ -45,6 +37,12 @@ public class WebSecurityConfig {
     
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    ApiErrorAuthenticationEntryPoint apiErrorAuthenticationEntryPoint;
+
+    @Autowired
+    ApiErrorAccessDeniedHandler apiErrorAccessDeniedHandler;
     
     @Autowired
     EmailService emailService;
@@ -112,11 +110,13 @@ public class WebSecurityConfig {
                         //.requestMatchers(AntPathRequestMatcher.antMatcher("/public/**")).permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new ApiKeyHeaderAuthenticationFilter(authenticationManager(), apiKeyHeaderName, mapper), LogoutFilter.class)
-                // TODO
-//                .exceptionHandling(exceptionHandling ->
-//                    exceptionHandling.authenticationEntryPoint(authEntryPoint)
-//                )
+                .addFilterBefore(new ApiKeyHeaderAuthenticationFilter(authenticationManager(), apiKeyHeaderName,
+                        apiErrorAuthenticationEntryPoint, apiErrorAccessDeniedHandler), LogoutFilter.class)
+                .exceptionHandling(exceptionHandling ->
+                    exceptionHandling
+                        .authenticationEntryPoint(apiErrorAuthenticationEntryPoint)
+                        .accessDeniedHandler(apiErrorAccessDeniedHandler)
+                )
                 .logout(AbstractHttpConfigurer::disable)
                 .build();
     }
