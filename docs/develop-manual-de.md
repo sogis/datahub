@@ -104,7 +104,7 @@ jbang create_schema_sql.java
 Testrequest auf geschützten Endpunkt:
 
 ```
-curl -i -X GET --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" http://localhost:8080/protected/hello
+curl -i -X GET --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" http://localhost:8080/protected/hello
 ```
 
 ```
@@ -125,17 +125,17 @@ Hello, this is a secured endpoint!
 Schlüssel für Organisation erstellen:
 
 ```
-curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'organisation=acme' http://localhost:8080/api/keys
+curl -i -X POST --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" -F 'organisation=acme' http://localhost:8080/api/keys
 ```
 
 ```
-curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'organisation=emchberger' http://localhost:8080/api/keys
+curl -i -X POST --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" -F 'organisation=emchberger' http://localhost:8080/api/keys
 ```
 
 Admin darf beliebige Operate schicken:
 
 ```
-curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'file=@src/test/data/ch.so.avt.kunstbauten.xtf' -F 'theme=SO_AVT_Kunstbauten' -F 'operat=kanton' http://localhost:8080/api/deliveries
+curl -i -X POST --header "X-API-KEY:11111111-1111-1111-1111-111111111111.22222222-2222-2222-2222-222222222222" -F 'file=@src/test/data/ch.so.avt.kunstbauten.xtf' -F 'theme=SO_AVT_Kunstbauten' -F 'operat=kanton' http://localhost:8080/api/deliveries
 ```
 
 #### Andere Benutzer
@@ -143,21 +143,20 @@ curl -i -X POST --header "X-API-KEY:125f5da4-930c-41d5-a72d-9af51ec3584a" -F 'fi
 Acme:
 
 ```
-curl -i -X GET --header "X-API-KEY:74e5f815-f8f3-4b72-8815-a81e89822a4a" http://localhost:8080/protected/hello
+curl -i -X GET --header "X-API-KEY:33333333-3333-3333-3333-333333333333.44444444-4444-4444-4444-444444444444" http://localhost:8080/protected/hello
 ```
 
 ```
-curl -i -X POST --header "X-API-KEY:74e5f815-f8f3-4b72-8815-a81e89822a4a" -F 'file=@src/test/data/ch.so.avt.kunstbauten.xtf' -F 'theme=SO_AVT_Kunstbauten' -F 'operat=kanton' http://localhost:8080/api/deliveries
+curl -i -X POST --header "X-API-KEY:33333333-3333-3333-3333-333333333333.44444444-4444-4444-4444-444444444444" -F 'file=@src/test/data/ch.so.avt.kunstbauten.xtf' -F 'theme=SO_AVT_Kunstbauten' -F 'operat=kanton' http://localhost:8080/api/deliveries
 ```
 
 Emchberger:
 
 ```
-curl -i -X GET --header "X-API-KEY:b1025370-7fa1-4195-bf03-2a48be85450c" http://localhost:8080/protected/hello
+curl -i -X GET --header "X-API-KEY:55555555-5555-5555-5555-555555555555.66666666-6666-6666-6666-666666666666" http://localhost:8080/protected/hello
 ```
 
 ```
-curl -i -X POST --header "X-API-KEY:b1025370-7fa1-4195-bf03-2a48be85450c" -F 'file=@src/test/data/DMAV_Dienstbarkeitsgrenzen_V1_0.449.xtf' -F 'theme=DMAV_Dienstbarkeitsgrenzen_V1_0' -F 'operat=449' http://localhost:8080/api/deliveries
+curl -i -X POST --header "X-API-KEY:55555555-5555-5555-5555-555555555555.66666666-6666-6666-6666-666666666666" -F 'file=@src/test/data/DMAV_Dienstbarkeitsgrenzen_V1_0.449.xtf' -F 'theme=DMAV_Dienstbarkeitsgrenzen_V1_0' -F 'operat=449' http://localhost:8080/api/deliveries
 ```
  
-

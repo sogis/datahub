@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 
 import ch.so.agi.datahub.AppConstants;
+import ch.so.agi.datahub.auth.ApiKeyFormat;
 import ch.so.agi.datahub.cayenne.CoreApikey;
 import ch.so.agi.datahub.cayenne.CoreOrganisation;
 import ch.so.agi.datahub.model.ApiError;
@@ -94,11 +95,13 @@ public class ApiKeyController {
                             request.getRequestURI(), null));
         }
         
-        String apiKey = UUID.randomUUID().toString();
-        String encodedApiKey = encoder.encode(apiKey);
+        UUID keyId = UUID.randomUUID();
+        UUID secret = UUID.randomUUID();
+        String apiKey = ApiKeyFormat.buildApiKey(keyId, secret);
+        String encodedApiKey = encoder.encode(secret.toString());
         
         CoreApikey coreApiKey = objectContext.newObject(CoreApikey.class);
-        coreApiKey.setApikey(encodedApiKey);
+        coreApiKey.setApikey(ApiKeyFormat.buildStoredValue(keyId, encodedApiKey));
         coreApiKey.setCreatedat(LocalDateTime.now());
         coreApiKey.setCoreOrganisation(coreOrganisation);
         
@@ -126,29 +129,61 @@ public class ApiKeyController {
     public ResponseEntity<?> deleteApiKey(Authentication authentication,
             @PathVariable(name = "apiKey") String apiKeyParam,
             HttpServletRequest request) {        
-        List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
-                .where(CoreApikey.REVOKEDAT.isNull())
-                .select(objectContext);
-        
-        for (CoreApikey apiKey : apiKeys) {
-            // Beim Key-Löschen gibt es keinen Autorisierungsfilter. Es wird jedoch hier
-            // überprüft, ob die dem authentifziertem Key zugehörige Organisation einen
-            // fremden Key löschen will.
-            // Grund für das Nicht-Autorisieren ist die Eintretenswahrscheinlichkeit und
-            // wenn man einen fremden Key hat, kann man sich ja mit diesem authentifizieren.
-            if (encoder.matches(apiKeyParam, apiKey.getApikey()) && authentication.getName().equalsIgnoreCase(apiKey.getCoreOrganisation().getAname())) {
+        boolean revoked = false;
+        ApiKeyFormat.ApiKeyParts apiKeyParts = ApiKeyFormat.parseApiKey(apiKeyParam).orElse(null);
+        if (apiKeyParts != null) {
+            CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
+                    .where(CoreApikey.APIKEY.like(apiKeyParts.keyId() + ":%"))
+                    .and(CoreApikey.REVOKEDAT.isNull())
+                    .selectOne(objectContext);
+
+            if (apiKey != null
+                    && matchesStoredKey(apiKeyParts, apiKey)
+                    && authentication.getName().equalsIgnoreCase(apiKey.getCoreOrganisation().getAname())) {
                 apiKey.setRevokedat(LocalDateTime.now());
                 objectContext.commitChanges();
-                
-                return ResponseEntity
-                        .ok().body(new GenericResponse(null, "API key deleted.", Instant.now()));
+                revoked = true;
             }
+        } else {
+            List<CoreApikey> apiKeys = ObjectSelect.query(CoreApikey.class)
+                    .where(CoreApikey.REVOKEDAT.isNull())
+                    .select(objectContext);
+
+            for (CoreApikey apiKey : apiKeys) {
+                if (ApiKeyFormat.parseStoredValue(apiKey.getApikey()).isPresent()) {
+                    continue;
+                }
+                // Beim Key-Löschen gibt es keinen Autorisierungsfilter. Es wird jedoch hier
+                // überprüft, ob die dem authentifziertem Key zugehörige Organisation einen
+                // fremden Key löschen will.
+                // Grund für das Nicht-Autorisieren ist die Eintretenswahrscheinlichkeit und
+                // wenn man einen fremden Key hat, kann man sich ja mit diesem authentifizieren.
+                if (encoder.matches(apiKeyParam, apiKey.getApikey())
+                        && authentication.getName().equalsIgnoreCase(apiKey.getCoreOrganisation().getAname())) {
+                    apiKey.setRevokedat(LocalDateTime.now());
+                    objectContext.commitChanges();
+                    revoked = true;
+                    break;
+                }
+            }
+        }
+
+        if (revoked) {
+            return ResponseEntity
+                    .ok().body(new GenericResponse(null, "API key deleted.", Instant.now()));
         }
 
         return ResponseEntity
                 .internalServerError()
                 .body(new ApiError(this.getClass().getCanonicalName(), "API key not deleted.", Instant.now(),
                         request.getRequestURI(), null));
+    }
+
+    private boolean matchesStoredKey(ApiKeyFormat.ApiKeyParts apiKeyParts, CoreApikey apiKey) {
+        return ApiKeyFormat.parseStoredValue(apiKey.getApikey())
+                .filter(stored -> stored.keyId().equals(apiKeyParts.keyId()))
+                .map(stored -> encoder.matches(apiKeyParts.secret().toString(), stored.hashedSecret()))
+                .orElse(false);
     }
 
     // Notwendig, weil sonst ApiKeyHeaderAuthenticationFilter Exception greift.
