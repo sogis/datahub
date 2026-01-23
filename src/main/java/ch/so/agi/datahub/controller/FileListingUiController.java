@@ -1,12 +1,21 @@
 package ch.so.agi.datahub.controller;
 
+import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -56,6 +65,30 @@ public class FileListingUiController {
         ModelAndView modelAndView = new ModelAndView("files");
         modelAndView.addObject("model", model);
         return modelAndView;
+    }
+
+    @GetMapping(value = "/download")
+    public ResponseEntity<Resource> downloadFile(Authentication authentication,
+            @RequestParam(name = "path") String path) {
+        ensureAdmin(authentication);
+        Path filePath = fileListingService.resolveFile(path);
+        Resource resource = new FileSystemResource(filePath);
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        try {
+            String contentType = Files.probeContentType(filePath);
+            if (contentType != null && !contentType.isBlank()) {
+                mediaType = MediaType.parseMediaType(contentType);
+            }
+        } catch (IOException e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+        ContentDisposition contentDisposition = ContentDisposition.attachment()
+                .filename(filePath.getFileName().toString())
+                .build();
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                .body(resource);
     }
 
     private void ensureAdmin(Authentication authentication) {

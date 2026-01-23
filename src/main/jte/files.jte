@@ -85,7 +85,7 @@
                             <span class="dir-badge">DIR</span>
                             <a href="/ui/files?path=${entry.encodedRelativePath()}${model.tokenQueryParam()}">${entry.name()}</a>
                         @else
-                            ${entry.name()}
+                            <a href="/ui/files/download?path=${entry.encodedRelativePath()}${model.tokenQueryParam()}">${entry.name()}</a>
                         @endif
                     </td>
                     <td data-value='${entry.directory() ? "dir" : "file"}'>
