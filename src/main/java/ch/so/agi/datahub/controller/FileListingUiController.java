@@ -37,7 +37,7 @@ public class FileListingUiController {
         this.fileListingService = fileListingService;
     }
     
-    @GetMapping
+    @GetMapping(produces = "text/html")
     public ModelAndView listFiles(Authentication authentication,
             @RequestParam(name = "path", required = false) String path,
             @RequestParam Map<String, String> params) {
@@ -53,7 +53,7 @@ public class FileListingUiController {
                 buildTokenQueryParam(token),
                 viewEntries
         );
-        ModelAndView modelAndView = new ModelAndView("files.jte");
+        ModelAndView modelAndView = new ModelAndView("files");
         modelAndView.addObject("model", model);
         return modelAndView;
     }
