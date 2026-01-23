@@ -69,6 +69,8 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    include 'ch/so/agi/datahub/**'
+    exclude 'ch/so/agi/datahub/DatahubApplicationTests.class'
 }
 
 cayenne.defaultDataMap "$projectDir/src/main/resources/cayenne/datamap.map.xml"
