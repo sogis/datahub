@@ -37,3 +37,19 @@ Siehe [Betriebshandbuch](docs/admin-manual-de.md).
 ## Interne Struktur
 
 Siehe [Entwicklerhandbuch](docs/develop-manual-de.md).
+
+## System-Tests (E2E mit XTF + Test-DB)
+
+Die End-to-End-Tests laufen in einem separaten Source-Set und verwenden ili2h2gis mit einer filebasierten H2GIS-Datenbank. Das Setup erzeugt drei Schemas:
+
+- `agi_datahub_jobrunr_v1` (Schema wird manuell angelegt, JobRunr erstellt die Tabellen beim Start)
+- `agi_datahub_config_v1` (Schema + Tabellen via ili2h2gis)
+- `agi_datahub_log_v1` (Schema + Tabellen via ili2h2gis)
+
+Für den Config-Import wird die Datei `dev/datahub_20260122.xtf` verwendet. Die Lieferung erfolgt mit dem Beispiel-File `src/test/data/ch.so.avt.kunstbauten.xtf`.
+
+Ausführen:
+
+```bash
+./gradlew e2eTest
+```
