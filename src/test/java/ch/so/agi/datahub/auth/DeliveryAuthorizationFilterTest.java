@@ -21,7 +21,7 @@ class DeliveryAuthorizationFilterTest {
     void missingParametersReturnsApiError() throws Exception {
         ObjectContext objectContext = mock(ObjectContext.class);
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
-        DeliveryAuthorizationFilter filter = new DeliveryAuthorizationFilter(objectContext, null, mapper);
+        DeliveryAuthorizationFilter filter = new DeliveryAuthorizationFilter(objectContext, mapper);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/deliveries");
         MockHttpServletResponse response = new MockHttpServletResponse();
