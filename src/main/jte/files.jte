@@ -88,7 +88,7 @@
                             ${entry.name()}
                         @endif
                     </td>
-                    <td data-value="${entry.directory() ? \"dir\" : \"file\"}">
+                    <td data-value='${entry.directory() ? "dir" : "file"}'>
                         ${entry.directory() ? "Ordner" : "Datei"}
                     </td>
                     <td data-value="${entry.sizeSort()}">
