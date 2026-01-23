@@ -11,11 +11,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.ModelAndView;
+
+import gg.jte.TemplateEngine;
+import gg.jte.output.StringOutput;
 
 import ch.so.agi.datahub.AppConstants;
 import ch.so.agi.datahub.model.FileEntry;
@@ -29,16 +33,18 @@ public class FileListingUiController {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final FileListingService fileListingService;
+    private final TemplateEngine templateEngine;
 
     @Value("${app.apiKeyQueryParamName:token}")
     private String apiKeyQueryParamName;
 
-    public FileListingUiController(FileListingService fileListingService) {
+    public FileListingUiController(FileListingService fileListingService, TemplateEngine templateEngine) {
         this.fileListingService = fileListingService;
+        this.templateEngine = templateEngine;
     }
-
+    
     @GetMapping
-    public ModelAndView listFiles(Authentication authentication,
+    public ResponseEntity<String> listFiles(Authentication authentication,
             @RequestParam(name = "path", required = false) String path,
             @RequestParam Map<String, String> params) {
         ensureAdmin(authentication);
@@ -53,9 +59,11 @@ public class FileListingUiController {
                 buildTokenQueryParam(token),
                 viewEntries
         );
-        ModelAndView modelAndView = new ModelAndView("files");
-        modelAndView.addObject("model", model);
-        return modelAndView;
+        StringOutput output = new StringOutput();
+        templateEngine.render("files.jte", model, output);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(output.toString());
     }
 
     private void ensureAdmin(Authentication authentication) {
