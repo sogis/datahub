@@ -62,7 +62,6 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `LOG_LEVEL` | Das Logging-Level des Spring Boot Frameworks. | `INFO` |
 | `LOG_LEVEL_DB_CONNECTION_POOL` | Das Logging-Level des DB-Connection-Poolsocket. | `INFO` |
 | `LOG_LEVEL_CAYENNE` | Das Logging-Level der ORM-Bibliothek. | `WARN` |
-| `LOG_LEVEL_FTP` | Das Logging-Level des FTP-Servers. | `INFO` |
 | `LOG_LEVEL_APPLICATION` | Das Logging-Level der Anwendung (= selber geschriebener Code). | `INFO` |
 | `TOMCAT_THREADS_MAX` | Maximale Anzahl Threads, welche die Anwendung gleichzeitig bearbeitet. Muss abgestimmt sein mit der Anwendungscharakteristik (z.B. lange DB-Queries) und der Anzahl DB-Connections im Pool. | `5` |
 | `TOMCAT_ACCEPT_COUNT` | Maximale Grösser der Queue, falls keine Threads mehr verfügbar. | `50` |
@@ -100,11 +99,6 @@ Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die n
 | `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
 | `CLEANER_ENABLED` | Soll der Cronjob, welcher veraltete Daten aus dem  `WORK_DIRECTORY` löscht, eingeschaltet werden. | `true` |
 | `HTTP_WHITELIST` | Liste mit Hostnamen für die ein HTTP-Request (ohne "s") _nicht_ zum deaktiveren des API-Keys führt. | `localhost,datahub-agi-apps-test.apps.ocp.so.ch` |
-| `FTP_ENABLED` | FTP-Server einschalten. | `false` |
-| `FTP_USERS_FILE` | Dateipfad der Userdatei für den FTP-Server, die beim Hochfahren leer erstellt wird. Eine vorhandende Datei wird überschrieben. | `/tmp/ftp_user.properties` |
-| `FTP_PORT` | Port des FTP-Servers. | `21` |
-| `FTP_USERNAME` | Read-only FTP-Benutzer. | `admin` |
-| `FTP_PASSWORD` | Read-only FTP-Passwort. | `admin` |
 | `DIRECTORY_LISTING_USERNAME` | Benutzername für Directory Listing des `TARGET_DIRECTORY`. | `admin` |
 | `DIRECTORY_LISTING_PASSWORD` | Password für Directory Listing des `TARGET_DIRECTORY`. | `admin` |
 
@@ -172,16 +166,6 @@ Fehlerantworten werden als JSON mit folgendem gemeinsamen Format ausgeliefert:
 ## Cluster
 
 Idealerweise wird _datahub_ in einem einfachen Cluster betrieben. Eine Instanz ist verantworlich für die Entgegennahme der Dateien und die Jobqueue. Mindestens eine zweite Instanz ist für das Abbarbeiten der Jobs aus der Jobqueue zuständig. Somit verhindert man, dass eine hohe Joblast auf die Kommunikation mit dem Benutzer negativen Einfluss hat. Es können beliebig viele "Worker"-Instanzen hochgefahren werden. Diese müssten nicht im Internet exponiert werden. Sie müssen lediglich Zugriff auf die Datenbank haben und das gleiche Filesystem (Volume) teilen (Optionen `WORK_DIRECTORY` und `TARGET_DIRECTORY`)
-
-## FTP-Server
-
-Der FTP-Server kann ein- und ausgeschaltet (`FTP_ENABLED`). Standardmässig läuft er auf dem Port 2221 (`FTP_PORT`). In Openshift darf ein not-root-Image nicht Ports < 1024 verwenden. Es müssten zwingend die passiv Ports geöffnet sein. Diese sind momentan hardodiert (2121-2199).
-
-Folgender Docker-Befehl funktioniert lokal:
-
-```
-docker run -p8080:8080 -p2221:2221 -p 2121-2199:2121-2199 -e MAIL_PASSWORD=foo -e MAIL_USERNAME=bar -e DBURL=jdbc:postgresql://docker.for.mac.host.internal:54321/edit -e CREATE_DIRECTORIES=false -e WORK_DIRECTORY=/tmp -e TARGET_DIRECTORY=/tmp  sogis/datahub:0
-```
 
 ## Directory Listing
 
