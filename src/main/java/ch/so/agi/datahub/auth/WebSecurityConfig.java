@@ -28,6 +28,9 @@ public class WebSecurityConfig {
 
     @Value("${app.apiKeyHeaderName}")
     private String apiKeyHeaderName;
+
+    @Value("${app.apiKeyQueryParamName:token}")
+    private String apiKeyQueryParamName;
     
     @Autowired
     ObjectContext objectContext;
@@ -112,6 +115,32 @@ public class WebSecurityConfig {
                 )
                 .addFilterBefore(new ApiKeyHeaderAuthenticationFilter(authenticationManager(), apiKeyHeaderName,
                         apiErrorAuthenticationEntryPoint, apiErrorAccessDeniedHandler), LogoutFilter.class)
+                .exceptionHandling(exceptionHandling ->
+                    exceptionHandling
+                        .authenticationEntryPoint(apiErrorAuthenticationEntryPoint)
+                        .accessDeniedHandler(apiErrorAccessDeniedHandler)
+                )
+                .logout(AbstractHttpConfigurer::disable)
+                .build();
+    }
+
+    @Bean
+    @Order(1)
+    SecurityFilterChain fileListingSecurityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .cors(AbstractHttpConfigurer::disable)
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(sess ->
+                    sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .securityMatcher("/api/files/**", "/ui/files/**")
+                .formLogin(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(registry -> registry
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(new ApiKeyHeaderOrQueryAuthenticationFilter(authenticationManager(),
+                        apiKeyHeaderName, apiKeyQueryParamName, apiErrorAuthenticationEntryPoint,
+                        apiErrorAccessDeniedHandler), LogoutFilter.class)
                 .exceptionHandling(exceptionHandling ->
                     exceptionHandling
                         .authenticationEntryPoint(apiErrorAuthenticationEntryPoint)
