@@ -60,11 +60,11 @@
         @if(model.currentPath() == null || model.currentPath().isBlank())
             /
         @else
-            @model.currentPath()
+            ${model.currentPath()}
         @endif
         @if(model.parentPath() != null)
             &nbsp;|&nbsp;
-            <a href="/ui/files?path=@model.parentPath()@model.tokenQueryParam()">Eine Ebene hoch</a>
+            <a href="/ui/files?path=${model.parentPath()}${model.tokenQueryParam()}">Eine Ebene hoch</a>
         @endif
     </div>
 
@@ -80,22 +80,22 @@
         <tbody>
             @for (var entry : model.entries())
                 <tr>
-                    <td data-value="@entry.name().toLowerCase()">
+                    <td data-value="${entry.name().toLowerCase()}">
                         @if(entry.directory())
                             <span class="dir-badge">DIR</span>
-                            <a href="/ui/files?path=@entry.encodedRelativePath()@model.tokenQueryParam()">@entry.name()</a>
+                            <a href="/ui/files?path=${entry.encodedRelativePath()}${model.tokenQueryParam()}">${entry.name()}</a>
                         @else
-                            @entry.name()
+                            ${entry.name()}
                         @endif
                     </td>
-                    <td data-value="@(entry.directory() ? "dir" : "file")">
-                        @(entry.directory() ? "Ordner" : "Datei")
+                    <td data-value="${entry.directory() ? \"dir\" : \"file\"}">
+                        ${entry.directory() ? "Ordner" : "Datei"}
                     </td>
-                    <td data-value="@entry.sizeSort()">
-                        @entry.sizeDisplay()
+                    <td data-value="${entry.sizeSort()}">
+                        ${entry.sizeDisplay()}
                     </td>
-                    <td data-value="@entry.modifiedEpoch()">
-                        @entry.modifiedDisplay()
+                    <td data-value="${entry.modifiedEpoch()}">
+                        ${entry.modifiedDisplay()}
                     </td>
                 </tr>
             @endfor
