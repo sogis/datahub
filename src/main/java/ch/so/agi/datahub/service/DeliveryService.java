@@ -46,13 +46,17 @@ public class DeliveryService {
     private ObjectContext objectContext;
     
     private EmailService emailService;
+
+    private DeliveryValidationService validationService;
     
     private ResourceBundle resourceBundle;
     
-    public DeliveryService(FilesStorageService filesStorageService, ObjectContext objectContext, EmailService emailService, ResourceBundle resourceBundle) {
+    public DeliveryService(FilesStorageService filesStorageService, ObjectContext objectContext, EmailService emailService,
+            DeliveryValidationService validationService, ResourceBundle resourceBundle) {
         this.filesStorageService = filesStorageService;
         this.objectContext = objectContext;
         this.emailService = emailService;
+        this.validationService = validationService;
         this.resourceBundle = resourceBundle;
     }
 
@@ -90,7 +94,7 @@ public class DeliveryService {
         }
         
         logger.info("<{}> Validation start", jobId);
-        boolean valid = Validator.runValidation(transferFile.getAbsolutePath().toString(), settings);
+        boolean valid = validationService.validate(transferFile.getAbsolutePath().toString(), settings);
         logger.info("<{}> Validation end", jobId);
         
         // Copy file ("deliver") to target directory.

@@ -3,10 +3,10 @@ package ch.so.agi.datahub.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.ResourceBundle;
 
 import org.apache.cayenne.ObjectContext;
@@ -28,7 +28,7 @@ class RevokeApiKeyFilterTest {
     @Test
     void httpRequestRevokesAndReturnsApiError() throws Exception {
         ObjectContext objectContext = mock(ObjectContext.class);
-        when(objectContext.select(any())).thenReturn(List.of());
+        when(objectContext.selectOne(any())).thenReturn(null);
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         EmailService emailService = mock(EmailService.class);
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
@@ -58,5 +58,34 @@ class RevokeApiKeyFilterTest {
         assertThat(json.get("message").asText()).isEqualTo("Possible API key was revoked.");
         assertThat(json.get("path").asText()).isEqualTo("/api/keys/revoke");
         assertThat(json.get("timestamp").asText()).isNotBlank();
+    }
+
+    @Test
+    void missingApiKeyHeaderPassesThrough() throws Exception {
+        ObjectContext objectContext = mock(ObjectContext.class);
+        PasswordEncoder encoder = mock(PasswordEncoder.class);
+        EmailService emailService = mock(EmailService.class);
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ResourceBundle resourceBundle = mock(ResourceBundle.class);
+
+        RevokeApiKeyFilter filter = new RevokeApiKeyFilter("X-API-KEY", objectContext, encoder,
+                emailService, mapper, new String[] { "localhost" }, resourceBundle);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/keys/revoke");
+        request.setScheme("https");
+        request.setServerName("example.com");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        ServletRequestAttributes attributes = new ServletRequestAttributes(request);
+        RequestContextHolder.setRequestAttributes(attributes);
+        try {
+            filter.doFilterInternal(request, response, chain);
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
+
+        verify(chain).doFilter(request, response);
+        assertThat(response.getStatus()).isEqualTo(200);
     }
 }
