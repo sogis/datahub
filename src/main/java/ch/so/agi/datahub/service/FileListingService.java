@@ -49,6 +49,20 @@ public class FileListingService {
         return parent.toString().replace("\\", "/");
     }
 
+    public Path resolveFile(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("Path is required");
+        }
+        Path resolved = rootPath.resolve(relativePath).normalize();
+        if (!resolved.startsWith(rootPath)) {
+            throw new IllegalArgumentException("Invalid path outside root directory");
+        }
+        if (!Files.isRegularFile(resolved)) {
+            throw new IllegalArgumentException("Path is not a file");
+        }
+        return resolved;
+    }
+
     private Path resolveDirectory(String relativePath) {
         Path resolved = rootPath;
         if (relativePath != null && !relativePath.isBlank()) {
