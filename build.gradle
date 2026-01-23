@@ -59,9 +59,6 @@ dependencies {
 
     implementation 'org.apache.cayenne:cayenne-server:4.2'
     
-    implementation 'org.apache.mina:mina-core:2.2.3'
-    implementation 'org.apache.ftpserver:ftpserver-core:1.2.0'
-    
     runtimeOnly 'org.postgresql:postgresql'
     
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

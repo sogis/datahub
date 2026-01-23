@@ -207,7 +207,7 @@ Zukünftig werden API-Keys immer ein Ablaufdatum haben und es müssen regelmäss
 
 Die angelieferten Daten werden nach erfolgreicher Prüfung in ein Zielverzeichnis kopiert. Pro Thema gibt es ein Unterverzeichnis. Bereits vorhandene Operate werden überschrieben. 
 
-Für die Admin-Organisation steht ein [FTP-Zugang](#ftp-server) (read-only) zur Verfügung mit dem man auf die Endablage zugreifen kann. Alternativ gibt es ein geschütztes (basic auth) [Directory Listing](#directory-listing). 
+Für die Admin-Organisation steht ein geschütztes (basic auth) [Directory Listing](#directory-listing) zur Verfügung, mit dem man auf die Endablage zugreifen kann. 
 
 ## Autorisierung / Konfiguration
 
@@ -218,19 +218,6 @@ Für die Autorisierung und Konfiguration wurde ein INTERLIS-Modell `SO_AGI_Datah
 Die Nachführung dieser Informationen wird nicht über die datahub-Anwendung gemacht, sondern von der Admin-Organisation direkt in den DB-Tabellen mit z.B. _dbeaver_.
 
 Jedes Thema hat einen optionalen `config`- und `metaConfig`-Eintrag. Dabei handelt es sich um die ID der Konfiguration in einem ilidata-Repository. Denkbar ist, dass auch Operate optinale Einträge erhalten, die einen Thema-Eintrag überschreiben würden.
-
-## FTP-Server
-
-Der FTP-Server dient der Admin-Organisation einfach eine Sicht auf das Target-Directory zu erlangen (insb. im Betrieb in Kubernetes/OpenShift).
-
-### Konfiguration GDI
-
-Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md#ftp-zugang)
-
-### Verbindungsbeispiel
-Aktive FTP-Verbindung verwenden: `ftp URL PORT`
-
-User/Passwort sind im Secret definiert, default ist `admin`/`admin`.
 
 ## Directory-Listing
 
