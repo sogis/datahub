@@ -1,5 +1,6 @@
 package ch.so.agi.datahub.service;
 
+import ch.so.agi.datahub.config.AppProperties;
 import ch.so.agi.datahub.model.FileEntry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -11,15 +12,14 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FileListingService {
   private final Path rootPath;
 
-  public FileListingService(@Value("${app.targetDirectory}") String targetDirectory) {
-    this.rootPath = Paths.get(targetDirectory).toAbsolutePath().normalize();
+  public FileListingService(AppProperties properties) {
+    this.rootPath = Paths.get(properties.getTargetDirectory()).toAbsolutePath().normalize();
   }
 
   public List<FileEntry> listEntries(String relativePath) {

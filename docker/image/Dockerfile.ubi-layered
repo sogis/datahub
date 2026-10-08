@@ -1,47 +1,24 @@
 FROM eclipse-temurin:21.0.5_11-jre-ubi9-minimal AS builder
-
-WORKDIR application
-COPY tmp/datahub-*-exec.jar ./application.jar
-
-ARG JAR_FILE=tmp/datahub-*-exec.jar
-COPY ${JAR_FILE} application.jar
-RUN java -Djarmode=layertools -jar application.jar extract
-
+WORKDIR /builder
+COPY tmp/datahub-*-exec.jar application.jar
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
 FROM eclipse-temurin:21.0.5_11-jre-ubi9-minimal
-
-RUN microdnf update -y && \
-    microdnf reinstall tzdata -y
-
+RUN microdnf update -y && microdnf reinstall tzdata -y
 ARG UID=1001
-RUN adduser -u $UID datahub 
-
+RUN adduser -u $UID datahub
+ENV HOME=/datahub TZ=Europe/Zurich SPRING_PROFILES_ACTIVE=prod
 WORKDIR /work
-RUN chown $UID:0 . && \
-    chmod 0775 . && \
-    ls -la
+RUN chown $UID:0 . && chmod 0775 .
 VOLUME ["/work"]
-
-ENV HOME=/datahub
-WORKDIR $HOME
-
-RUN chown $UID:0 . && \
-    chmod 0775 . && \
-    ls -la
+WORKDIR /datahub
+RUN chown $UID:0 . && chmod 0775 .
 VOLUME ["/datahub"]
-
-WORKDIR application
-
-RUN chown $UID:0 . && \
-    chmod 0775 . && \
-    ls -la
-
-COPY --chown=$UID:0 --chmod=0775 --from=builder application/dependencies/ ./
-COPY --chown=$UID:0 --chmod=0775 --from=builder application/spring-boot-loader/ ./
-COPY --chown=$UID:0 --chmod=0775 --from=builder application/snapshot-dependencies/ ./
-COPY --chown=$UID:0 --chmod=0775 --from=builder application/application/ ./
-
+WORKDIR /application
+COPY --chown=$UID:0 --from=builder /builder/extracted/dependencies/ ./
+COPY --chown=$UID:0 --from=builder /builder/extracted/spring-boot-loader/ ./
+COPY --chown=$UID:0 --from=builder /builder/extracted/snapshot-dependencies/ ./
+COPY --chown=$UID:0 --from=builder /builder/extracted/application/ ./
 USER $UID
-
-ENV LOG4J_FORMAT_MSG_NO_LOOKUPS=true
-ENTRYPOINT ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=90.0", "org.springframework.boot.loader.launch.JarLauncher"]
+EXPOSE 8080
+ENTRYPOINT ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=90.0", "-jar", "application.jar"]

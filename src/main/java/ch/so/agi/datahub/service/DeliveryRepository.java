@@ -158,6 +158,20 @@ public class DeliveryRepository {
             }));
   }
 
+  public void recordProvenance(
+      String attempt, long version, ValidationOutcome outcome, String transferVersion) {
+    jdbc.update(
+        "UPDATE "
+            + table("validation_attempt")
+            + " SET model_metadata=?,configuration_snapshot=?,transfer_version=? WHERE id=? AND"
+            + " version=? AND state='PROCESSING'",
+        outcome == null ? null : outcome.modelMetadata(),
+        outcome == null ? null : outcome.configurationSnapshot(),
+        transferVersion,
+        attempt,
+        version);
+  }
+
   public void expireClaims() {
     tx.executeWithoutResult(
         status -> {
@@ -166,7 +180,7 @@ public class DeliveryRepository {
                   "UPDATE "
                       + table("validation_attempt")
                       + " SET state='FAILED',version=version+1,finished_at=? WHERE"
-                      + " state='PROCESSING' AND heartbeat_at<? RETURNING delivery_id",
+                      + " state='PROCESSING' AND heartbeat_at<? RETURNING delivery_id,id",
                   now(),
                   now().minus(p.getHeartbeatTimeout()));
           for (var row : rows)
@@ -174,10 +188,11 @@ public class DeliveryRepository {
                 "UPDATE "
                     + table("deliveries_delivery")
                     + " SET execution_status='FAILED',publication_status='NOT_APPLICABLE',finished_at=?,updated_at=?"
-                    + " WHERE t_id=?",
+                    + " WHERE t_id=? AND attempt_id=?",
                 now(),
                 now(),
-                row.get("delivery_id"));
+                row.get("delivery_id"),
+                row.get("id"));
         });
   }
 

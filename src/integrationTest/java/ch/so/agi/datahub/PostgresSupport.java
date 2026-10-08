@@ -10,10 +10,16 @@ import org.testcontainers.containers.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 public abstract class PostgresSupport {
+  protected static final Network NETWORK = Network.newNetwork();
   protected static final PostgreSQLContainer DATABASE =
-      new PostgreSQLContainer("postgres:16-alpine");
+      new PostgreSQLContainer("postgres:16-alpine")
+          .withNetwork(NETWORK)
+          .withNetworkAliases("database");
   protected static final GenericContainer<?> MAIL =
-      new GenericContainer<>("axllent/mailpit:v1.31.4").withExposedPorts(1025, 8025);
+      new GenericContainer<>("axllent/mailpit:v1.31.4")
+          .withExposedPorts(1025, 8025)
+          .withNetwork(NETWORK)
+          .withNetworkAliases("mail");
   protected static final Path ROOT;
 
   static {
@@ -46,14 +52,13 @@ public abstract class PostgresSupport {
     registry.add("app.targetDirectory", () -> ROOT.resolve("target").toString());
     registry.add("app.publicBaseUrl", () -> "http://example.test/datahub");
     registry.add("app.preferredIliRepo", () -> Path.of("dev/models").toAbsolutePath().toString());
+    registry.add("app.defaultIliRepositories", () -> false);
     registry.add("app.adminAccountInit", () -> false);
     registry.add("app.cleanerEnabled", () -> false);
     registry.add("app.mailEnabled", () -> true);
     registry.add("app.mailFrom", () -> "sender@example.test");
-    registry.add("org.jobrunr.database.tablePrefix", () -> "test_jobs.");
-    registry.add("org.jobrunr.database.skip-create", () -> false);
     registry.add("jobrunr.database.table-prefix", () -> "test_jobs.");
-    registry.add("jobrunr.database.skip-create", () -> false);
+    registry.add("jobrunr.database.skip-create", () -> true);
     registry.add("spring.mail.host", MAIL::getHost);
     registry.add("spring.mail.port", () -> MAIL.getMappedPort(1025));
     registry.add("spring.mail.properties.mail.smtp.auth", () -> false);

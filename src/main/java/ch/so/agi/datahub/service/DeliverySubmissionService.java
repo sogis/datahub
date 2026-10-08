@@ -15,6 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class DeliverySubmissionService {
+  public record Command(String theme, String operat, MultipartFile file) {}
+
   private final DeliveryAuthorizationService authorization;
   private final CayenneContexts contexts;
   private final ArtifactStore artifacts;
@@ -36,6 +38,13 @@ public class DeliverySubmissionService {
 
   public UUID submit(String theme, String operat, MultipartFile file, Authentication actor)
       throws IOException {
+    return submit(new Command(theme, operat, file), actor);
+  }
+
+  public UUID submit(Command command, Authentication actor) throws IOException {
+    var theme = command.theme();
+    var operat = command.operat();
+    var file = command.file();
     if (!p.isAcceptDeliveries())
       throw new org.springframework.web.server.ResponseStatusException(
           org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Delivery acceptance paused");

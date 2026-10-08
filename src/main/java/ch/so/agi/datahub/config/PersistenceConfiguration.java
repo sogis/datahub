@@ -11,7 +11,6 @@ import org.apache.cayenne.*;
 import org.apache.cayenne.configuration.server.ServerRuntime;
 import org.apache.cayenne.query.ObjectSelect;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,41 +30,39 @@ public class PersistenceConfiguration {
   }
 
   @Bean
-  @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-  ObjectContext objectContext(CayenneContexts contexts) {
-    return contexts.newContext();
-  }
-
-  @Bean
   CommandLineRunner init(
       CayenneContexts contexts, AppProperties p, PasswordEncoder encoder, Clock clock) {
     return args -> {
       if (!p.getMode().equals("web")) return;
       if (p.isAdminAccountInit()) {
-        contexts.transaction(
-            ctx -> {
-              if (ObjectSelect.query(CoreOrganisation.class)
-                      .where(CoreOrganisation.ANAME.eq(p.getAdminAccountName()))
-                      .selectFirst(ctx)
-                  == null) {
-                var org = ctx.newObject(CoreOrganisation.class);
-                org.setAname(p.getAdminAccountName());
-                org.setArole(AppConstants.ROLE_NAME_ADMIN);
-                org.setEmail(p.getAdminAccountMail());
-                var id = UUID.randomUUID();
-                var secret = UUID.randomUUID();
-                var key = ctx.newObject(CoreApikey.class);
-                key.setApikey(ApiKeyFormat.buildStoredValue(id, encoder.encode(secret.toString())));
-                key.setCreatedat(LocalDateTime.now(clock));
-                key.setIssuanceState("ACTIVE");
-                key.setCoreOrganisation(org);
-                ctx.commitChanges();
-                // Deliberate bootstrap behaviour, mandated by AGENTS.md.
-                LoggerFactory.getLogger(DatahubApplication.class)
-                    .warn("Bootstrap admin key: {}", ApiKeyFormat.buildApiKey(id, secret));
-              }
-              return null;
-            });
+        String bootstrapKey =
+            contexts.transaction(
+                ctx -> {
+                  if (ObjectSelect.query(CoreOrganisation.class)
+                          .where(CoreOrganisation.ANAME.eq(p.getAdminAccountName()))
+                          .selectFirst(ctx)
+                      == null) {
+                    var org = ctx.newObject(CoreOrganisation.class);
+                    org.setAname(p.getAdminAccountName());
+                    org.setArole(AppConstants.ROLE_NAME_ADMIN);
+                    org.setEmail(p.getAdminAccountMail());
+                    var id = UUID.randomUUID();
+                    var secret = UUID.randomUUID();
+                    var key = ctx.newObject(CoreApikey.class);
+                    key.setApikey(
+                        ApiKeyFormat.buildStoredValue(id, encoder.encode(secret.toString())));
+                    key.setCreatedat(LocalDateTime.now(clock));
+                    key.setIssuanceState("ACTIVE");
+                    key.setCoreOrganisation(org);
+                    ctx.commitChanges();
+                    return ApiKeyFormat.buildApiKey(id, secret);
+                  }
+                  return null;
+                });
+        // Deliberate bootstrap output, after the transaction has committed.
+        if (bootstrapKey != null)
+          LoggerFactory.getLogger(DatahubApplication.class)
+              .warn("Bootstrap admin key: {}", bootstrapKey);
       }
       if (p.isCreateDirectories()) {
         Files.createDirectories(Path.of(p.getWorkDirectory()));

@@ -1,7 +1,6 @@
 package ch.so.agi.datahub.auth;
 
 import ch.so.agi.datahub.config.AppProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 @ConditionalOnWebApplication
@@ -24,7 +24,7 @@ public class WebSecurityConfig {
 
   @Bean
   FilterRegistrationBean<RevokeApiKeyFilter> revokeKeyFilter(
-      KeyManagementService keys, AppProperties p, ObjectMapper mapper) {
+      KeyManagementService keys, AppProperties p, JsonMapper mapper) {
     var bean = new FilterRegistrationBean<>(new RevokeApiKeyFilter(keys, p, mapper));
     bean.addUrlPatterns("/*");
     bean.setOrder(1);

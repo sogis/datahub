@@ -36,8 +36,6 @@ class DeliveryE2ETest extends PostgresSupport {
 
   @DynamicPropertySource
   static void worker(DynamicPropertyRegistry registry) {
-    registry.add("org.jobrunr.background-job-server.enabled", () -> true);
-    registry.add("org.jobrunr.background-job-server.poll-interval-in-seconds", () -> 5);
     registry.add("jobrunr.background-job-server.enabled", () -> true);
     registry.add("jobrunr.background-job-server.poll-interval-in-seconds", () -> 5);
     registry.add("app.dispatchInterval", () -> 100);
@@ -141,13 +139,51 @@ class DeliveryE2ETest extends PostgresSupport {
   }
 
   @Test
+  void technicalFailureIsFailedInDeliveryAndJobRunrWithoutRetry() throws Exception {
+    properties.setDispatchEnabled(false);
+    String id = submit("valid.xtf");
+    String attempt = (String) repository.find(id).get("attempt_id");
+    Files.delete(ROOT.resolve("work/datahub_" + id + "/input.xtf"));
+    properties.setDispatchEnabled(true);
+    await()
+        .atMost(Duration.ofSeconds(40))
+        .untilAsserted(
+            () -> {
+              assertThat(repository.find(id)).containsEntry("execution_status", "FAILED");
+              assertThat(
+                      jdbc.queryForObject(
+                          "SELECT state FROM test_jobs.jobrunr_jobs WHERE id=?",
+                          String.class,
+                          attempt))
+                  .isEqualTo("FAILED");
+            });
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT version FROM test_log.validation_attempt WHERE id=?", Long.class, attempt))
+        .isEqualTo(1);
+  }
+
+  @Test
   void standaloneWorkerHasNoWebServerAndDistinguishesTechnicalFailures() throws Exception {
     // Disable dispatch while the separate process owns the attempt.
     properties.setDispatchEnabled(false);
-    var id = submit("valid.xtf");
-    var attempt = (String) repository.find(id).get("attempt_id");
-    jdbc.update(
-        "UPDATE test_log.validation_attempt SET dispatch_state='SUBMITTED' WHERE id=?", attempt);
+    for (String fixture : List.of("valid.xtf", "invalid.xtf", "technical")) {
+      var id = submit(fixture.equals("technical") ? "valid.xtf" : fixture);
+      var attempt = (String) repository.find(id).get("attempt_id");
+      jdbc.update(
+          "UPDATE test_log.validation_attempt SET dispatch_state='SUBMITTED' WHERE id=?", attempt);
+      if (fixture.equals("technical"))
+        Files.delete(ROOT.resolve("work/datahub_" + id + "/input.xtf"));
+      int exit = runSingle(attempt);
+      assertThat(exit).isEqualTo(fixture.equals("technical") ? 1 : 0);
+      assertThat(repository.find(id))
+          .containsEntry("execution_status", fixture.equals("technical") ? "FAILED" : "SUCCEEDED");
+      if (fixture.equals("invalid.xtf"))
+        assertThat(repository.find(id)).containsEntry("validation_status", "FAILED");
+    }
+  }
+
+  int runSingle(String attempt) throws Exception {
     String classpath = System.getProperty("app.testRuntimeClasspath");
     assertThat(classpath).isNotBlank();
     Path output = ROOT.resolve("single-worker.log");
@@ -168,14 +204,15 @@ class DeliveryE2ETest extends PostgresSupport {
                 "--app.work-directory=" + ROOT.resolve("work"),
                 "--app.target-directory=" + ROOT.resolve("target"),
                 "--app.preferred-ili-repo=" + Path.of("dev/models").toAbsolutePath(),
+                "--app.default-ili-repositories=false",
                 "--app.admin-account-init=false",
                 "--app.mail-enabled=false")
             .redirectErrorStream(true)
             .redirectOutput(output.toFile())
             .start();
     assertThat(process.waitFor(40, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
-    assertThat(process.exitValue()).withFailMessage(Files.readString(output)).isZero();
+    assertThat(process.exitValue()).withFailMessage(Files.readString(output)).isIn(0, 1);
     assertThat(Files.readString(output)).doesNotContain("Tomcat started", "BackgroundJobServer (");
-    assertThat(repository.find(id)).containsEntry("execution_status", "SUCCEEDED");
+    return process.exitValue();
   }
 }

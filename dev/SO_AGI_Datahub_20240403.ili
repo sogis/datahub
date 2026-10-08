@@ -90,6 +90,10 @@ VERSION "2026-10-08"  =
       Theme_R -- {1} Theme;
     END Theme_Operat;
 
+    CONSTRAINTS OF Operat =
+      UNIQUE name, Theme_R;
+    END;
+
   END Core;
 
 END SO_AGI_Datahub_Config_20240403.
@@ -146,6 +150,9 @@ VERSION "2026-10-08"  =
       version : MANDATORY 0..9223372036854775807;
       validatorVersion : TEXT*128;
       resultModels : TEXT*4096;
+      modelMetadata : MTEXT;
+      configurationSnapshot : MTEXT;
+      transferVersion : TEXT*10;
       UNIQUE id;
     END ValidationAttempt;
     ASSOCIATION Attempt_Delivery =

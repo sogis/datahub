@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
 
 @Service
-public class ValidationAttemptRunner {
+public class ValidationAttemptRunner implements AutoCloseable {
   private static final org.slf4j.Logger log =
       org.slf4j.LoggerFactory.getLogger(ValidationAttemptRunner.class);
   private final DeliveryRepository repository;
@@ -39,7 +39,8 @@ public class ValidationAttemptRunner {
   }
 
   @PreDestroy
-  void close() {
+  @Override
+  public void close() {
     heartbeats.shutdownNow();
   }
 
@@ -73,11 +74,22 @@ public class ValidationAttemptRunner {
       var row = repository.attempt(delivery, attempt);
       input = artifacts.materialize(UUID.fromString(delivery), UUID.fromString(attempt), version);
       Path result = input.getParent().resolve("result.log");
-      Set<String> actual = transferModels(input);
+      Set<String> actual;
+      try {
+        actual = transferModels(input);
+      } catch (javax.xml.stream.XMLStreamException malformed) {
+        Files.writeString(result, "Invalid INTERLIS XML transfer.");
+        artifacts.saveResult(UUID.fromString(delivery), UUID.fromString(attempt), version, result);
+        return repository.finish(delivery, attempt, version, false, "", validatorVersion());
+      }
       Set<String> allowed =
           new HashSet<>(
-              Arrays.asList(DeliveryRepository.string(row, "expected_models").split(";")));
+              Arrays.stream(DeliveryRepository.string(row, "expected_models").split(";"))
+                  .map(String::trim)
+                  .filter(s -> !s.isEmpty())
+                  .toList());
       boolean valid;
+      ValidationOutcome outcome = null;
       if (actual.isEmpty() || !allowed.containsAll(actual)) {
         Files.writeString(
             result, "Transfer models are not permitted for the authorized theme: " + actual);
@@ -85,36 +97,45 @@ public class ValidationAttemptRunner {
       } else {
         Settings settings = new Settings();
         settings.setValue(Validator.SETTING_LOGFILE, result.toString());
-        settings.setValue(Validator.SETTING_ILIDIRS, p.getPreferredIliRepo());
+        settings.setValue(Validator.SETTING_ILIDIRS, p.iliRepositories());
         var config = DeliveryRepository.string(row, "validator_config");
         var meta = DeliveryRepository.string(row, "validator_meta_config");
         if (config != null && !config.isBlank())
           settings.setValue(Validator.SETTING_CONFIGFILE, "ilidata:" + config);
         if (meta != null && !meta.isBlank())
           settings.setValue(Validator.SETTING_META_CONFIGFILE, "ilidata:" + meta);
-        valid = validator.validate(input.toString(), settings);
+        outcome = validator.validate(input.toString(), settings);
+        valid = outcome.valid();
       }
       if (!Files.exists(result)) Files.writeString(result, "Validation completed: " + valid);
       artifacts.saveResult(UUID.fromString(delivery), UUID.fromString(attempt), version, result);
+      repository.recordProvenance(attempt, version, outcome, transferVersion(input));
       return repository.finish(
           delivery,
           attempt,
           version,
           valid,
           String.join(";", new TreeSet<>(actual)),
-          "ilivalidator 1.14.3");
+          validatorVersion());
     } catch (Exception e) {
       if (e instanceof InterruptedException) Thread.currentThread().interrupt();
       log.error("Technical validation failure for attempt {}", attempt, e);
       if (version != null) {
-        try {
-          if (input != null) {
+        if (input != null)
+          try {
             Path result = input.getParent().resolve("result.log");
-            Files.writeString(result, "Technical validation failure. Contact service provider.");
+            Files.writeString(
+                result,
+                "\nTechnical validation failure. Contact service provider.\n",
+                StandardOpenOption.CREATE,
+                StandardOpenOption.APPEND);
             artifacts.saveResult(
                 UUID.fromString(delivery), UUID.fromString(attempt), version, result);
+          } catch (Exception storageFailure) {
+            log.warn("Failure log is unavailable for attempt {}", attempt);
           }
-          repository.finish(delivery, attempt, version, null, null, "ilivalidator 1.14.3");
+        try {
+          repository.finish(delivery, attempt, version, null, null, validatorVersion());
         } catch (Exception update) {
           log.error("Cannot record failure for attempt {}", attempt, update);
         }
@@ -130,6 +151,29 @@ public class ValidationAttemptRunner {
         }
       if (acquired) serial.release();
     }
+  }
+
+  public static String validatorVersion() {
+    return "ilivalidator " + org.interlis2.validator.Main.getVersion();
+  }
+
+  public static String transferVersion(Path file) throws Exception {
+    var factory = javax.xml.stream.XMLInputFactory.newFactory();
+    factory.setProperty(javax.xml.stream.XMLInputFactory.SUPPORT_DTD, false);
+    factory.setProperty("javax.xml.stream.isSupportingExternalEntities", false);
+    try (var stream = Files.newInputStream(file)) {
+      var reader = factory.createXMLStreamReader(stream);
+      try {
+        while (reader.hasNext())
+          if (reader.next() == javax.xml.stream.XMLStreamConstants.START_ELEMENT)
+            return "http://www.interlis.ch/xtf/2.4/INTERLIS".equals(reader.getNamespaceURI())
+                ? "2.4"
+                : "2.3";
+      } finally {
+        reader.close();
+      }
+    }
+    return "2.3";
   }
 
   public static Set<String> transferModels(Path file)

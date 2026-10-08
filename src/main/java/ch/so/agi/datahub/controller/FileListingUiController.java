@@ -1,6 +1,7 @@
 package ch.so.agi.datahub.controller;
 
 import ch.so.agi.datahub.AppConstants;
+import ch.so.agi.datahub.config.AppProperties;
 import ch.so.agi.datahub.model.FileEntry;
 import ch.so.agi.datahub.model.FileListingViewEntry;
 import ch.so.agi.datahub.model.FileListingViewModel;
@@ -14,7 +15,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -39,31 +39,35 @@ public class FileListingUiController {
 
   private final FileListingService fileListingService;
 
-  @Value("${app.apiKeyQueryParamName:token}")
-  private String apiKeyQueryParamName;
+  private final AppProperties properties;
 
-  public FileListingUiController(FileListingService fileListingService) {
+  public FileListingUiController(FileListingService fileListingService, AppProperties properties) {
     this.fileListingService = fileListingService;
+    this.properties = properties;
   }
 
   @GetMapping(produces = "text/html")
   public ModelAndView listFiles(
       Authentication authentication,
       @RequestParam(name = "path", required = false) String path,
-      @RequestParam Map<String, String> params) {
+      @RequestParam Map<String, String> params,
+      jakarta.servlet.http.HttpServletRequest request) {
     ensureAdmin(authentication);
-    String token = params.get(apiKeyQueryParamName);
+    String token = params.get(properties.getApiKeyQueryParamName());
     List<FileEntry> entries = fileListingService.listEntries(path);
     List<FileListingViewEntry> viewEntries =
         entries.stream().map(entry -> toViewEntry(entry)).toList();
     FileListingViewModel model =
         new FileListingViewModel(
             path == null ? "" : path,
-            fileListingService.parentPath(path),
+            fileListingService.parentPath(path) == null
+                ? null
+                : URLEncoder.encode(fileListingService.parentPath(path), StandardCharsets.UTF_8),
             buildTokenQueryParam(token),
             viewEntries);
     ModelAndView modelAndView = new ModelAndView("files");
     modelAndView.addObject("model", model);
+    modelAndView.addObject("context", request.getContextPath());
     return modelAndView;
   }
 
@@ -103,7 +107,8 @@ public class FileListingUiController {
     String encodedRelativePath = URLEncoder.encode(entry.relativePath(), StandardCharsets.UTF_8);
     long sizeSort = entry.directory() ? 0 : entry.size();
     String sizeDisplay = entry.directory() ? "-" : formatSize(entry.size());
-    String modifiedDisplay = DATE_FORMATTER.format(entry.modified().atZone(ZoneId.systemDefault()));
+    String modifiedDisplay =
+        DATE_FORMATTER.format(entry.modified().atZone(ZoneId.of(properties.getTimeZone())));
     return new FileListingViewEntry(
         entry.name(),
         encodedRelativePath,
@@ -118,7 +123,10 @@ public class FileListingUiController {
     if (token == null || token.isBlank()) {
       return "";
     }
-    return "&" + apiKeyQueryParamName + "=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
+    return "&"
+        + properties.getApiKeyQueryParamName()
+        + "="
+        + URLEncoder.encode(token, StandardCharsets.UTF_8);
   }
 
   private String formatSize(long size) {

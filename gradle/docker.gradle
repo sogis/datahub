@@ -13,13 +13,13 @@ tasks.register('buildImage', Exec) {
     workingDir "$projectDir/docker/image"
     commandLine 'docker', 'build',
                 '--no-cache', '--force-rm',
-                '-t', "sogis/datahub:latest",
-                '-f', 'Dockerfile.alpine',  '.'
+                '-t', "sogis/datahub:local",
+                '-f', 'Dockerfile.ubi-layered',  '.'
 }
 
 // Zum Publizieren der Images
 tasks.register('buildAndPushMultiArchImage', Exec) {
-    dependsOn 'copyJar'
+    dependsOn 'copyJar', 'check'
     def githash = getCheckedOutGitCommitHash()
     def build_timestamp = getTimestamp()
 

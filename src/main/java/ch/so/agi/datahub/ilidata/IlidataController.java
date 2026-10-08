@@ -1,14 +1,12 @@
 package ch.so.agi.datahub.ilidata;
 
+import ch.so.agi.datahub.config.AppProperties;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,31 +19,27 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class IlidataController {
   private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @Value("${app.targetDirectory}")
-  private String targetDirectory;
+  private final AppProperties properties;
 
   private final IlidataService ilidataService;
 
-  public IlidataController(IlidataService ilidataService) {
+  public IlidataController(IlidataService ilidataService, AppProperties properties) {
     this.ilidataService = ilidataService;
+    this.properties = properties;
   }
 
   @GetMapping(value = "/ilisite.xml")
   public ResponseEntity<?> ilisite() {
-    InputStream is = getClass().getResourceAsStream("/ili/ilisite.xml");
+    var resource = new org.springframework.core.io.ClassPathResource("ili/ilisite.xml");
 
-    return ResponseEntity.ok()
-        .contentType(MediaType.APPLICATION_XML)
-        .body(new InputStreamResource(is));
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_XML).body(resource);
   }
 
   @GetMapping(value = "/ilimodels.xml")
   public ResponseEntity<?> ilimodels() {
-    InputStream is = getClass().getResourceAsStream("/ili/ilimodels.xml");
+    var resource = new org.springframework.core.io.ClassPathResource("ili/ilimodels.xml");
 
-    return ResponseEntity.ok()
-        .contentType(MediaType.APPLICATION_XML)
-        .body(new InputStreamResource(is));
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_XML).body(resource);
   }
 
   @GetMapping(value = "/ilidata.xml")
@@ -63,15 +57,21 @@ public class IlidataController {
     try {
       xtfFile =
           ch.so.agi.datahub.service.LocalFilesStorageService.resolve(
-              targetDirectory, directory, filename);
+              properties.getTargetDirectory(), directory, filename);
     } catch (IOException | IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     }
-    if (Files.exists(xtfFile)) {
+    if (Files.isRegularFile(xtfFile)) {
       Resource resource = new FileSystemResource(xtfFile.toFile());
 
       return ResponseEntity.ok()
-          .header("content-disposition", "attachment; filename=" + xtfFile.getFileName().toString())
+          .header(
+              "content-disposition",
+              org.springframework.http.ContentDisposition.attachment()
+                  .filename(
+                      xtfFile.getFileName().toString(), java.nio.charset.StandardCharsets.UTF_8)
+                  .build()
+                  .toString())
           .contentLength(xtfFile.toFile().length())
           .contentType(MediaType.APPLICATION_XML)
           .body(resource);

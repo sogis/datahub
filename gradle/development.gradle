@@ -35,6 +35,7 @@ tasks.register('devSeed', Exec) {
     commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'exec', '-T', 'edit-db',
             'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'edit'
     doFirst { standardInput = file('dev/seed.sql').newInputStream() }
+    doLast { standardInput.close() }
 }
 tasks.register('devDown', Exec) {
     group = 'development'

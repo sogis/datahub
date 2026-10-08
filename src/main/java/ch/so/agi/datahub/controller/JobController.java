@@ -31,7 +31,7 @@ public class JobController {
     List<JobResponse> jobResponseList = jobResponseService.getJobResponseList();
 
     if (jobResponseList.size() == 0) {
-      return new ResponseEntity<List<JobResponse>>(null, null, HttpStatus.NO_CONTENT);
+      return ResponseEntity.noContent().build();
     }
 
     HttpHeaders responseHeaders = new HttpHeaders();
@@ -55,7 +55,7 @@ public class JobController {
     JobResponse jobResponse = jobResponseService.getJobResponseById(jobId);
 
     if (jobResponse == null) {
-      return new ResponseEntity<JobResponse>(null, null, HttpStatus.NO_CONTENT);
+      return ResponseEntity.noContent().build();
     }
 
     HttpHeaders responseHeaders = new HttpHeaders();

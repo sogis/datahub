@@ -36,6 +36,7 @@ public class JobRunrValidationExecutor implements ValidationExecutor {
 
   @Job(name = "Delivery validation", retries = 0)
   public void execute(String delivery, String attempt) {
-    runner.run(delivery, attempt);
+    if (!runner.run(delivery, attempt))
+      throw new IllegalStateException("Validation attempt did not complete: " + attempt);
   }
 }

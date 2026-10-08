@@ -1,8 +1,8 @@
 package ch.so.agi.datahub.config;
 
 import java.util.Map;
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
@@ -27,12 +27,6 @@ public class WorkerEnvironmentPostProcessor implements EnvironmentPostProcessor,
                       Map.of(
                           "spring.main.web-application-type",
                           "none",
-                          "org.jobrunr.background-job-server.enabled",
-                          "false",
-                          "org.jobrunr.dashboard.enabled",
-                          "false",
-                          "org.jobrunr.job-scheduler.enabled",
-                          "false",
                           "jobrunr.background-job-server.enabled",
                           "false",
                           "jobrunr.dashboard.enabled",

@@ -2,20 +2,20 @@ package ch.so.agi.datahub.auth;
 
 import ch.so.agi.datahub.config.AppProperties;
 import ch.so.agi.datahub.model.ApiError;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.json.JsonMapper;
 
 public class RevokeApiKeyFilter extends OncePerRequestFilter {
   private final KeyManagementService keys;
   private final AppProperties p;
-  private final ObjectMapper mapper;
+  private final JsonMapper mapper;
 
-  public RevokeApiKeyFilter(KeyManagementService keys, AppProperties p, ObjectMapper mapper) {
+  public RevokeApiKeyFilter(KeyManagementService keys, AppProperties p, JsonMapper mapper) {
     this.keys = keys;
     this.p = p;
     this.mapper = mapper;

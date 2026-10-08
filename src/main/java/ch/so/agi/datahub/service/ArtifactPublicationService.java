@@ -41,8 +41,8 @@ public class ArtifactPublicationService {
       Path result =
           LocalFilesStorageService.resolve(r.p().getTargetDirectory(), theme, operat + ".xtf.log");
       Files.createDirectories(transfer.getParent());
-      transferTemp = stage(artifacts.input(id), transfer.getParent());
-      logTemp = stage(artifacts.log(id, attemptId, version), result.getParent());
+      transferTemp = stage(artifacts.input(id), transfer.getParent(), attempt);
+      logTemp = stage(artifacts.log(id, attemptId, version), result.getParent(), attempt);
       final Path stagedTransfer = transferTemp, stagedLog = logTemp;
       r.tx()
           .executeWithoutResult(
@@ -51,7 +51,9 @@ public class ArtifactPublicationService {
                     sequence = DeliveryRepository.number(row, "t_id");
                 r.jdbc().queryForList("SELECT pg_advisory_xact_lock(?)", operatId);
                 var current = r.find(delivery);
-                if (!Set.of("PENDING", "RETRY").contains(current.get("publication_status"))) return;
+                if (!attempt.equals(current.get("attempt_id"))
+                    || !Set.of("PENDING", "RETRY").contains(current.get("publication_status")))
+                  return;
                 var publications =
                     r.jdbc()
                         .queryForList(
@@ -114,7 +116,9 @@ public class ArtifactPublicationService {
               status -> {
                 r.jdbc().queryForList("SELECT pg_advisory_xact_lock(?)", row.get("operat_id"));
                 var latest = r.find(delivery);
-                if (!Set.of("PENDING", "RETRY").contains(latest.get("publication_status"))) return;
+                if (!attempt.equals(latest.get("attempt_id"))
+                    || !Set.of("PENDING", "RETRY").contains(latest.get("publication_status")))
+                  return;
                 int failures = ((Number) latest.get("publication_tries")).intValue() + 1;
                 var next = RetryPolicy.next(failures, r.now());
                 r.jdbc()
@@ -141,8 +145,8 @@ public class ArtifactPublicationService {
     }
   }
 
-  private static Path stage(Path source, Path directory) throws IOException {
-    Path temp = Files.createTempFile(directory, ".publication-", ".tmp");
+  private static Path stage(Path source, Path directory, String attempt) throws IOException {
+    Path temp = Files.createTempFile(directory, ".publication-" + attempt + "-", ".tmp");
     try {
       Files.copy(source, temp, StandardCopyOption.REPLACE_EXISTING);
       LocalArtifactStore.force(temp);

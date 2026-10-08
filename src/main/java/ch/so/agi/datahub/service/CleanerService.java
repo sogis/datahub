@@ -47,6 +47,33 @@ public class CleanerService {
                   + " SET artifacts_expired=true WHERE jobid=?",
               id);
     }
+    Path target = Path.of(r.p().getTargetDirectory());
+    if (Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS))
+      try (var paths = Files.walk(target, 2)) {
+        for (var staged : paths.toList()) {
+          String name = staged.getFileName().toString();
+          if (!Files.isRegularFile(staged, LinkOption.NOFOLLOW_LINKS)
+              || !name.startsWith(".publication-")
+              || name.length() < 49) continue;
+          String attempt = name.substring(13, 49);
+          try {
+            UUID.fromString(attempt);
+          } catch (IllegalArgumentException invalid) {
+            continue;
+          }
+          if (Files.getLastModifiedTime(staged)
+                  .toInstant()
+                  .isBefore(Instant.now(r.clock()).minus(r.p().getArtifactRetention()))
+              && r.jdbc()
+                      .queryForObject(
+                          "SELECT count(*) FROM "
+                              + r.table("deliveries_delivery")
+                              + " WHERE attempt_id=? AND publication_status IN ('PENDING','RETRY')",
+                          Integer.class,
+                          attempt)
+                  == 0) Files.deleteIfExists(staged);
+        }
+      }
     Path root = Path.of(r.p().getWorkDirectory());
     if (!Files.isDirectory(root)) return;
     // Orphan uploads are removed only after a successful database reference lookup.
@@ -67,7 +94,7 @@ public class CleanerService {
         }
     }
     Path workspaces = root.resolve("workspaces");
-    if (Files.isDirectory(workspaces))
+    if (Files.isDirectory(workspaces, LinkOption.NOFOLLOW_LINKS))
       try (var paths = Files.list(workspaces)) {
         for (var path : paths.toList())
           if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)

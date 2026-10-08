@@ -31,7 +31,7 @@ public class IlidataService {
         int tid = 1;
         var rows =
             jdbc.queryForList(
-                "SELECT d.*,a.result_models FROM "
+                "SELECT d.*,a.result_models,a.transfer_version FROM "
                     + p.logSchema()
                     + ".dataset_publication pub JOIN "
                     + p.logSchema()
@@ -54,7 +54,12 @@ public class IlidataService {
             entry.addattrobj("model", model);
           }
           var data = new Iom_jObject("DatasetIdx16.DataFile", null);
-          data.setattrvalue("fileFormat", "application/interlis+xml;version=2.3");
+          data.setattrvalue(
+              "fileFormat",
+              "application/interlis+xml"
+                  + (row.get("transfer_version") == null
+                      ? ""
+                      : ";version=" + row.get("transfer_version")));
           var file = new Iom_jObject("DatasetIdx16.File", null);
           file.setattrvalue("path", "files/" + row.get("theme") + "/" + row.get("operat") + ".xtf");
           data.addattrobj("file", file);

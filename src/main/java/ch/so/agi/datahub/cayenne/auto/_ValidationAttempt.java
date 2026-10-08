@@ -23,30 +23,46 @@ public abstract class _ValidationAttempt extends BaseDataObject {
 
     public static final String T_ID_PK_COLUMN = "t_id";
 
+    public static final StringProperty<String> CONFIGURATION_SNAPSHOT = PropertyFactory.createString("configurationSnapshot", String.class);
     public static final DateProperty<LocalDateTime> CREATED_AT = PropertyFactory.createDate("createdAt", LocalDateTime.class);
     public static final NumericProperty<Long> DELIVERY_ID = PropertyFactory.createNumeric("deliveryId", Long.class);
     public static final StringProperty<String> DISPATCH_STATE = PropertyFactory.createString("dispatchState", String.class);
     public static final DateProperty<LocalDateTime> FINISHED_AT = PropertyFactory.createDate("finishedAt", LocalDateTime.class);
     public static final DateProperty<LocalDateTime> HEARTBEAT_AT = PropertyFactory.createDate("heartbeatAt", LocalDateTime.class);
     public static final StringProperty<String> ID = PropertyFactory.createString("id", String.class);
+    public static final StringProperty<String> MODEL_METADATA = PropertyFactory.createString("modelMetadata", String.class);
     public static final StringProperty<String> RESULT_MODELS = PropertyFactory.createString("resultModels", String.class);
     public static final DateProperty<LocalDateTime> STARTED_AT = PropertyFactory.createDate("startedAt", LocalDateTime.class);
     public static final StringProperty<String> STATE = PropertyFactory.createString("state", String.class);
+    public static final StringProperty<String> TRANSFER_VERSION = PropertyFactory.createString("transferVersion", String.class);
     public static final StringProperty<String> VALIDATOR_VERSION = PropertyFactory.createString("validatorVersion", String.class);
     public static final NumericProperty<Long> VERSION = PropertyFactory.createNumeric("version", Long.class);
 
+    protected String configurationSnapshot;
     protected LocalDateTime createdAt;
     protected Long deliveryId;
     protected String dispatchState;
     protected LocalDateTime finishedAt;
     protected LocalDateTime heartbeatAt;
     protected String id;
+    protected String modelMetadata;
     protected String resultModels;
     protected LocalDateTime startedAt;
     protected String state;
+    protected String transferVersion;
     protected String validatorVersion;
     protected Long version;
 
+
+    public void setConfigurationSnapshot(String configurationSnapshot) {
+        beforePropertyWrite("configurationSnapshot", this.configurationSnapshot, configurationSnapshot);
+        this.configurationSnapshot = configurationSnapshot;
+    }
+
+    public String getConfigurationSnapshot() {
+        beforePropertyRead("configurationSnapshot");
+        return this.configurationSnapshot;
+    }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         beforePropertyWrite("createdAt", this.createdAt, createdAt);
@@ -108,6 +124,16 @@ public abstract class _ValidationAttempt extends BaseDataObject {
         return this.id;
     }
 
+    public void setModelMetadata(String modelMetadata) {
+        beforePropertyWrite("modelMetadata", this.modelMetadata, modelMetadata);
+        this.modelMetadata = modelMetadata;
+    }
+
+    public String getModelMetadata() {
+        beforePropertyRead("modelMetadata");
+        return this.modelMetadata;
+    }
+
     public void setResultModels(String resultModels) {
         beforePropertyWrite("resultModels", this.resultModels, resultModels);
         this.resultModels = resultModels;
@@ -138,6 +164,16 @@ public abstract class _ValidationAttempt extends BaseDataObject {
         return this.state;
     }
 
+    public void setTransferVersion(String transferVersion) {
+        beforePropertyWrite("transferVersion", this.transferVersion, transferVersion);
+        this.transferVersion = transferVersion;
+    }
+
+    public String getTransferVersion() {
+        beforePropertyRead("transferVersion");
+        return this.transferVersion;
+    }
+
     public void setValidatorVersion(String validatorVersion) {
         beforePropertyWrite("validatorVersion", this.validatorVersion, validatorVersion);
         this.validatorVersion = validatorVersion;
@@ -165,6 +201,8 @@ public abstract class _ValidationAttempt extends BaseDataObject {
         }
 
         switch(propName) {
+            case "configurationSnapshot":
+                return this.configurationSnapshot;
             case "createdAt":
                 return this.createdAt;
             case "deliveryId":
@@ -177,12 +215,16 @@ public abstract class _ValidationAttempt extends BaseDataObject {
                 return this.heartbeatAt;
             case "id":
                 return this.id;
+            case "modelMetadata":
+                return this.modelMetadata;
             case "resultModels":
                 return this.resultModels;
             case "startedAt":
                 return this.startedAt;
             case "state":
                 return this.state;
+            case "transferVersion":
+                return this.transferVersion;
             case "validatorVersion":
                 return this.validatorVersion;
             case "version":
@@ -199,6 +241,9 @@ public abstract class _ValidationAttempt extends BaseDataObject {
         }
 
         switch (propName) {
+            case "configurationSnapshot":
+                this.configurationSnapshot = (String)val;
+                break;
             case "createdAt":
                 this.createdAt = (LocalDateTime)val;
                 break;
@@ -217,6 +262,9 @@ public abstract class _ValidationAttempt extends BaseDataObject {
             case "id":
                 this.id = (String)val;
                 break;
+            case "modelMetadata":
+                this.modelMetadata = (String)val;
+                break;
             case "resultModels":
                 this.resultModels = (String)val;
                 break;
@@ -225,6 +273,9 @@ public abstract class _ValidationAttempt extends BaseDataObject {
                 break;
             case "state":
                 this.state = (String)val;
+                break;
+            case "transferVersion":
+                this.transferVersion = (String)val;
                 break;
             case "validatorVersion":
                 this.validatorVersion = (String)val;
@@ -248,15 +299,18 @@ public abstract class _ValidationAttempt extends BaseDataObject {
     @Override
     protected void writeState(ObjectOutputStream out) throws IOException {
         super.writeState(out);
+        out.writeObject(this.configurationSnapshot);
         out.writeObject(this.createdAt);
         out.writeObject(this.deliveryId);
         out.writeObject(this.dispatchState);
         out.writeObject(this.finishedAt);
         out.writeObject(this.heartbeatAt);
         out.writeObject(this.id);
+        out.writeObject(this.modelMetadata);
         out.writeObject(this.resultModels);
         out.writeObject(this.startedAt);
         out.writeObject(this.state);
+        out.writeObject(this.transferVersion);
         out.writeObject(this.validatorVersion);
         out.writeObject(this.version);
     }
@@ -264,15 +318,18 @@ public abstract class _ValidationAttempt extends BaseDataObject {
     @Override
     protected void readState(ObjectInputStream in) throws IOException, ClassNotFoundException {
         super.readState(in);
+        this.configurationSnapshot = (String)in.readObject();
         this.createdAt = (LocalDateTime)in.readObject();
         this.deliveryId = (Long)in.readObject();
         this.dispatchState = (String)in.readObject();
         this.finishedAt = (LocalDateTime)in.readObject();
         this.heartbeatAt = (LocalDateTime)in.readObject();
         this.id = (String)in.readObject();
+        this.modelMetadata = (String)in.readObject();
         this.resultModels = (String)in.readObject();
         this.startedAt = (LocalDateTime)in.readObject();
         this.state = (String)in.readObject();
+        this.transferVersion = (String)in.readObject();
         this.validatorVersion = (String)in.readObject();
         this.version = (Long)in.readObject();
     }

@@ -152,6 +152,15 @@
 	<obj-relationship name="coreApikeys" source="CoreOrganisation" target="CoreApikey" deleteRule="Deny" db-relationship-path="coreApikeys"/>
 	<obj-relationship name="coreOperats" source="CoreOrganisation" target="CoreOperat" deleteRule="Deny" db-relationship-path="coreOperats"/>
 	<obj-relationship name="coreOperats" source="CoreTheme" target="CoreOperat" deleteRule="Deny" db-relationship-path="coreOperats"/>
+	<db-entity name="dataset_publication" schema="agi_datahub_log_v1">
+		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true"/>
+		<db-attribute name="operat_id" type="BIGINT" isMandatory="true"/>
+		<db-attribute name="delivery_id" type="BIGINT" isMandatory="true"/>
+	</db-entity>
+	<obj-entity name="DatasetPublication" className="ch.so.agi.datahub.cayenne.DatasetPublication" dbEntityName="dataset_publication">
+		<obj-attribute name="operatId" type="java.lang.Long" db-attribute-path="operat_id"/>
+		<obj-attribute name="deliveryId" type="java.lang.Long" db-attribute-path="delivery_id"/>
+	</obj-entity>
 	<db-entity name="validation_attempt" schema="agi_datahub_log_v1">
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true"/>
 		<db-attribute name="id" type="VARCHAR"/>
@@ -164,7 +173,10 @@
 		<db-attribute name="heartbeat_at" type="TIMESTAMP"/>
 		<db-attribute name="version" type="BIGINT"/>
 		<db-attribute name="validator_version" type="VARCHAR"/>
-		<db-attribute name="result_models" type="VARCHAR"/>
+		<db-attribute name="result_models" type="VARCHAR" length="4096"/>
+		<db-attribute name="model_metadata" type="LONGVARCHAR"/>
+		<db-attribute name="configuration_snapshot" type="LONGVARCHAR"/>
+		<db-attribute name="transfer_version" type="VARCHAR" length="10"/>
 	</db-entity>
 	<obj-entity name="ValidationAttempt" className="ch.so.agi.datahub.cayenne.ValidationAttempt" dbEntityName="validation_attempt">
 		<obj-attribute name="id" type="java.lang.String" db-attribute-path="id"/>
@@ -178,6 +190,9 @@
 		<obj-attribute name="version" type="java.lang.Long" db-attribute-path="version"/>
 		<obj-attribute name="validatorVersion" type="java.lang.String" db-attribute-path="validator_version"/>
 		<obj-attribute name="resultModels" type="java.lang.String" db-attribute-path="result_models"/>
+		<obj-attribute name="modelMetadata" type="java.lang.String" db-attribute-path="model_metadata"/>
+		<obj-attribute name="configurationSnapshot" type="java.lang.String" db-attribute-path="configuration_snapshot"/>
+		<obj-attribute name="transferVersion" type="java.lang.String" db-attribute-path="transfer_version"/>
 	</obj-entity>
 	<db-entity name="notification" schema="agi_datahub_log_v1">
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true"/>

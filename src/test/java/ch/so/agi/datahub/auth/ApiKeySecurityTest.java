@@ -12,12 +12,12 @@ import java.util.ResourceBundle;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,17 +39,17 @@ class ApiKeySecurityTest {
 
   @Autowired private MockMvc mockMvc;
 
-  @MockBean private KeyManagementService keyManagementService;
+  @MockitoBean private KeyManagementService keyManagementService;
 
-  @MockBean private DataSource dataSource;
+  @MockitoBean private DataSource dataSource;
 
-  @MockBean private PasswordEncoder passwordEncoder;
+  @MockitoBean private PasswordEncoder passwordEncoder;
 
-  @MockBean private EmailService emailService;
+  @MockitoBean private EmailService emailService;
 
-  @MockBean private ResourceBundle resourceBundle;
+  @MockitoBean private ResourceBundle resourceBundle;
 
-  @MockBean private ApiKeyHeaderAuthenticationService apiKeyHeaderAuthenticationService;
+  @MockitoBean private ApiKeyHeaderAuthenticationService apiKeyHeaderAuthenticationService;
 
   @Test
   void missingApiKeyUsesApiErrorAuthenticationEntryPoint() throws Exception {

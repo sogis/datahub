@@ -14,6 +14,21 @@ public class AppProperties {
   private String targetDirectory = "./build/target";
   private String folderPrefix = "datahub_";
   private String preferredIliRepo = "https://geo.so.ch/models";
+  private boolean defaultIliRepositories = true;
+
+  public boolean isDefaultIliRepositories() {
+    return defaultIliRepositories;
+  }
+
+  public void setDefaultIliRepositories(boolean value) {
+    defaultIliRepositories = value;
+  }
+
+  public String iliRepositories() {
+    return preferredIliRepo
+        + (defaultIliRepositories ? ";" + ch.interlis.ili2c.Ili2cSettings.DEFAULT_ILIDIRS : "");
+  }
+
   private String timeZone = "Europe/Zurich";
 
   public String getTimeZone() {
@@ -122,6 +137,8 @@ public class AppProperties {
   }
 
   public String getFolderPrefix() {
+    if (folderPrefix == null || !folderPrefix.matches("[a-zA-Z0-9_.-]*"))
+      throw new IllegalArgumentException("Invalid artifact folder prefix");
     return folderPrefix;
   }
 

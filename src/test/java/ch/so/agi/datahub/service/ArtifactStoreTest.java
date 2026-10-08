@@ -19,6 +19,9 @@ class ArtifactStoreTest {
     var delivery = UUID.randomUUID();
     var attempt = UUID.randomUUID();
     store.saveInput(delivery, new ByteArrayInputStream("original".getBytes()));
+    assertThatThrownBy(
+            () -> store.saveInput(delivery, new ByteArrayInputStream("replacement".getBytes())))
+        .isInstanceOf(IOException.class);
     var input = store.materialize(delivery, attempt, 1);
     Files.writeString(input, "changed workspace");
     assertThat(Files.readString(store.input(delivery))).isEqualTo("original");
@@ -42,6 +45,16 @@ class ArtifactStoreTest {
   }
 
   @Test
+  void authoritativeModelsCompile() {
+    var config = new ch.interlis.ili2c.config.Configuration();
+    config.addFileEntry(
+        new ch.interlis.ili2c.config.FileEntry(
+            "dev/SO_AGI_Datahub_20240403.ili",
+            ch.interlis.ili2c.config.FileEntryKind.ILIMODELFILE));
+    assertThat(ch.interlis.ili2c.Main.runCompiler(config)).isNotNull();
+  }
+
+  @Test
   void boundedRetrySchedule() {
     var now = LocalDateTime.of(2026, 10, 8, 0, 0);
     assertThat(RetryPolicy.next(1, now)).isEqualTo(now.plusMinutes(1));
@@ -58,5 +71,9 @@ class ArtifactStoreTest {
             ValidationAttemptRunner.transferModels(
                 Path.of("src/test/data/DMAV_Dienstbarkeitsgrenzen_V1_0.449.xtf")))
         .containsExactly("DMAV_Dienstbarkeitsgrenzen_V1_0");
+    assertThat(
+            ValidationAttemptRunner.transferVersion(
+                Path.of("src/test/data/DMAV_Dienstbarkeitsgrenzen_V1_0.449.xtf")))
+        .isEqualTo("2.4");
   }
 }

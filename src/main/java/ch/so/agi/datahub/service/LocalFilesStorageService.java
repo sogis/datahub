@@ -14,7 +14,8 @@ public class LocalFilesStorageService implements FilesStorageService {
         || value.equals("..")
         || value.contains("/")
         || value.contains("\\")
-        || value.indexOf(0) >= 0) throw new IllegalArgumentException("Invalid file path segment");
+        || value.codePoints().anyMatch(Character::isISOControl))
+      throw new IllegalArgumentException("Invalid file path segment");
   }
 
   public static Path resolve(String root, String directory, String file) throws IOException {

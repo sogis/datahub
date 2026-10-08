@@ -36,7 +36,7 @@ public class DeliveryController {
     validate(request, Map.of("theme", theme, "operat", operat));
     if (file.isEmpty())
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Empty transfer file");
-    var id = service.submit(theme, operat, file, actor);
+    var id = service.submit(new DeliverySubmissionService.Command(theme, operat, file), actor);
     return ResponseEntity.accepted()
         .header("Operation-Location", p.publicUrl("/api/jobs/" + id))
         .build();

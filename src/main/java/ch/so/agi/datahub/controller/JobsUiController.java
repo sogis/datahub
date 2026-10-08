@@ -20,8 +20,9 @@ public class JobsUiController {
   }
 
   @GetMapping({"/", "/jobs"})
-  public ModelAndView page(@RequestParam Map<String, String> params) {
-    return view(params, "jobs");
+  public ModelAndView page(
+      @RequestParam Map<String, String> params, jakarta.servlet.http.HttpServletRequest request) {
+    return view(params, "jobs", request.getContextPath());
   }
 
   @GetMapping("/jobs/table")
@@ -34,7 +35,7 @@ public class JobsUiController {
         request.getContextPath()
             + "/jobs"
             + (request.getQueryString() == null ? "" : "?" + request.getQueryString()));
-    return view(params, "jobs-table");
+    return view(params, "jobs-table", request.getContextPath());
   }
 
   @GetMapping({"/web/jobs.xhtml", "/web/index.xhtml"})
@@ -42,7 +43,7 @@ public class JobsUiController {
     return "redirect:/jobs";
   }
 
-  private ModelAndView view(Map<String, String> params, String template) {
+  private ModelAndView view(Map<String, String> params, String template, String context) {
     int page = 0;
     try {
       page = Integer.parseInt(params.getOrDefault("page", "0"));
@@ -61,8 +62,9 @@ public class JobsUiController {
     var model = new ModelAndView(template);
     model.addObject("result", result);
     model.addObject("search", search);
-    model.addObject("previous", link(params, Math.max(0, search.page() - 1)));
-    model.addObject("next", link(params, search.page() + 1));
+    model.addObject("context", context);
+    model.addObject("previous", context + link(params, Math.max(0, search.page() - 1)));
+    model.addObject("next", context + link(params, search.page() + 1));
     return model;
   }
 

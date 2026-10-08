@@ -29,15 +29,17 @@ public class LocalArtifactStore implements ArtifactStore {
   @Override
   public void saveInput(UUID id, InputStream input) throws IOException {
     var dir = directory(id);
-    Files.createDirectories(dir);
-    if (Files.isSymbolicLink(dir)) throw new IOException("Invalid artifact directory");
-    Path temp = Files.createTempFile(dir, "input-", ".tmp");
     try (input) {
-      Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING);
-      force(temp);
-      Files.move(temp, dir.resolve("input.xtf"), StandardCopyOption.ATOMIC_MOVE);
-    } finally {
-      Files.deleteIfExists(temp);
+      check(dir);
+      Files.createDirectory(dir);
+      Path temp = Files.createTempFile(dir, "input-", ".tmp");
+      try {
+        Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING);
+        force(temp);
+        Files.move(temp, dir.resolve("input.xtf"), StandardCopyOption.ATOMIC_MOVE);
+      } finally {
+        Files.deleteIfExists(temp);
+      }
     }
   }
 
@@ -51,8 +53,8 @@ public class LocalArtifactStore implements ArtifactStore {
   @Override
   public Path materialize(UUID delivery, UUID attempt, long version) throws IOException {
     Path workspace = root().resolve("workspaces").resolve(attempt + "-" + version);
-    Files.createDirectories(workspace);
     check(workspace);
+    Files.createDirectories(workspace);
     Files.copy(
         input(delivery), workspace.resolve("input.xtf"), StandardCopyOption.REPLACE_EXISTING);
     return workspace.resolve("input.xtf");
@@ -61,8 +63,8 @@ public class LocalArtifactStore implements ArtifactStore {
   @Override
   public void saveResult(UUID delivery, UUID attempt, long version, Path log) throws IOException {
     Path dir = directory(delivery).resolve("attempts").resolve(attempt + "-" + version);
-    Files.createDirectories(dir);
     check(dir);
+    Files.createDirectories(dir);
     Path target = dir.resolve("result.log");
     if (Files.exists(target)) throw new IOException("Result already exists");
     Path temp = Files.createTempFile(dir, "result-", ".tmp");
