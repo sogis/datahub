@@ -11,7 +11,7 @@
 		<db-attribute name="organisation_r" type="BIGINT" isMandatory="true" length="19"/>
 		<db-attribute name="revokedat" type="TIMESTAMP" length="29"/>
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
-			<db-attribute name="issuance_state" type="VARCHAR" length="20"/>
+		<db-attribute name="issuance_state" type="VARCHAR" length="20"/>
 	</db-entity>
 	<db-entity name="core_operat" schema="agi_datahub_config_v1">
 		<db-attribute name="aname" type="VARCHAR" isMandatory="true" length="512"/>
@@ -27,11 +27,11 @@
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
 	</db-entity>
 	<db-entity name="core_theme" schema="agi_datahub_config_v1">
-		<db-attribute name="aname" type="VARCHAR" isMandatory="true" length="20"/>
+		<db-attribute name="aname" type="VARCHAR" isMandatory="true" length="512"/>
 		<db-attribute name="config" type="VARCHAR" length="512"/>
 		<db-attribute name="metaconfig" type="VARCHAR" length="512"/>
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
-			<db-attribute name="expected_models" type="VARCHAR" length="2048"/>
+		<db-attribute name="expected_models" type="VARCHAR" length="2048"/>
 	</db-entity>
 	<db-entity name="deliveries_delivery" schema="agi_datahub_log_v1">
 		<db-attribute name="deliverydate" type="TIMESTAMP" isMandatory="true" length="29"/>
@@ -41,8 +41,8 @@
 		<db-attribute name="operat" type="VARCHAR" isMandatory="true" length="512"/>
 		<db-attribute name="organisation" type="VARCHAR" isMandatory="true" length="512"/>
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
-		<db-attribute name="theme" type="VARCHAR" isMandatory="true" length="51220"/>
-			<db-attribute name="operat_id" type="BIGINT"/>
+		<db-attribute name="theme" type="VARCHAR" isMandatory="true" length="512"/>
+		<db-attribute name="operat_id" type="BIGINT"/>
 		<db-attribute name="key_id" type="VARCHAR" length="36"/>
 		<db-attribute name="attempt_id" type="VARCHAR" length="36"/>
 		<db-attribute name="email" type="VARCHAR" length="512"/>
@@ -66,7 +66,7 @@
 		<db-attribute name="organisation" type="VARCHAR" length="512"/>
 		<db-attribute name="queueposition" type="BIGINT" length="19"/>
 		<db-attribute name="status" type="VARCHAR" length="2147483647"/>
-		<db-attribute name="theme" type="VARCHAR" length="20"/>
+		<db-attribute name="theme" type="VARCHAR" length="512"/>
 		<db-attribute name="updatedat" type="TIMESTAMP" length="29"/>
 		<db-attribute name="validationstatus" type="VARCHAR" length="512"/>
 	</db-entity>
@@ -75,7 +75,7 @@
 		<obj-attribute name="createdat" type="java.time.LocalDateTime" db-attribute-path="createdat"/>
 		<obj-attribute name="dateofexpiry" type="java.time.LocalDateTime" db-attribute-path="dateofexpiry"/>
 		<obj-attribute name="revokedat" type="java.time.LocalDateTime" db-attribute-path="revokedat"/>
-			<obj-attribute name="issuanceState" type="java.lang.String" db-attribute-path="issuance_state"/>
+		<obj-attribute name="issuanceState" type="java.lang.String" db-attribute-path="issuance_state"/>
 	</obj-entity>
 	<obj-entity name="CoreOperat" className="ch.so.agi.datahub.cayenne.CoreOperat" dbEntityName="core_operat">
 		<obj-attribute name="aname" type="java.lang.String" db-attribute-path="aname"/>
@@ -90,7 +90,7 @@
 		<obj-attribute name="aname" type="java.lang.String" db-attribute-path="aname"/>
 		<obj-attribute name="config" type="java.lang.String" db-attribute-path="config"/>
 		<obj-attribute name="metaconfig" type="java.lang.String" db-attribute-path="metaconfig"/>
-			<obj-attribute name="expectedModels" type="java.lang.String" db-attribute-path="expected_models"/>
+		<obj-attribute name="expectedModels" type="java.lang.String" db-attribute-path="expected_models"/>
 	</obj-entity>
 	<obj-entity name="DeliveriesDelivery" className="ch.so.agi.datahub.cayenne.DeliveriesDelivery" dbEntityName="deliveries_delivery">
 		<obj-attribute name="deliverydate" type="java.time.LocalDateTime" db-attribute-path="deliverydate"/>
@@ -100,7 +100,7 @@
 		<obj-attribute name="operat" type="java.lang.String" db-attribute-path="operat"/>
 		<obj-attribute name="organisation" type="java.lang.String" db-attribute-path="organisation"/>
 		<obj-attribute name="theme" type="java.lang.String" db-attribute-path="theme"/>
-			<obj-attribute name="operatId" type="java.lang.Long" db-attribute-path="operat_id"/>
+		<obj-attribute name="operatId" type="java.lang.Long" db-attribute-path="operat_id"/>
 		<obj-attribute name="keyId" type="java.lang.String" db-attribute-path="key_id"/>
 		<obj-attribute name="attemptId" type="java.lang.String" db-attribute-path="attempt_id"/>
 		<obj-attribute name="email" type="java.lang.String" db-attribute-path="email"/>

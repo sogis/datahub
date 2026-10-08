@@ -655,4 +655,33 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThat(runner.run(id, replacement)).isTrue();
     assertThat(repository.find(id)).containsEntry("execution_status", "SUCCEEDED");
   }
+
+  @Test
+  void cayenneAndDeliveryAcceptThemeNamesBeyondTheOldTwentyCharacterMapping() throws Exception {
+    String name = "Datahub_theme_with_a_name_longer_than_twenty_characters";
+    long theme =
+        contexts.transaction(
+            ctx -> {
+              var value = ctx.newObject(ch.so.agi.datahub.cayenne.CoreTheme.class);
+              value.setAname(name);
+              value.setExpectedModels("DatahubDemo");
+              ctx.commitChanges();
+              return org.apache.cayenne.Cayenne.longPKForObject(value);
+            });
+    jdbc.update("UPDATE test_config.core_operat SET theme_r=? WHERE t_id=?", theme, operat);
+    var id =
+        submission
+            .submit(
+                new DeliverySubmissionService.Command(
+                    name,
+                    "sample",
+                    new MockMultipartFile("file", Files.readAllBytes(Path.of("dev/valid.xtf")))),
+                actor)
+            .toString();
+    execute(id);
+    publications.publish(attempt(id));
+    assertThat(repository.find(id))
+        .containsEntry("theme", name)
+        .containsEntry("publication_status", "DELIVERED");
+  }
 }
