@@ -4,7 +4,7 @@ Datendrehscheibe - Anlieferung von INTERLIS-Transferdateien.
 
 ## Beschreibung
 
-Datahub ist eine Datendrehscheine und dient der Anlieferung von INTERLIS-Transferdateien. Die Anlieferung besteht vor allem aus zwei Teilen: Einer Autorisierung des Senders für den bestimmten Datensatz und der Validierung der gelieferten INTERLIS-Transferdatei gegenüber dem Datenmodell und allfälligen Validierungsmodellen.
+Datahub ist eine Datendrehscheibe und dient der Anlieferung von INTERLIS-Transferdateien. Die Anlieferung besteht vor allem aus zwei Teilen: Einer Autorisierung des Senders für den bestimmten Datensatz und der Validierung der gelieferten INTERLIS-Transferdatei gegenüber dem Datenmodell und allfälligen Validierungsmodellen.
 
 Die Anlieferung erfolgt über ein REST-API, die Authentifizierung über einen API-Key. Den Status einer Lieferung kann entweder über das REST-API oder eine Webseite erfolgen. Beide Varianten benötigen keine Authentifizierung resp. Autorisierung. Ebenfalls wird eine E-Mail mit dem Prüfresultat verschickt.
 
@@ -38,18 +38,24 @@ Siehe [Betriebshandbuch](docs/admin-manual-de.md).
 
 Siehe [Entwicklerhandbuch](docs/develop-manual-de.md).
 
-## System-Tests (E2E mit XTF + Test-DB)
+## Entwicklung und Prüfung
 
-Die End-to-End-Tests laufen in einem separaten Source-Set und verwenden ili2h2gis mit einer filebasierten H2GIS-Datenbank. Das Setup erzeugt drei Schemas:
+Java 21, Spring Boot 4.1.1, Cayenne 4.2.3, JTE 3.2.4, HTMX 2.0.10 und JobRunr 8.8.2.
+PostgreSQL und INTERLIS bleiben die Grundlage. Kubernetes ist in dieser Umsetzung nicht enthalten.
 
-- `agi_datahub_jobrunr_v1` (Schema wird manuell angelegt, JobRunr erstellt die Tabellen beim Start)
-- `agi_datahub_config_v1` (Schema + Tabellen via ili2h2gis)
-- `agi_datahub_log_v1` (Schema + Tabellen via ili2h2gis)
-
-Für den Config-Import wird die Datei `dev/datahub_20260122.xtf` verwendet. Die Lieferung erfolgt mit dem Beispiel-File `src/test/data/ch.so.avt.kunstbauten.xtf`.
-
-Ausführen:
-
-```bash
-./gradlew e2eTest
+```sh
+./gradlew devSeed
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
+
+Die lokale Umgebung enthält PostgreSQL und Mailpit. Lieferungen und Schlüssel können vollständig
+lokal ausprobiert werden, ohne externe E-Mails zu versenden. Siehe [Entwicklerhandbuch](docs/develop-manual-de.md).
+
+```sh
+./gradlew test    # schnelle Tests
+./gradlew check   # zusätzlich PostgreSQL, echte Validierung, Mailpit und Produktionscontainer
+./gradlew build
+```
+
+Integration und E2E verwenden Testcontainers. Die produktive Schemaänderung erfolgt ausdrücklich
+über `dbMigrate`, niemals beim Anwendungsstart. Siehe [Migration und Rückfall](docs/admin-manual-de.md).

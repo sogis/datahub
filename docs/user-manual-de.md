@@ -52,19 +52,19 @@ Die Attribute haben folgende Bedeutung:
   * `FAILED`: Der Job konnte nicht erfolgreich beendet werden.
   * `DELETED`: Erfolgreiche Jobs bekommen nach einer gewissen Zeit diesen Status. Als Anwender hat dies keine weitere Bedeutung.
 - `validationStatus` beschreibt das Resultat der INTERLIS-Validierung. Es gibt zwei, ilivalidator entsprechende, Werte:
-  * `DONE`: Es wurden _keine_ Fehler gefunden. Die Daten gelten als geliefert.
+  * `DONE`: Es wurden _keine_ Validierungsfehler gefunden. Der getrennte Übernahmestatus zeigt, ob die Daten veröffentlicht wurden.
   * `FAILED`: Es wurden Fehler gefunden. Die Daten gelten als _nicht_ geliefert.
 - `logFileLocation`: URL des Logfiles. Insbesondere bei einer nicht erfolgreichen Prüfung zwecks Fehlerkorrektur notwendig.
 
 Nach Beendigung des Jobs wird eine E-Mail verschickt. Im E-Mail-Betreff stehen der `validationStatus` sowie Operats- und Themenname. 
 
-**Achtung:** Nach einer erfolgreichen Validierung werden die Daten mit der Logdatei in ein Zielverzeichnis kopiert. Bereits vorhandene Operate werden überschrieben.
+**Achtung:** Nur gültige Lieferungen werden veröffentlicht. `deliveryStatus=DELIVERED` bestätigt die Übernahme ins Zielverzeichnis. Ein Übernahmefehler kann trotz `validationStatus=DONE` auftreten und bleibt sichtbar. Ein älterer Lieferstand ersetzt keinen bereits veröffentlichten neueren Stand.
 
-Für eine rasche Gesamtübersicht steht eine Webseite mit einer Tabelle sämtlicher Jobs zur Verfügung: https://geo.so.ch/datahub/web/jobs.xhtml. Es wird keine Authentisierung benötigt. Verschiedene Attribute (z.B. Organisation) könnten gefiltert werden.
+Für eine rasche Gesamtübersicht steht eine Webseite mit einer Tabelle sämtlicher Jobs zur Verfügung: https://geo.so.ch/datahub/jobs. Es wird keine Authentisierung benötigt. Verschiedene Attribute (z.B. Organisation) könnten gefiltert werden.
 
 ![Jobsübersicht](./images/user-manual/jobs_uebersicht.png)
 
-**Achtung:** Es werden nur die Lieferungen der letzten zwei Wochen angezeigt. Die Logdateien sind nur drei Tage verfügbar.
+**Achtung:** Es werden nur die Lieferungen der letzten zwei Wochen angezeigt. Die Logdateien sind drei Tage ab Abschluss verfügbar; danach antwortet die Log-URL mit 410.
 
 ### Nicht erfolgreiche Anlieferungen
 
@@ -228,3 +228,15 @@ Der Pfad ist abhängig vom Namen des `TARGET_DIRECTORY`, z.B. http://localhost:8
 ## Datenbank
 
 Die Admin-Organisation kann die Lieferungen auch direkt in der Datenbank nachvollziehen.
+
+## Getrennte Ergebniszustände
+
+Die bekannten JSON-Felder und öffentlichen Lieferungs-IDs bleiben erhalten. Zusätzlich werden
+`deliveryStatus` (Übernahme) und `notificationStatus` (Mail) geliefert. Ein technischer Jobabschluss,
+eine gültige Prüfung, eine erfolgreiche Veröffentlichung und eine erfolgreiche E-Mail sind
+unterschiedliche Ergebnisse. Die Übersicht zeigt diese Zustände getrennt.
+
+Widersprechende Query-/Multipart-Angaben und doppelte Felder werden mit 400 abgelehnt.
+Jeder neue Upload erzeugt eine eigene Lieferung. Die Übersicht behält ihre Historie auch nach dem
+Löschen technischer Jobs. API-Key-Ausstellungen erfordern aktivierten, funktionierenden Mailversand;
+bei Versandfehlern wird kein benutzbarer Key ausgestellt.
