@@ -1,76 +1,67 @@
 package ch.so.agi.datahub.auth;
 
+import ch.so.agi.datahub.config.AppProperties;
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
-import org.apache.cayenne.ObjectContext;
-import org.apache.cayenne.query.ObjectSelect;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import ch.so.agi.datahub.cayenne.CoreApikey;
-
 @Service
 public class ApiKeyHeaderAuthenticationService {
-    
-    private ObjectContext objectContext;
-    
-    private PasswordEncoder encoder;
+  public record ActiveKey(
+      String storedValue, long organisationId, String organisation, String role) {}
 
-    public ApiKeyHeaderAuthenticationService(ObjectContext objectContext, PasswordEncoder encoder) {
-        this.objectContext = objectContext;
-        this.encoder = encoder;
-    }
-    
-    public ApiKeyHeaderAuthenticationToken authenticate(ApiKeyHeaderAuthenticationToken apiKeyAuthenticationToken) {        
-        Optional<ApiKeyFormat.ApiKeyParts> apiKeyParts = ApiKeyFormat.parseApiKey(apiKeyAuthenticationToken.getApiKey());
-        if (apiKeyParts.isEmpty()) {
-            return apiKeyAuthenticationToken;
-        }
+  private final JdbcTemplate jdbc;
+  private final AppProperties properties;
+  private final PasswordEncoder encoder;
+  private final Clock clock;
 
-        Optional<CoreApikey> apiKey = loadActiveApiKeyById(apiKeyParts.get().keyId());
-        if (apiKey.isPresent() && matchesStoredKey(apiKeyParts.get(), apiKey.get())) {
-            return authenticate(apiKeyAuthenticationToken, apiKey.get());
-        }
+  public ApiKeyHeaderAuthenticationService(
+      JdbcTemplate jdbc, AppProperties properties, PasswordEncoder encoder, Clock clock) {
+    this.jdbc = jdbc;
+    this.properties = properties;
+    this.encoder = encoder;
+    this.clock = clock;
+  }
 
-        return apiKeyAuthenticationToken;
-    }
+  public ApiKeyHeaderAuthenticationToken authenticate(ApiKeyHeaderAuthenticationToken token) {
+    var parts = ApiKeyFormat.parseApiKey(token.getApiKey());
+    if (parts.isEmpty()) return token;
+    var key = loadActiveApiKeyById(parts.get().keyId());
+    if (key.isEmpty()) return token;
+    var stored = ApiKeyFormat.parseStoredValue(key.get().storedValue());
+    if (stored.isEmpty()
+        || !stored.get().keyId().equals(parts.get().keyId())
+        || !encoder.matches(parts.get().secret().toString(), stored.get().hashedSecret()))
+      return token;
+    var principal =
+        new ApiKeyUser(key.get().organisationId(), parts.get().keyId(), key.get().organisation());
+    principal.setAuthorities(List.of(new SimpleGrantedAuthority(key.get().role())));
+    return new ApiKeyHeaderAuthenticationToken(null, principal);
+  }
 
-    protected Optional<CoreApikey> loadActiveApiKeyById(UUID keyId) {
-        CoreApikey apiKey = ObjectSelect.query(CoreApikey.class)
-                .where(CoreApikey.APIKEY.like(keyId + ":%"))
-                .and(CoreApikey.REVOKEDAT.isNull())
-                .and(CoreApikey.DATEOFEXPIRY.gt(LocalDateTime.now()).orExp(CoreApikey.DATEOFEXPIRY.isNull()))
-                .selectOne(objectContext);
-
-        return Optional.ofNullable(apiKey);
-    }
-
-    private ApiKeyHeaderAuthenticationToken authenticate(ApiKeyHeaderAuthenticationToken apiKeyAuthenticationToken, CoreApikey apiKey) {
-        ApiKeyUser authenticatedUser = new ApiKeyUser(apiKey.getCoreOrganisation().getAname());
-        
-        List<GrantedAuthority> grants = new ArrayList<GrantedAuthority>();
-        grants.add(new SimpleGrantedAuthority(apiKey.getCoreOrganisation().getArole()));
-        authenticatedUser.setAuthorities(grants);
-        
-        return new ApiKeyHeaderAuthenticationToken(apiKeyAuthenticationToken.getApiKey(), authenticatedUser);
-    }
-
-    private boolean matchesStoredKey(ApiKeyFormat.ApiKeyParts apiKeyParts, CoreApikey apiKey) {
-        Optional<ApiKeyFormat.StoredApiKeyParts> storedParts = ApiKeyFormat.parseStoredValue(apiKey.getApikey());
-        if (storedParts.isEmpty()) {
-            return false;
-        }
-
-        if (!storedParts.get().keyId().equals(apiKeyParts.keyId())) {
-            return false;
-        }
-
-        return encoder.matches(apiKeyParts.secret().toString(), storedParts.get().hashedSecret());
-    }
+  protected Optional<ActiveKey> loadActiveApiKeyById(UUID id) {
+    // Read directly: authorization must also observe edits made by administrators outside Cayenne.
+    String schema = properties.configSchema();
+    return jdbc
+        .query(
+            "SELECT k.apikey,o.t_id,o.aname,o.arole FROM "
+                + schema
+                + ".core_apikey k JOIN "
+                + schema
+                + ".core_organisation o ON o.t_id=k.organisation_r WHERE k.apikey LIKE ? AND"
+                + " k.issuance_state='ACTIVE' AND k.revokedat IS NULL AND (k.dateofexpiry IS NULL"
+                + " OR k.dateofexpiry>?)",
+            (rs, n) ->
+                new ActiveKey(rs.getString(1), rs.getLong(2), rs.getString(3), rs.getString(4)),
+            id + ":%",
+            LocalDateTime.now(clock))
+        .stream()
+        .findFirst();
+  }
 }

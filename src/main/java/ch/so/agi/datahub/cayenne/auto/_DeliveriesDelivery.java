@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import org.apache.cayenne.BaseDataObject;
 import org.apache.cayenne.exp.property.BaseProperty;
 import org.apache.cayenne.exp.property.DateProperty;
+import org.apache.cayenne.exp.property.NumericProperty;
 import org.apache.cayenne.exp.property.PropertyFactory;
 import org.apache.cayenne.exp.property.StringProperty;
 
@@ -23,22 +24,74 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
 
     public static final String T_ID_PK_COLUMN = "t_id";
 
+    public static final BaseProperty<Boolean> ARTIFACTS_EXPIRED = PropertyFactory.createBase("artifactsExpired", Boolean.class);
+    public static final StringProperty<String> ATTEMPT_ID = PropertyFactory.createString("attemptId", String.class);
     public static final DateProperty<LocalDateTime> DELIVERYDATE = PropertyFactory.createDate("deliverydate", LocalDateTime.class);
+    public static final StringProperty<String> EMAIL = PropertyFactory.createString("email", String.class);
+    public static final StringProperty<String> EXECUTION_STATUS = PropertyFactory.createString("executionStatus", String.class);
+    public static final StringProperty<String> EXPECTED_MODELS = PropertyFactory.createString("expectedModels", String.class);
+    public static final DateProperty<LocalDateTime> FINISHED_AT = PropertyFactory.createDate("finishedAt", LocalDateTime.class);
     public static final BaseProperty<Boolean> ISDELIVERED = PropertyFactory.createBase("isdelivered", Boolean.class);
     public static final BaseProperty<Boolean> ISVALID = PropertyFactory.createBase("isvalid", Boolean.class);
     public static final StringProperty<String> JOBID = PropertyFactory.createString("jobid", String.class);
+    public static final StringProperty<String> KEY_ID = PropertyFactory.createString("keyId", String.class);
+    public static final StringProperty<String> NOTIFICATION_STATUS = PropertyFactory.createString("notificationStatus", String.class);
     public static final StringProperty<String> OPERAT = PropertyFactory.createString("operat", String.class);
+    public static final NumericProperty<Long> OPERAT_ID = PropertyFactory.createNumeric("operatId", Long.class);
     public static final StringProperty<String> ORGANISATION = PropertyFactory.createString("organisation", String.class);
+    public static final DateProperty<LocalDateTime> PUBLICATION_NEXT_AT = PropertyFactory.createDate("publicationNextAt", LocalDateTime.class);
+    public static final StringProperty<String> PUBLICATION_STATUS = PropertyFactory.createString("publicationStatus", String.class);
+    public static final NumericProperty<Integer> PUBLICATION_TRIES = PropertyFactory.createNumeric("publicationTries", Integer.class);
     public static final StringProperty<String> THEME = PropertyFactory.createString("theme", String.class);
+    public static final DateProperty<LocalDateTime> UPDATED_AT = PropertyFactory.createDate("updatedAt", LocalDateTime.class);
+    public static final StringProperty<String> VALIDATION_STATUS = PropertyFactory.createString("validationStatus", String.class);
+    public static final StringProperty<String> VALIDATOR_CONFIG = PropertyFactory.createString("validatorConfig", String.class);
+    public static final StringProperty<String> VALIDATOR_META_CONFIG = PropertyFactory.createString("validatorMetaConfig", String.class);
 
+    protected Boolean artifactsExpired;
+    protected String attemptId;
     protected LocalDateTime deliverydate;
+    protected String email;
+    protected String executionStatus;
+    protected String expectedModels;
+    protected LocalDateTime finishedAt;
     protected Boolean isdelivered;
     protected Boolean isvalid;
     protected String jobid;
+    protected String keyId;
+    protected String notificationStatus;
     protected String operat;
+    protected Long operatId;
     protected String organisation;
+    protected LocalDateTime publicationNextAt;
+    protected String publicationStatus;
+    protected Integer publicationTries;
     protected String theme;
+    protected LocalDateTime updatedAt;
+    protected String validationStatus;
+    protected String validatorConfig;
+    protected String validatorMetaConfig;
 
+
+    public void setArtifactsExpired(Boolean artifactsExpired) {
+        beforePropertyWrite("artifactsExpired", this.artifactsExpired, artifactsExpired);
+        this.artifactsExpired = artifactsExpired;
+    }
+
+    public Boolean getArtifactsExpired() {
+        beforePropertyRead("artifactsExpired");
+        return this.artifactsExpired;
+    }
+
+    public void setAttemptId(String attemptId) {
+        beforePropertyWrite("attemptId", this.attemptId, attemptId);
+        this.attemptId = attemptId;
+    }
+
+    public String getAttemptId() {
+        beforePropertyRead("attemptId");
+        return this.attemptId;
+    }
 
     public void setDeliverydate(LocalDateTime deliverydate) {
         beforePropertyWrite("deliverydate", this.deliverydate, deliverydate);
@@ -48,6 +101,46 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
     public LocalDateTime getDeliverydate() {
         beforePropertyRead("deliverydate");
         return this.deliverydate;
+    }
+
+    public void setEmail(String email) {
+        beforePropertyWrite("email", this.email, email);
+        this.email = email;
+    }
+
+    public String getEmail() {
+        beforePropertyRead("email");
+        return this.email;
+    }
+
+    public void setExecutionStatus(String executionStatus) {
+        beforePropertyWrite("executionStatus", this.executionStatus, executionStatus);
+        this.executionStatus = executionStatus;
+    }
+
+    public String getExecutionStatus() {
+        beforePropertyRead("executionStatus");
+        return this.executionStatus;
+    }
+
+    public void setExpectedModels(String expectedModels) {
+        beforePropertyWrite("expectedModels", this.expectedModels, expectedModels);
+        this.expectedModels = expectedModels;
+    }
+
+    public String getExpectedModels() {
+        beforePropertyRead("expectedModels");
+        return this.expectedModels;
+    }
+
+    public void setFinishedAt(LocalDateTime finishedAt) {
+        beforePropertyWrite("finishedAt", this.finishedAt, finishedAt);
+        this.finishedAt = finishedAt;
+    }
+
+    public LocalDateTime getFinishedAt() {
+        beforePropertyRead("finishedAt");
+        return this.finishedAt;
     }
 
     public void setIsdelivered(Boolean isdelivered) {
@@ -80,6 +173,26 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
         return this.jobid;
     }
 
+    public void setKeyId(String keyId) {
+        beforePropertyWrite("keyId", this.keyId, keyId);
+        this.keyId = keyId;
+    }
+
+    public String getKeyId() {
+        beforePropertyRead("keyId");
+        return this.keyId;
+    }
+
+    public void setNotificationStatus(String notificationStatus) {
+        beforePropertyWrite("notificationStatus", this.notificationStatus, notificationStatus);
+        this.notificationStatus = notificationStatus;
+    }
+
+    public String getNotificationStatus() {
+        beforePropertyRead("notificationStatus");
+        return this.notificationStatus;
+    }
+
     public void setOperat(String operat) {
         beforePropertyWrite("operat", this.operat, operat);
         this.operat = operat;
@@ -88,6 +201,16 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
     public String getOperat() {
         beforePropertyRead("operat");
         return this.operat;
+    }
+
+    public void setOperatId(Long operatId) {
+        beforePropertyWrite("operatId", this.operatId, operatId);
+        this.operatId = operatId;
+    }
+
+    public Long getOperatId() {
+        beforePropertyRead("operatId");
+        return this.operatId;
     }
 
     public void setOrganisation(String organisation) {
@@ -100,6 +223,36 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
         return this.organisation;
     }
 
+    public void setPublicationNextAt(LocalDateTime publicationNextAt) {
+        beforePropertyWrite("publicationNextAt", this.publicationNextAt, publicationNextAt);
+        this.publicationNextAt = publicationNextAt;
+    }
+
+    public LocalDateTime getPublicationNextAt() {
+        beforePropertyRead("publicationNextAt");
+        return this.publicationNextAt;
+    }
+
+    public void setPublicationStatus(String publicationStatus) {
+        beforePropertyWrite("publicationStatus", this.publicationStatus, publicationStatus);
+        this.publicationStatus = publicationStatus;
+    }
+
+    public String getPublicationStatus() {
+        beforePropertyRead("publicationStatus");
+        return this.publicationStatus;
+    }
+
+    public void setPublicationTries(Integer publicationTries) {
+        beforePropertyWrite("publicationTries", this.publicationTries, publicationTries);
+        this.publicationTries = publicationTries;
+    }
+
+    public Integer getPublicationTries() {
+        beforePropertyRead("publicationTries");
+        return this.publicationTries;
+    }
+
     public void setTheme(String theme) {
         beforePropertyWrite("theme", this.theme, theme);
         this.theme = theme;
@@ -110,6 +263,46 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
         return this.theme;
     }
 
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        beforePropertyWrite("updatedAt", this.updatedAt, updatedAt);
+        this.updatedAt = updatedAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        beforePropertyRead("updatedAt");
+        return this.updatedAt;
+    }
+
+    public void setValidationStatus(String validationStatus) {
+        beforePropertyWrite("validationStatus", this.validationStatus, validationStatus);
+        this.validationStatus = validationStatus;
+    }
+
+    public String getValidationStatus() {
+        beforePropertyRead("validationStatus");
+        return this.validationStatus;
+    }
+
+    public void setValidatorConfig(String validatorConfig) {
+        beforePropertyWrite("validatorConfig", this.validatorConfig, validatorConfig);
+        this.validatorConfig = validatorConfig;
+    }
+
+    public String getValidatorConfig() {
+        beforePropertyRead("validatorConfig");
+        return this.validatorConfig;
+    }
+
+    public void setValidatorMetaConfig(String validatorMetaConfig) {
+        beforePropertyWrite("validatorMetaConfig", this.validatorMetaConfig, validatorMetaConfig);
+        this.validatorMetaConfig = validatorMetaConfig;
+    }
+
+    public String getValidatorMetaConfig() {
+        beforePropertyRead("validatorMetaConfig");
+        return this.validatorMetaConfig;
+    }
+
     @Override
     public Object readPropertyDirectly(String propName) {
         if(propName == null) {
@@ -117,20 +310,52 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
         }
 
         switch(propName) {
+            case "artifactsExpired":
+                return this.artifactsExpired;
+            case "attemptId":
+                return this.attemptId;
             case "deliverydate":
                 return this.deliverydate;
+            case "email":
+                return this.email;
+            case "executionStatus":
+                return this.executionStatus;
+            case "expectedModels":
+                return this.expectedModels;
+            case "finishedAt":
+                return this.finishedAt;
             case "isdelivered":
                 return this.isdelivered;
             case "isvalid":
                 return this.isvalid;
             case "jobid":
                 return this.jobid;
+            case "keyId":
+                return this.keyId;
+            case "notificationStatus":
+                return this.notificationStatus;
             case "operat":
                 return this.operat;
+            case "operatId":
+                return this.operatId;
             case "organisation":
                 return this.organisation;
+            case "publicationNextAt":
+                return this.publicationNextAt;
+            case "publicationStatus":
+                return this.publicationStatus;
+            case "publicationTries":
+                return this.publicationTries;
             case "theme":
                 return this.theme;
+            case "updatedAt":
+                return this.updatedAt;
+            case "validationStatus":
+                return this.validationStatus;
+            case "validatorConfig":
+                return this.validatorConfig;
+            case "validatorMetaConfig":
+                return this.validatorMetaConfig;
             default:
                 return super.readPropertyDirectly(propName);
         }
@@ -143,8 +368,26 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
         }
 
         switch (propName) {
+            case "artifactsExpired":
+                this.artifactsExpired = (Boolean)val;
+                break;
+            case "attemptId":
+                this.attemptId = (String)val;
+                break;
             case "deliverydate":
                 this.deliverydate = (LocalDateTime)val;
+                break;
+            case "email":
+                this.email = (String)val;
+                break;
+            case "executionStatus":
+                this.executionStatus = (String)val;
+                break;
+            case "expectedModels":
+                this.expectedModels = (String)val;
+                break;
+            case "finishedAt":
+                this.finishedAt = (LocalDateTime)val;
                 break;
             case "isdelivered":
                 this.isdelivered = (Boolean)val;
@@ -155,14 +398,44 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
             case "jobid":
                 this.jobid = (String)val;
                 break;
+            case "keyId":
+                this.keyId = (String)val;
+                break;
+            case "notificationStatus":
+                this.notificationStatus = (String)val;
+                break;
             case "operat":
                 this.operat = (String)val;
+                break;
+            case "operatId":
+                this.operatId = (Long)val;
                 break;
             case "organisation":
                 this.organisation = (String)val;
                 break;
+            case "publicationNextAt":
+                this.publicationNextAt = (LocalDateTime)val;
+                break;
+            case "publicationStatus":
+                this.publicationStatus = (String)val;
+                break;
+            case "publicationTries":
+                this.publicationTries = (Integer)val;
+                break;
             case "theme":
                 this.theme = (String)val;
+                break;
+            case "updatedAt":
+                this.updatedAt = (LocalDateTime)val;
+                break;
+            case "validationStatus":
+                this.validationStatus = (String)val;
+                break;
+            case "validatorConfig":
+                this.validatorConfig = (String)val;
+                break;
+            case "validatorMetaConfig":
+                this.validatorMetaConfig = (String)val;
                 break;
             default:
                 super.writePropertyDirectly(propName, val);
@@ -180,25 +453,57 @@ public abstract class _DeliveriesDelivery extends BaseDataObject {
     @Override
     protected void writeState(ObjectOutputStream out) throws IOException {
         super.writeState(out);
+        out.writeObject(this.artifactsExpired);
+        out.writeObject(this.attemptId);
         out.writeObject(this.deliverydate);
+        out.writeObject(this.email);
+        out.writeObject(this.executionStatus);
+        out.writeObject(this.expectedModels);
+        out.writeObject(this.finishedAt);
         out.writeObject(this.isdelivered);
         out.writeObject(this.isvalid);
         out.writeObject(this.jobid);
+        out.writeObject(this.keyId);
+        out.writeObject(this.notificationStatus);
         out.writeObject(this.operat);
+        out.writeObject(this.operatId);
         out.writeObject(this.organisation);
+        out.writeObject(this.publicationNextAt);
+        out.writeObject(this.publicationStatus);
+        out.writeObject(this.publicationTries);
         out.writeObject(this.theme);
+        out.writeObject(this.updatedAt);
+        out.writeObject(this.validationStatus);
+        out.writeObject(this.validatorConfig);
+        out.writeObject(this.validatorMetaConfig);
     }
 
     @Override
     protected void readState(ObjectInputStream in) throws IOException, ClassNotFoundException {
         super.readState(in);
+        this.artifactsExpired = (Boolean)in.readObject();
+        this.attemptId = (String)in.readObject();
         this.deliverydate = (LocalDateTime)in.readObject();
+        this.email = (String)in.readObject();
+        this.executionStatus = (String)in.readObject();
+        this.expectedModels = (String)in.readObject();
+        this.finishedAt = (LocalDateTime)in.readObject();
         this.isdelivered = (Boolean)in.readObject();
         this.isvalid = (Boolean)in.readObject();
         this.jobid = (String)in.readObject();
+        this.keyId = (String)in.readObject();
+        this.notificationStatus = (String)in.readObject();
         this.operat = (String)in.readObject();
+        this.operatId = (Long)in.readObject();
         this.organisation = (String)in.readObject();
+        this.publicationNextAt = (LocalDateTime)in.readObject();
+        this.publicationStatus = (String)in.readObject();
+        this.publicationTries = (Integer)in.readObject();
         this.theme = (String)in.readObject();
+        this.updatedAt = (LocalDateTime)in.readObject();
+        this.validationStatus = (String)in.readObject();
+        this.validatorConfig = (String)in.readObject();
+        this.validatorMetaConfig = (String)in.readObject();
     }
 
 }

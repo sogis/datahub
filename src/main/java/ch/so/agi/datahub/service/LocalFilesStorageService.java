@@ -1,69 +1,59 @@
 package ch.so.agi.datahub.service;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
+import java.io.*;
+import java.nio.file.*;
+import org.springframework.core.io.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class LocalFilesStorageService implements FilesStorageService {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+  public static void segment(String value) {
+    if (value == null
+        || value.isBlank()
+        || value.equals(".")
+        || value.equals("..")
+        || value.contains("/")
+        || value.contains("\\")
+        || value.indexOf(0) >= 0) throw new IllegalArgumentException("Invalid file path segment");
+  }
 
-    @Value("${app.workDirectory}")
-    private String workDirectory;
-    
-    @Value("${app.folderPrefix}")
-    private String folderPrefix;
+  public static Path resolve(String root, String directory, String file) throws IOException {
+    segment(directory);
+    segment(file);
+    Path base = Path.of(root).toAbsolutePath().normalize();
+    Files.createDirectories(base);
+    base = base.toRealPath();
+    Path dir = base.resolve(directory);
+    if (Files.isSymbolicLink(dir)) throw new IOException("Symlink directory not permitted");
+    Path path = dir.resolve(file);
+    if (Files.isSymbolicLink(path)) throw new IOException("Symlink file not permitted");
+    return path;
+  }
 
-    @Override
-    public void init() {
+  @Override
+  public void init() {}
+
+  @Override
+  public void save(InputStream input, String filename, String parent, String prefix, String root)
+      throws IOException {
+    Path path = resolve(root, (prefix == null ? "" : prefix) + parent, filename);
+    Files.createDirectories(path.getParent());
+    Path temp = Files.createTempFile(path.getParent(), "copy-", ".tmp");
+    try (input) {
+      Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING);
+      LocalArtifactStore.force(temp);
+      Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    } finally {
+      Files.deleteIfExists(temp);
     }
-    
-    @Override
-    public void save(InputStream is, String fileName, String parentDir, String prefix, String rootDir) throws IOException {
-        Path rootDirectoryPath = Paths.get(rootDir);
-        
-        prefix = prefix==null?"":prefix;
-        Path fileDirectoryPath = rootDirectoryPath.resolve(prefix + parentDir);
+  }
 
-        try {
-            Files.createDirectories(fileDirectoryPath); // does not throw exception if directory exists
-            Files.copy(is, fileDirectoryPath.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new IOException();
-        } 
-    }
-
-    @Override
-    public Resource load(String fileName, String parentDir, String prefix, String rootDir) throws IOException {
-        Path rootDirectoryPath = Paths.get(rootDir);
-
-        prefix = prefix==null?"":prefix;
-        Path fileDirectoryPath = rootDirectoryPath.resolve(folderPrefix + parentDir);
-
-        try {
-            Path path = fileDirectoryPath.resolve(fileName);
-            Resource resource = new UrlResource(path.toUri());
-
-            if (resource.exists() || resource.isReadable()) {
-                return resource;
-            } else {
-                throw new IOException("Could not read the file!");
-            }
-        } catch (MalformedURLException e) {
-            throw new IOException("Error: " + e.getMessage());
-        }
-    }
+  @Override
+  public Resource load(String filename, String parent, String prefix, String root)
+      throws IOException {
+    Path path = resolve(root, (prefix == null ? "" : prefix) + parent, filename);
+    if (!Files.isRegularFile(path) || !Files.isReadable(path))
+      throw new FileNotFoundException("Artifact is not available");
+    return new FileSystemResource(path);
+  }
 }

@@ -1,129 +1,117 @@
 package ch.so.agi.datahub.service;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.cayenne.DataRow;
-import org.apache.cayenne.ObjectContext;
-import org.apache.cayenne.exp.Expression;
-import org.apache.cayenne.exp.ExpressionFactory;
-import org.apache.cayenne.query.ObjectSelect;
-import org.apache.cayenne.query.SQLSelect;
-import org.apache.cayenne.query.SortOrder;
-import org.primefaces.model.FilterMeta;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import ch.so.agi.datahub.model.*;
+import java.time.*;
+import java.util.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import ch.so.agi.datahub.cayenne.VJobresponse;
-import ch.so.agi.datahub.model.JobResponse;
 
 @Service
 public class JobResponseService {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+  private final DeliveryRepository r;
 
-    @Value("${app.jobResponseListLimit}")
-    private int jobResponseListLimit;
+  public JobResponseService(DeliveryRepository r) {
+    this.r = r;
+  }
 
-    private ObjectContext objectContext;
-    
-    public JobResponseService (ObjectContext objectContext) {
-        this.objectContext = objectContext;
-    }
-        
-    public int getJobResponseCount(Map<String, FilterMeta> filterBy) {         
-        ObjectSelect<DataRow> query = ObjectSelect.dataRowQuery(VJobresponse.class);
-        
-        for (Map.Entry<String, FilterMeta> entry : filterBy.entrySet()) {
-            query.where(entry.getKey().toLowerCase() + " likeIgnoreCase $"+entry.getKey().toLowerCase(), entry.getValue().getFilterValue());
-        }
-        
-        return (int) query.selectCount(objectContext);
-    }
-    
-    public List<JobResponse> getJobResponseList() {
-        return getJobResponseList(new HashMap<>());
-    }
-    
-    public List<JobResponse> getJobResponseList(Map<String, FilterMeta> filterBy) {
-        ObjectSelect<DataRow> query = ObjectSelect.dataRowQuery(VJobresponse.class);
-        
-        for (Map.Entry<String, FilterMeta> entry : filterBy.entrySet()) {
-            // Achtung: Es wird immer eine like-Query gemacht. Dies funktioniert nicht mit boolean.
-            query.where(entry.getKey().toLowerCase() + " likeIgnoreCase $"+entry.getKey().toLowerCase(), entry.getValue().getFilterValue()+"%");
-        }
-        
-        // Nur Lieferungen jünger 2 Wochen.
-        // SUCCEDED Lieferungen werden automatisch gelöscht (siehe application.properties).
-        // Bei FAILED ist dies nicht der Fall. Aus diesem Grund machen wir die WHERE clause.
-        // Shortcut: .where(PropertyFactory.createLocalDateTime("createdAt").gte(thresholdDateTime))
-        LocalDateTime thresholdDateTime = LocalDateTime.now().minusHours(336);
-        Expression expression = ExpressionFactory.greaterOrEqualExp(VJobresponse.CREATEDAT.getName(), thresholdDateTime);
-        query.where(expression);
+  public java.util.List<JobResponse> getJobResponseList() {
+    return search(JobSearch.all(), r.p().getJobResponseListLimit()).rows();
+  }
 
-        query.orderBy(VJobresponse.CREATEDAT.getName(), SortOrder.DESCENDING).limit(jobResponseListLimit);
+  public JobPage search(JobSearch search, int size) {
+    List<Object> params = new ArrayList<>();
+    StringBuilder where = new StringBuilder("d.deliverydate>=?");
+    params.add(r.now().minusDays(14));
+    add(where, params, "d.organisation", search.organisation(), false);
+    add(where, params, "d.theme", search.theme(), true);
+    add(where, params, "d.operat", search.operat(), true);
+    add(where, params, "d.execution_status", search.status(), false);
+    add(where, params, "d.validation_status", search.validationStatus(), false);
+    int count =
+        r.jdbc()
+            .queryForObject(
+                "SELECT count(*) FROM " + r.table("deliveries_delivery") + " d WHERE " + where,
+                Integer.class,
+                params.toArray());
+    String order =
+        switch (search.sort()) {
+          case "date-asc" -> "d.deliverydate ASC,d.t_id ASC";
+          case "theme" -> "d.theme ASC,d.t_id DESC";
+          case "operat" -> "d.operat ASC,d.t_id DESC";
+          default -> "d.deliverydate DESC,d.t_id DESC";
+        };
+    int pageSize = Math.max(1, Math.min(size, r.p().getJobResponseListLimit()));
+    int page = search.page();
+    params.add(pageSize);
+    params.add((long) page * pageSize);
+    var rows =
+        r.jdbc()
+            .queryForList(
+                queueCte()
+                    + " SELECT d.*,q.queueposition FROM "
+                    + r.table("deliveries_delivery")
+                    + " d LEFT JOIN queued q ON q.jobid=d.jobid WHERE "
+                    + where
+                    + " ORDER BY "
+                    + order
+                    + " LIMIT ? OFFSET ?",
+                params.toArray());
+    return new JobPage(rows.stream().map(this::response).toList(), count, page, pageSize);
+  }
 
-        List<DataRow> rows = query.select(objectContext);
-        logger.trace("DataRow: {}", rows);
-                
-        List<JobResponse> jobResponseList = rows.stream().map(dr -> {
-            JobResponse jobResponse = new JobResponse(
-                    (String)dr.get("jobid"),
-                    (LocalDateTime)dr.get("createdat"),
-                    (LocalDateTime)dr.get("updatedat"),
-                    (String)dr.get("status"),
-                    (Long)dr.get("queueposition"),
-                    (String)dr.get("operat"),
-                    (String)dr.get("theme"),
-                    (String)dr.get("organisation"),
-                    (String)dr.get("message"),
-                    (String)dr.get("validationstatus"), 
-                    dr.get("validationstatus")!=null?(getHost() + "/api/logs/" + (String)dr.get("jobid")):null, 
-                    null, 
-                    null 
-                    );
-            return jobResponse;
-        }).collect(Collectors.toList());
-        
-        return jobResponseList;
-    }
+  public JobResponse getJobResponseById(String id) {
+    var rows =
+        r.jdbc()
+            .queryForList(
+                queueCte()
+                    + " SELECT d.*,q.queueposition FROM "
+                    + r.table("deliveries_delivery")
+                    + " d LEFT JOIN queued q ON q.jobid=d.jobid WHERE d.jobid=?",
+                id);
+    return rows.isEmpty() ? null : response(rows.getFirst());
+  }
 
-    public JobResponse getJobResponseById(String jobId) {        
-        DataRow result = ObjectSelect.dataRowQuery(VJobresponse.class)
-                .where("jobid = $jobid", jobId)
-                .selectOne(objectContext);        
-               
-        if (result == null) {
-            return null;
-        }
-        
-        JobResponse jobResponse = new JobResponse(
-                (String)result.get("jobid"),
-                (LocalDateTime)result.get("createdat"),
-                (LocalDateTime)result.get("updatedat"),
-                (String)result.get("status"),
-                (Long)result.get("queueposition"),
-                (String)result.get("operat"),
-                (String)result.get("theme"),
-                (String)result.get("organisation"),
-                (String)result.get("message"),
-                (String)result.get("validationstatus"),
-                result.get("validationstatus")!=null?(getHost() + "/api/logs/" + jobId):null, 
-                null,
-                null
-                );
-        
-        return jobResponse;
-    }
-    
-    private String getHost() {
-        return ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
-    }    
+  private String queueCte() {
+    return "WITH queued AS(SELECT jobid,ROW_NUMBER() OVER(ORDER BY deliverydate,t_id) AS"
+               + " queueposition FROM "
+        + r.table("deliveries_delivery")
+        + " WHERE execution_status='ENQUEUED')";
+  }
+
+  private static void add(
+      StringBuilder where, List<Object> args, String column, String value, boolean prefix) {
+    if (value == null || value.isBlank()) return;
+    where.append(" AND ").append(column).append(prefix ? " ILIKE ? ESCAPE '\\'" : "=?");
+    args.add(
+        prefix ? value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" : value);
+  }
+
+  private JobResponse response(Map<String, Object> row) {
+    String id = (String) row.get("jobid");
+    LocalDateTime created = DeliveryRepository.time(row, "deliverydate"),
+        updated = DeliveryRepository.time(row, "updated_at");
+    String validation = (String) row.get("validation_status");
+    boolean expired = Boolean.TRUE.equals(row.get("artifacts_expired"));
+    var finished = DeliveryRepository.time(row, "finished_at");
+    expired |= finished != null && finished.isBefore(r.now().minus(r.p().getArtifactRetention()));
+    var response =
+        new JobResponse(
+            id,
+            created,
+            updated == null ? created : updated,
+            (String) row.get("execution_status"),
+            row.get("queueposition") == null
+                ? null
+                : ((Number) row.get("queueposition")).longValue(),
+            (String) row.get("operat"),
+            (String) row.get("theme"),
+            (String) row.get("organisation"),
+            expired ? "Log retention expired" : null,
+            validation,
+            finished == null ? null : r.p().publicUrl("/api/logs/" + id),
+            null,
+            null);
+    response.setDeliveryStatus((String) row.get("publication_status"));
+    response.setNotificationStatus((String) row.get("notification_status"));
+    return response;
+  }
 }

@@ -26,11 +26,13 @@ public abstract class _CoreTheme extends BaseDataObject {
 
     public static final StringProperty<String> ANAME = PropertyFactory.createString("aname", String.class);
     public static final StringProperty<String> CONFIG = PropertyFactory.createString("config", String.class);
+    public static final StringProperty<String> EXPECTED_MODELS = PropertyFactory.createString("expectedModels", String.class);
     public static final StringProperty<String> METACONFIG = PropertyFactory.createString("metaconfig", String.class);
     public static final ListProperty<CoreOperat> CORE_OPERATS = PropertyFactory.createList("coreOperats", CoreOperat.class);
 
     protected String aname;
     protected String config;
+    protected String expectedModels;
     protected String metaconfig;
 
     protected Object coreOperats;
@@ -53,6 +55,16 @@ public abstract class _CoreTheme extends BaseDataObject {
     public String getConfig() {
         beforePropertyRead("config");
         return this.config;
+    }
+
+    public void setExpectedModels(String expectedModels) {
+        beforePropertyWrite("expectedModels", this.expectedModels, expectedModels);
+        this.expectedModels = expectedModels;
+    }
+
+    public String getExpectedModels() {
+        beforePropertyRead("expectedModels");
+        return this.expectedModels;
     }
 
     public void setMetaconfig(String metaconfig) {
@@ -89,6 +101,8 @@ public abstract class _CoreTheme extends BaseDataObject {
                 return this.aname;
             case "config":
                 return this.config;
+            case "expectedModels":
+                return this.expectedModels;
             case "metaconfig":
                 return this.metaconfig;
             case "coreOperats":
@@ -110,6 +124,9 @@ public abstract class _CoreTheme extends BaseDataObject {
                 break;
             case "config":
                 this.config = (String)val;
+                break;
+            case "expectedModels":
+                this.expectedModels = (String)val;
                 break;
             case "metaconfig":
                 this.metaconfig = (String)val;
@@ -135,6 +152,7 @@ public abstract class _CoreTheme extends BaseDataObject {
         super.writeState(out);
         out.writeObject(this.aname);
         out.writeObject(this.config);
+        out.writeObject(this.expectedModels);
         out.writeObject(this.metaconfig);
         out.writeObject(this.coreOperats);
     }
@@ -144,6 +162,7 @@ public abstract class _CoreTheme extends BaseDataObject {
         super.readState(in);
         this.aname = (String)in.readObject();
         this.config = (String)in.readObject();
+        this.expectedModels = (String)in.readObject();
         this.metaconfig = (String)in.readObject();
         this.coreOperats = in.readObject();
     }

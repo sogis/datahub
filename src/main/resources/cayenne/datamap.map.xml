@@ -11,6 +11,7 @@
 		<db-attribute name="organisation_r" type="BIGINT" isMandatory="true" length="19"/>
 		<db-attribute name="revokedat" type="TIMESTAMP" length="29"/>
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
+			<db-attribute name="issuance_state" type="VARCHAR" length="20"/>
 	</db-entity>
 	<db-entity name="core_operat" schema="agi_datahub_config_v1">
 		<db-attribute name="aname" type="VARCHAR" isMandatory="true" length="512"/>
@@ -30,6 +31,7 @@
 		<db-attribute name="config" type="VARCHAR" length="512"/>
 		<db-attribute name="metaconfig" type="VARCHAR" length="512"/>
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
+			<db-attribute name="expected_models" type="VARCHAR" length="2048"/>
 	</db-entity>
 	<db-entity name="deliveries_delivery" schema="agi_datahub_log_v1">
 		<db-attribute name="deliverydate" type="TIMESTAMP" isMandatory="true" length="29"/>
@@ -40,6 +42,22 @@
 		<db-attribute name="organisation" type="VARCHAR" isMandatory="true" length="512"/>
 		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="19"/>
 		<db-attribute name="theme" type="VARCHAR" isMandatory="true" length="51220"/>
+			<db-attribute name="operat_id" type="BIGINT"/>
+		<db-attribute name="key_id" type="VARCHAR" length="36"/>
+		<db-attribute name="attempt_id" type="VARCHAR" length="36"/>
+		<db-attribute name="email" type="VARCHAR" length="512"/>
+		<db-attribute name="validator_config" type="VARCHAR" length="512"/>
+		<db-attribute name="validator_meta_config" type="VARCHAR" length="512"/>
+		<db-attribute name="expected_models" type="VARCHAR" length="2048"/>
+		<db-attribute name="execution_status" type="VARCHAR" length="20"/>
+		<db-attribute name="validation_status" type="VARCHAR" length="20"/>
+		<db-attribute name="publication_status" type="VARCHAR" length="20"/>
+		<db-attribute name="notification_status" type="VARCHAR" length="20"/>
+		<db-attribute name="publication_tries" type="INTEGER"/>
+		<db-attribute name="publication_next_at" type="TIMESTAMP"/>
+		<db-attribute name="updated_at" type="TIMESTAMP"/>
+		<db-attribute name="finished_at" type="TIMESTAMP"/>
+		<db-attribute name="artifacts_expired" type="BOOLEAN"/>
 	</db-entity>
 	<db-entity name="v_jobresponse" schema="agi_datahub_log_v1">
 		<db-attribute name="createdat" type="TIMESTAMP" length="29"/>
@@ -57,6 +75,7 @@
 		<obj-attribute name="createdat" type="java.time.LocalDateTime" db-attribute-path="createdat"/>
 		<obj-attribute name="dateofexpiry" type="java.time.LocalDateTime" db-attribute-path="dateofexpiry"/>
 		<obj-attribute name="revokedat" type="java.time.LocalDateTime" db-attribute-path="revokedat"/>
+			<obj-attribute name="issuanceState" type="java.lang.String" db-attribute-path="issuance_state"/>
 	</obj-entity>
 	<obj-entity name="CoreOperat" className="ch.so.agi.datahub.cayenne.CoreOperat" dbEntityName="core_operat">
 		<obj-attribute name="aname" type="java.lang.String" db-attribute-path="aname"/>
@@ -71,6 +90,7 @@
 		<obj-attribute name="aname" type="java.lang.String" db-attribute-path="aname"/>
 		<obj-attribute name="config" type="java.lang.String" db-attribute-path="config"/>
 		<obj-attribute name="metaconfig" type="java.lang.String" db-attribute-path="metaconfig"/>
+			<obj-attribute name="expectedModels" type="java.lang.String" db-attribute-path="expected_models"/>
 	</obj-entity>
 	<obj-entity name="DeliveriesDelivery" className="ch.so.agi.datahub.cayenne.DeliveriesDelivery" dbEntityName="deliveries_delivery">
 		<obj-attribute name="deliverydate" type="java.time.LocalDateTime" db-attribute-path="deliverydate"/>
@@ -80,6 +100,22 @@
 		<obj-attribute name="operat" type="java.lang.String" db-attribute-path="operat"/>
 		<obj-attribute name="organisation" type="java.lang.String" db-attribute-path="organisation"/>
 		<obj-attribute name="theme" type="java.lang.String" db-attribute-path="theme"/>
+			<obj-attribute name="operatId" type="java.lang.Long" db-attribute-path="operat_id"/>
+		<obj-attribute name="keyId" type="java.lang.String" db-attribute-path="key_id"/>
+		<obj-attribute name="attemptId" type="java.lang.String" db-attribute-path="attempt_id"/>
+		<obj-attribute name="email" type="java.lang.String" db-attribute-path="email"/>
+		<obj-attribute name="validatorConfig" type="java.lang.String" db-attribute-path="validator_config"/>
+		<obj-attribute name="validatorMetaConfig" type="java.lang.String" db-attribute-path="validator_meta_config"/>
+		<obj-attribute name="expectedModels" type="java.lang.String" db-attribute-path="expected_models"/>
+		<obj-attribute name="executionStatus" type="java.lang.String" db-attribute-path="execution_status"/>
+		<obj-attribute name="validationStatus" type="java.lang.String" db-attribute-path="validation_status"/>
+		<obj-attribute name="publicationStatus" type="java.lang.String" db-attribute-path="publication_status"/>
+		<obj-attribute name="notificationStatus" type="java.lang.String" db-attribute-path="notification_status"/>
+		<obj-attribute name="publicationTries" type="java.lang.Integer" db-attribute-path="publication_tries"/>
+		<obj-attribute name="publicationNextAt" type="java.time.LocalDateTime" db-attribute-path="publication_next_at"/>
+		<obj-attribute name="updatedAt" type="java.time.LocalDateTime" db-attribute-path="updated_at"/>
+		<obj-attribute name="finishedAt" type="java.time.LocalDateTime" db-attribute-path="finished_at"/>
+		<obj-attribute name="artifactsExpired" type="java.lang.Boolean" db-attribute-path="artifacts_expired"/>
 	</obj-entity>
 	<obj-entity name="VJobresponse" className="ch.so.agi.datahub.cayenne.VJobresponse" dbEntityName="v_jobresponse">
 		<obj-attribute name="createdat" type="java.time.LocalDateTime" db-attribute-path="createdat"/>
@@ -116,4 +152,54 @@
 	<obj-relationship name="coreApikeys" source="CoreOrganisation" target="CoreApikey" deleteRule="Deny" db-relationship-path="coreApikeys"/>
 	<obj-relationship name="coreOperats" source="CoreOrganisation" target="CoreOperat" deleteRule="Deny" db-relationship-path="coreOperats"/>
 	<obj-relationship name="coreOperats" source="CoreTheme" target="CoreOperat" deleteRule="Deny" db-relationship-path="coreOperats"/>
+	<db-entity name="validation_attempt" schema="agi_datahub_log_v1">
+		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true"/>
+		<db-attribute name="id" type="VARCHAR"/>
+		<db-attribute name="delivery_id" type="BIGINT"/>
+		<db-attribute name="dispatch_state" type="VARCHAR"/>
+		<db-attribute name="state" type="VARCHAR"/>
+		<db-attribute name="created_at" type="TIMESTAMP"/>
+		<db-attribute name="started_at" type="TIMESTAMP"/>
+		<db-attribute name="finished_at" type="TIMESTAMP"/>
+		<db-attribute name="heartbeat_at" type="TIMESTAMP"/>
+		<db-attribute name="version" type="BIGINT"/>
+		<db-attribute name="validator_version" type="VARCHAR"/>
+		<db-attribute name="result_models" type="VARCHAR"/>
+	</db-entity>
+	<obj-entity name="ValidationAttempt" className="ch.so.agi.datahub.cayenne.ValidationAttempt" dbEntityName="validation_attempt">
+		<obj-attribute name="id" type="java.lang.String" db-attribute-path="id"/>
+		<obj-attribute name="deliveryId" type="java.lang.Long" db-attribute-path="delivery_id"/>
+		<obj-attribute name="dispatchState" type="java.lang.String" db-attribute-path="dispatch_state"/>
+		<obj-attribute name="state" type="java.lang.String" db-attribute-path="state"/>
+		<obj-attribute name="createdAt" type="java.time.LocalDateTime" db-attribute-path="created_at"/>
+		<obj-attribute name="startedAt" type="java.time.LocalDateTime" db-attribute-path="started_at"/>
+		<obj-attribute name="finishedAt" type="java.time.LocalDateTime" db-attribute-path="finished_at"/>
+		<obj-attribute name="heartbeatAt" type="java.time.LocalDateTime" db-attribute-path="heartbeat_at"/>
+		<obj-attribute name="version" type="java.lang.Long" db-attribute-path="version"/>
+		<obj-attribute name="validatorVersion" type="java.lang.String" db-attribute-path="validator_version"/>
+		<obj-attribute name="resultModels" type="java.lang.String" db-attribute-path="result_models"/>
+	</obj-entity>
+	<db-entity name="notification" schema="agi_datahub_log_v1">
+		<db-attribute name="t_id" type="BIGINT" isPrimaryKey="true" isGenerated="true"/>
+		<db-attribute name="id" type="VARCHAR"/>
+		<db-attribute name="delivery_id" type="BIGINT"/>
+		<db-attribute name="recipient" type="VARCHAR"/>
+		<db-attribute name="subject" type="VARCHAR"/>
+		<db-attribute name="body" type="VARCHAR"/>
+		<db-attribute name="state" type="VARCHAR"/>
+		<db-attribute name="tries" type="INTEGER"/>
+		<db-attribute name="next_at" type="TIMESTAMP"/>
+		<db-attribute name="lease_until" type="TIMESTAMP"/>
+	</db-entity>
+	<obj-entity name="Notification" className="ch.so.agi.datahub.cayenne.Notification" dbEntityName="notification">
+		<obj-attribute name="id" type="java.lang.String" db-attribute-path="id"/>
+		<obj-attribute name="deliveryId" type="java.lang.Long" db-attribute-path="delivery_id"/>
+		<obj-attribute name="recipient" type="java.lang.String" db-attribute-path="recipient"/>
+		<obj-attribute name="subject" type="java.lang.String" db-attribute-path="subject"/>
+		<obj-attribute name="body" type="java.lang.String" db-attribute-path="body"/>
+		<obj-attribute name="state" type="java.lang.String" db-attribute-path="state"/>
+		<obj-attribute name="tries" type="java.lang.Integer" db-attribute-path="tries"/>
+		<obj-attribute name="nextAt" type="java.time.LocalDateTime" db-attribute-path="next_at"/>
+		<obj-attribute name="leaseUntil" type="java.time.LocalDateTime" db-attribute-path="lease_until"/>
+	</obj-entity>
 </data-map>

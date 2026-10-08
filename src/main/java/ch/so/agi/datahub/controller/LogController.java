@@ -1,62 +1,65 @@
 package ch.so.agi.datahub.controller;
 
+import ch.so.agi.datahub.config.AppProperties;
+import ch.so.agi.datahub.service.*;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.time.*;
+import java.util.UUID;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-
-import ch.so.agi.datahub.service.FilesStorageService;
-
-@Controller
+@org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
+@RestController
 public class LogController {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+  private final DeliveryRepository repository;
+  private final ArtifactStore artifacts;
+  private final AppProperties p;
+  private final Clock clock;
 
-    @Value("${app.workDirectory}")
-    private String workDirectory;
-    
-    @Value("${app.folderPrefix}")
-    private String folderPrefix;
+  public LogController(
+      DeliveryRepository repository, ArtifactStore artifacts, AppProperties p, Clock clock) {
+    this.repository = repository;
+    this.artifacts = artifacts;
+    this.p = p;
+    this.clock = clock;
+  }
 
-    private FilesStorageService filesStorageService;
-
-    public LogController(FilesStorageService filesStorageService) {
-        this.filesStorageService = filesStorageService;
+  @GetMapping("/api/logs/{jobId}")
+  public ResponseEntity<?> getLogById(@PathVariable String jobId) throws IOException {
+    UUID id;
+    try {
+      id = UUID.fromString(jobId);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown delivery");
     }
-    
-    @GetMapping(path = "/api/logs/{jobId}")
-    public ResponseEntity<?> getLogById(@PathVariable("jobId") String jobId) throws IOException {        
-        return getLog(jobId);
+    var row = repository.find(jobId);
+    if (row == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown delivery");
+    var finished = DeliveryRepository.time(row, "finished_at");
+    if (Boolean.TRUE.equals(row.get("artifacts_expired"))
+        || (finished != null
+            && finished.isBefore(LocalDateTime.now(clock).minus(p.getArtifactRetention()))))
+      throw new ResponseStatusException(HttpStatus.GONE, "Log retention expired");
+    Path log;
+    if (row.get("attempt_id") == null)
+      log =
+          LocalFilesStorageService.resolve(
+              p.getWorkDirectory(), p.getFolderPrefix() + id, id + ".log");
+    else {
+      var attempt = repository.attempt(jobId, (String) row.get("attempt_id"));
+      log =
+          artifacts.log(
+              id,
+              UUID.fromString((String) row.get("attempt_id")),
+              DeliveryRepository.number(attempt, "version"));
     }
-    
-    private ResponseEntity<?> getLog(String jobId) throws IOException {
-        Resource resource = filesStorageService.load(jobId+".log", jobId, folderPrefix, workDirectory);        
-        Path logFile = resource.getFile().toPath();
-        
-        MediaType mediaType = new MediaType("text", "plain", StandardCharsets.UTF_8);
-        return ResponseEntity.ok().header("Content-Type", "charset=utf-8")
-                .contentLength(Files.size(logFile))
-                .contentType(mediaType)
-                .body(Files.readString(logFile));
-    }
-    
-    @ExceptionHandler({Exception.class, RuntimeException.class})
-    public ResponseEntity<?> error(Exception e) {
-        e.printStackTrace();
-        logger.error("<{}>", e.getMessage());
-        return ResponseEntity
-                .internalServerError()
-                .body("Please contact service provider. Error loading log file.");
-    }
-   
+    if (!Files.isRegularFile(log))
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Log is not available");
+    return ResponseEntity.ok()
+        .contentType(new MediaType("text", "plain", java.nio.charset.StandardCharsets.UTF_8))
+        .contentLength(Files.size(log))
+        .body(new FileSystemResource(log));
+  }
 }

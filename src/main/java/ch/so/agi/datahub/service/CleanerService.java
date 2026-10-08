@@ -1,71 +1,96 @@
 package ch.so.agi.datahub.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import java.nio.file.*;
+import java.time.*;
+import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileTime;
-import java.time.Instant;
-import java.util.Date;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-@ConditionalOnProperty(
-        value="app.cleanerEnabled", 
-        havingValue = "true", 
-        matchIfMissing = false)
 @Service
+@ConditionalOnWebApplication
+@ConditionalOnProperty(name = "app.cleanerEnabled", havingValue = "true")
 public class CleanerService {
-    private final Logger log = LoggerFactory.getLogger(this.getClass());
+  private final DeliveryRepository r;
+  private final ArtifactStore artifacts;
 
-    @Value("${app.workDirectory}")
-    private String workDirectory;
-    
-    @Value("${app.folderPrefix}")
-    private String folderPrefix;
+  public CleanerService(DeliveryRepository r, ArtifactStore artifacts) {
+    this.r = r;
+    this.artifacts = artifacts;
+  }
 
-    private FilesStorageService storageService;
-       
-    public CleanerService(FilesStorageService storageService) {
-        this.storageService = storageService;
+  @Scheduled(fixedDelay = 3600000)
+  public void cleanUp() throws java.io.IOException {
+    var cutoff = r.now().minus(r.p().getArtifactRetention());
+    var rows =
+        r.jdbc()
+            .queryForList(
+                "SELECT d.jobid FROM "
+                    + r.table("deliveries_delivery")
+                    + " d WHERE d.finished_at<? AND d.execution_status IN"
+                    + " ('SUCCEEDED','FAILED','DELETED') AND d.publication_status NOT IN"
+                    + " ('WAITING','PENDING','RETRY') AND d.notification_status NOT IN"
+                    + " ('WAITING','PENDING','RETRY') AND d.artifacts_expired=false AND NOT"
+                    + " EXISTS(SELECT 1 FROM "
+                    + r.table("dataset_publication")
+                    + " p WHERE p.delivery_id=d.t_id)",
+                cutoff);
+    for (var row : rows) {
+      String id = (String) row.get("jobid");
+      artifacts.delete(UUID.fromString(id));
+      r.jdbc()
+          .update(
+              "UPDATE "
+                  + r.table("deliveries_delivery")
+                  + " SET artifacts_expired=true WHERE jobid=?",
+              id);
     }
-
-     @Async("asyncTaskExecutor")
-     //@Scheduled(cron="0 */30 * * * *")
-     @Scheduled(fixedRate = 60 * 60 * 1000) /* Runs every 60 * 60 seconds */
-     public void cleanUp() {    
-         long deleteFileAge = 60*60*24*3; // = 3 Tag
-         log.info("Deleting files from previous delivery runs older than {} [s]...", deleteFileAge);
-
-         if (storageService instanceof LocalFilesStorageService) {
-             java.io.File[] tmpDirs = new java.io.File(workDirectory).listFiles();
-             if(tmpDirs!=null) {
-                 for (java.io.File tmpDir : tmpDirs) {
-                     if (tmpDir.getName().startsWith(folderPrefix)) {
-                         try {
-                             FileTime lastModifiedTime = Files.getLastModifiedTime(Paths.get(tmpDir.getAbsolutePath()));
-                             Instant now = Instant.now();
-
-                             long fileAge = now.getEpochSecond() - lastModifiedTime.toInstant().getEpochSecond();
-                             log.trace("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
-
-                             if (fileAge > deleteFileAge) {
-                                 log.info("deleting {}", tmpDir.getAbsolutePath());
-                                 FileSystemUtils.deleteRecursively(tmpDir);
-                             }
-                         } catch (IOException e) {
-                             throw new IllegalStateException(e);
-                         }
-                     }
-                 }
-             }            
-         } 
-     }
+    Path root = Path.of(r.p().getWorkDirectory());
+    if (!Files.isDirectory(root)) return;
+    // Orphan uploads are removed only after a successful database reference lookup.
+    try (var paths = Files.list(root)) {
+      for (var path : paths.toList())
+        if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
+            && path.getFileName().toString().startsWith(r.p().getFolderPrefix())
+            && Files.getLastModifiedTime(path)
+                .toInstant()
+                .isBefore(Instant.now(r.clock()).minus(r.p().getArtifactRetention()))) {
+          String id = path.getFileName().toString().substring(r.p().getFolderPrefix().length());
+          try {
+            UUID.fromString(id);
+          } catch (IllegalArgumentException e) {
+            continue;
+          }
+          if (r.find(id) == null) FileSystemUtils.deleteRecursively(path);
+        }
+    }
+    Path workspaces = root.resolve("workspaces");
+    if (Files.isDirectory(workspaces))
+      try (var paths = Files.list(workspaces)) {
+        for (var path : paths.toList())
+          if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
+              && Files.getLastModifiedTime(path)
+                  .toInstant()
+                  .isBefore(Instant.now(r.clock()).minus(r.p().getArtifactRetention()))) {
+            String name = path.getFileName().toString();
+            if (name.length() < 37) continue;
+            String id = name.substring(0, 36);
+            try {
+              UUID.fromString(id);
+            } catch (IllegalArgumentException e) {
+              continue;
+            }
+            if (r.jdbc()
+                    .queryForObject(
+                        "SELECT count(*) FROM "
+                            + r.table("validation_attempt")
+                            + " WHERE id=? AND state='PROCESSING'",
+                        Integer.class,
+                        id)
+                == 0) FileSystemUtils.deleteRecursively(path);
+          }
+      }
+  }
 }

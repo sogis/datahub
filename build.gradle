@@ -4,16 +4,16 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'org.apache.cayenne.plugins:cayenne-gradle-plugin:4.2'
+        classpath 'org.apache.cayenne.plugins:cayenne-gradle-plugin:4.2.3'
         classpath 'org.postgresql:postgresql:42.6.0'
     }
 }
 
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.3'
+    id 'org.springframework.boot' version '3.5.16'
     id 'io.spring.dependency-management' version '1.1.6'
-    id 'gg.jte.gradle' version '3.1.16'
+    id 'gg.jte.gradle' version '3.2.4'
 }
 
 apply plugin: 'org.apache.cayenne'
@@ -42,6 +42,8 @@ repositories {
 }
 
 configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
     e2eTestImplementation.extendsFrom testImplementation
     e2eTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
@@ -52,20 +54,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web' 
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'  
     implementation 'org.springframework.boot:spring-boot-starter-mail'
-    implementation 'gg.jte:jte-spring-boot-starter-3:3.1.16'
-    //implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-    //implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-    
-    implementation platform('org.joinfaces:joinfaces-platform:5.3.3')
-    implementation 'org.joinfaces:faces-spring-boot-starter'
-    implementation 'org.joinfaces:primefaces-spring-boot-starter'
-    implementation 'org.webjars.npm:primeflex:3.3.1'
-    
+    implementation 'gg.jte:jte-spring-boot-starter-3:3.2.4'
     implementation 'org.jobrunr:jobrunr-spring-boot-3-starter:6.3.4'
     
     implementation 'ch.interlis:ilivalidator:1.14.3'
 
-    implementation 'org.apache.cayenne:cayenne-server:4.2'
+    implementation 'org.apache.cayenne:cayenne-server:4.2.3'
     
     runtimeOnly 'org.postgresql:postgresql'
     
@@ -74,15 +68,20 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
 
-    e2eTestImplementation 'ch.interlis:ili2h2gis:5.2.2'
-    e2eTestImplementation 'org.awaitility:awaitility:4.2.0'
-    e2eTestRuntimeOnly 'com.h2database:h2:1.4.197'
-    e2eTestRuntimeOnly 'org.orbisgis:h2gis:1.5.0'
-    e2eTestRuntimeOnly 'org.orbisgis:h2gis-api:1.5.0'
-    e2eTestRuntimeOnly 'org.orbisgis:h2gis-utilities:1.5.0'
+    testImplementation 'org.awaitility:awaitility:4.2.0'
+    integrationTestImplementation 'org.testcontainers:testcontainers-postgresql:2.0.5'
+    integrationTestImplementation 'org.testcontainers:testcontainers:2.0.5'
+    integrationTestImplementation 'org.flywaydb:flyway-core:11.14.1'
+    integrationTestImplementation 'org.flywaydb:flyway-database-postgresql:11.14.1'
 }
 
 sourceSets {
+    integrationTest {
+        java.srcDir 'src/integrationTest/java'
+        resources.srcDir 'src/integrationTest/resources'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += output + compileClasspath
+    }
     e2eTest {
         java.srcDir 'src/e2eTest/java'
         resources.srcDir 'src/e2eTest/resources'
@@ -91,6 +90,25 @@ sourceSets {
     }
 }
 
+configurations.e2eTestImplementation.extendsFrom configurations.integrationTestImplementation
+configurations.e2eTestRuntimeOnly.extendsFrom configurations.integrationTestRuntimeOnly
+sourceSets.e2eTest.compileClasspath += sourceSets.integrationTest.output
+sourceSets.e2eTest.runtimeClasspath += sourceSets.integrationTest.output
+configurations.matching { it.name.toLowerCase().contains('integrationtest') || it.name.toLowerCase().contains('e2etest') }.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == 'org.flywaydb') useVersion '11.14.1'
+        if (requested.group == 'org.testcontainers') useVersion '2.0.5'
+    }
+}
+tasks.register('integrationTest', Test) {
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    shouldRunAfter test
+    useJUnitPlatform()
+}
+tasks.named('check') { dependsOn 'integrationTest', 'e2eTest' }
+
 tasks.register('e2eTest', Test) {
     description = 'Runs end-to-end tests.'
     group = 'verification'
@@ -98,6 +116,7 @@ tasks.register('e2eTest', Test) {
     classpath = sourceSets.e2eTest.runtimeClasspath
     shouldRunAfter test
     useJUnitPlatform()
+    doFirst { systemProperty 'app.testRuntimeClasspath', sourceSets.e2eTest.runtimeClasspath.asPath }
 }
 
 jte {

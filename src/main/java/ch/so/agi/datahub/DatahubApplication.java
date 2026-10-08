@@ -1,155 +1,43 @@
 package ch.so.agi.datahub;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
+import ch.so.agi.datahub.config.AppProperties;
+import java.time.Clock;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.UUID;
-
-import javax.sql.DataSource;
-
-import org.apache.cayenne.ObjectContext;
-import org.apache.cayenne.configuration.server.ServerRuntime;
-import org.apache.cayenne.query.ObjectSelect;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import ch.so.agi.datahub.auth.ApiKeyFormat;
-import ch.so.agi.datahub.cayenne.CoreApikey;
-import ch.so.agi.datahub.cayenne.CoreOrganisation;
-import jakarta.annotation.PreDestroy;
-
-@Configuration
-@EnableScheduling
 @SpringBootApplication
+@EnableConfigurationProperties(AppProperties.class)
 public class DatahubApplication {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-
-    @Value("${app.dbSchemaConfig}")
-    private String dbSchemaConfig;
-    
-    @Value("${app.adminAccountInit}")
-    private boolean adminAccountInit;
-
-    @Value("${app.adminAccountName}")
-    private String adminAccountName;
-
-    @Value("${app.adminAccountMail}")
-    private String adminAccountMail;
-
-    @Value("${app.workDirectory}")
-    private String workDirectory;
-
-    @Value("${app.targetDirectory}")
-    private String targetDirectory;
-
-    @Value("${app.createDirectories}")
-    private boolean createDirectories;
-
-    @Autowired 
-    private DataSource dataSource;
-    
-    private ServerRuntime cayenneRuntime;
-
-    public static void main(String[] args) {
-        ApplicationContext applicationContext = SpringApplication.run(DatahubApplication.class, args);
-        
-//        String[] allBeanNames = applicationContext.getBeanDefinitionNames();
-//        for(String beanName : allBeanNames) {
-//            System.out.println(beanName);
-//        }
+  public static void main(String[] args) {
+    SpringApplication app = new SpringApplication(DatahubApplication.class);
+    if (java.util.Arrays.stream(args).anyMatch(a -> a.equals("--app.mode=worker-single"))) {
+      app.setWebApplicationType(WebApplicationType.NONE);
     }
-    
-    @Bean
-    ObjectContext objectContext() {        
-        cayenneRuntime = ServerRuntime.builder()
-                .dataSource(dataSource)
-                .addConfig("cayenne/cayenne-project.xml")
-                .build();
+    var context = app.run(args);
+    if (context.getBean(AppProperties.class).getMode().equals("worker-single")) {
+      System.exit(SpringApplication.exit(context));
+    }
+  }
 
-        ObjectContext context = cayenneRuntime.newContext();
-        
-        return context;
-    }
-    
-    @PreDestroy
-    public void shutdownCayenne() {
-        cayenneRuntime.shutdown();
-    }
+  @Bean
+  Clock clock(AppProperties p) {
+    return Clock.system(java.time.ZoneId.of(p.getTimeZone()));
+  }
 
-    @Bean
-    CommandLineRunner init(ObjectContext objectContext) {
-        return args -> {
-            // Add admin account to database.
-            // Show admin key once in the console.
-            if (adminAccountInit) {
-                CoreOrganisation existingOrg = ObjectSelect.query(CoreOrganisation.class)
-                        .where(CoreOrganisation.ANAME.eq(adminAccountName))
-                        .selectFirst(objectContext);
+  @Bean
+  PasswordEncoder encoder() {
+    return new BCryptPasswordEncoder();
+  }
 
-                if (existingOrg != null) {
-                    logger.warn("Account name '{}' already exists.", adminAccountName);
-                } else {
-                    CoreOrganisation coreOrganisation = objectContext.newObject(CoreOrganisation.class);
-                    coreOrganisation.setAname(adminAccountName);
-                    coreOrganisation.setArole(AppConstants.ROLE_NAME_ADMIN);
-                    coreOrganisation.setEmail(adminAccountMail);
-                    
-                    UUID keyId = UUID.randomUUID();
-                    UUID secret = UUID.randomUUID();
-                    String apiKey = ApiKeyFormat.buildApiKey(keyId, secret);
-                    String encodedApiKey = encoder().encode(secret.toString());
-                    
-                    CoreApikey coreApiKey = objectContext.newObject(CoreApikey.class);
-                    coreApiKey.setApikey(ApiKeyFormat.buildStoredValue(keyId, encodedApiKey));
-                    coreApiKey.setCreatedat(LocalDateTime.now());
-                    coreApiKey.setCoreOrganisation(coreOrganisation);
-                    
-                    objectContext.commitChanges();
-                    
-                    logger.warn("*************************************************************");
-                    logger.warn(apiKey);
-                    logger.warn("*************************************************************");
-                }
-            }
-            
-            // Create work and target directory.
-            // Application user must have permissions to do so.
-            if (createDirectories) {
-                try {
-                    Files.createDirectories(Paths.get(workDirectory));
-                    Files.createDirectories(Paths.get(targetDirectory));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    logger.error(e.getMessage());
-                    throw new Exception(); // Shuts down application.
-                }                
-            }
-        };
-    }
-    
-    @Bean
-    PasswordEncoder encoder() {
-        return new BCryptPasswordEncoder();
-    }
-    
-    @Bean
-    ResourceBundle resourceBundle() {
-        Locale locale = Locale.of("de", "CH");
-        ResourceBundle rsrc = ResourceBundle.getBundle("DatahubMessages", locale);
-        return rsrc;
-    }
+  @Bean
+  ResourceBundle resourceBundle() {
+    return ResourceBundle.getBundle("DatahubMessages", Locale.of("de", "CH"));
+  }
 }

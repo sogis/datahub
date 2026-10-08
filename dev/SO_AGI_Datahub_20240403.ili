@@ -12,7 +12,7 @@ INTERLIS 2.3;
 !!@ furtherInformation=http://geo.so.ch/models/AGI/SO_AGI_Datahub_20240301.uml
 MODEL SO_AGI_Datahub_Config_20240403 (de)
 AT "https://agi.so.ch"
-VERSION "2024-03-01"  =
+VERSION "2026-10-08"  =
 
   TOPIC Core =
 
@@ -104,7 +104,7 @@ END SO_AGI_Datahub_Config_20240403.
 !!@ furtherInformation=http://geo.so.ch/models/AGI/SO_AGI_Datahub_20240301.uml
 MODEL SO_AGI_Datahub_Log_20240403 (de)
 AT "https://agi.so.ch"
-VERSION "2024-04-03"  =
+VERSION "2026-10-08"  =
 
   TOPIC Deliveries =
 

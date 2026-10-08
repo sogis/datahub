@@ -28,12 +28,14 @@ public abstract class _CoreApikey extends BaseDataObject {
     public static final StringProperty<String> APIKEY = PropertyFactory.createString("apikey", String.class);
     public static final DateProperty<LocalDateTime> CREATEDAT = PropertyFactory.createDate("createdat", LocalDateTime.class);
     public static final DateProperty<LocalDateTime> DATEOFEXPIRY = PropertyFactory.createDate("dateofexpiry", LocalDateTime.class);
+    public static final StringProperty<String> ISSUANCE_STATE = PropertyFactory.createString("issuanceState", String.class);
     public static final DateProperty<LocalDateTime> REVOKEDAT = PropertyFactory.createDate("revokedat", LocalDateTime.class);
     public static final EntityProperty<CoreOrganisation> CORE_ORGANISATION = PropertyFactory.createEntity("coreOrganisation", CoreOrganisation.class);
 
     protected String apikey;
     protected LocalDateTime createdat;
     protected LocalDateTime dateofexpiry;
+    protected String issuanceState;
     protected LocalDateTime revokedat;
 
     protected Object coreOrganisation;
@@ -68,6 +70,16 @@ public abstract class _CoreApikey extends BaseDataObject {
         return this.dateofexpiry;
     }
 
+    public void setIssuanceState(String issuanceState) {
+        beforePropertyWrite("issuanceState", this.issuanceState, issuanceState);
+        this.issuanceState = issuanceState;
+    }
+
+    public String getIssuanceState() {
+        beforePropertyRead("issuanceState");
+        return this.issuanceState;
+    }
+
     public void setRevokedat(LocalDateTime revokedat) {
         beforePropertyWrite("revokedat", this.revokedat, revokedat);
         this.revokedat = revokedat;
@@ -99,6 +111,8 @@ public abstract class _CoreApikey extends BaseDataObject {
                 return this.createdat;
             case "dateofexpiry":
                 return this.dateofexpiry;
+            case "issuanceState":
+                return this.issuanceState;
             case "revokedat":
                 return this.revokedat;
             case "coreOrganisation":
@@ -123,6 +137,9 @@ public abstract class _CoreApikey extends BaseDataObject {
                 break;
             case "dateofexpiry":
                 this.dateofexpiry = (LocalDateTime)val;
+                break;
+            case "issuanceState":
+                this.issuanceState = (String)val;
                 break;
             case "revokedat":
                 this.revokedat = (LocalDateTime)val;
@@ -149,6 +166,7 @@ public abstract class _CoreApikey extends BaseDataObject {
         out.writeObject(this.apikey);
         out.writeObject(this.createdat);
         out.writeObject(this.dateofexpiry);
+        out.writeObject(this.issuanceState);
         out.writeObject(this.revokedat);
         out.writeObject(this.coreOrganisation);
     }
@@ -159,6 +177,7 @@ public abstract class _CoreApikey extends BaseDataObject {
         this.apikey = (String)in.readObject();
         this.createdat = (LocalDateTime)in.readObject();
         this.dateofexpiry = (LocalDateTime)in.readObject();
+        this.issuanceState = (String)in.readObject();
         this.revokedat = (LocalDateTime)in.readObject();
         this.coreOrganisation = in.readObject();
     }
