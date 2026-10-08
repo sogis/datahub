@@ -20,6 +20,7 @@ VERSION "2024-03-01"  =
       /** API-Key
        */
       apiKey : MANDATORY TEXT*256;
+      issuanceState : TEXT*20;
       /** Zeitpunkt der Erstellung.
        */
       createdAt : MANDATORY INTERLIS.XMLDateTime;
@@ -66,6 +67,8 @@ VERSION "2024-03-01"  =
       /** Name / ID der Meta-Config-Datei, die für die Validierung verwendet wird.
        */
       metaConfig : TEXT*512;
+      /** Semicolon-separated names of permitted transfer models. */
+      expectedModels : TEXT*2048;
       description : TEXT*1024;
       /** ID des Themas ist eindeutig.
        */
@@ -113,9 +116,65 @@ VERSION "2024-04-03"  =
       organisation : MANDATORY TEXT*512;
       theme : MANDATORY TEXT*512;
       operat : MANDATORY TEXT*512;
+      operatId : 0..9223372036854775807;
+      keyId : TEXT*36;
+      attemptId : TEXT*36;
+      email : TEXT*512;
+      validatorConfig : TEXT*512;
+      validatorMetaConfig : TEXT*512;
+      expectedModels : TEXT*2048;
+      executionStatus : TEXT*20;
+      validationStatus : TEXT*20;
+      publicationStatus : TEXT*20;
+      notificationStatus : TEXT*20;
+      publicationTries : 0..2147483647;
+      publicationNextAt : INTERLIS.XMLDateTime;
+      updatedAt : INTERLIS.XMLDateTime;
+      finishedAt : INTERLIS.XMLDateTime;
+      artifactsExpired : BOOLEAN;
       UNIQUE jobId;
     END Delivery;
 
+    CLASS ValidationAttempt =
+      id : MANDATORY TEXT*36;
+      dispatchState : MANDATORY TEXT*20;
+      state : MANDATORY TEXT*20;
+      createdAt : MANDATORY INTERLIS.XMLDateTime;
+      startedAt : INTERLIS.XMLDateTime;
+      finishedAt : INTERLIS.XMLDateTime;
+      heartbeatAt : INTERLIS.XMLDateTime;
+      version : MANDATORY 0..9223372036854775807;
+      validatorVersion : TEXT*128;
+      resultModels : TEXT*4096;
+      UNIQUE id;
+    END ValidationAttempt;
+    ASSOCIATION Attempt_Delivery =
+      Delivery_R -- {1} Delivery;
+      Attempt_R -- {0..*} ValidationAttempt;
+    END Attempt_Delivery;
+    CLASS DatasetPublication =
+      operatId : MANDATORY 0..9223372036854775807;
+      UNIQUE operatId;
+    END DatasetPublication;
+    ASSOCIATION Publication_Delivery =
+      Delivery_R -- {1} Delivery;
+      Publication_R -- {0..*} DatasetPublication;
+    END Publication_Delivery;
+    CLASS Notification =
+      id : MANDATORY TEXT*36;
+      recipient : MANDATORY TEXT*512;
+      subject : MANDATORY TEXT*1024;
+      body : MANDATORY MTEXT;
+      state : MANDATORY TEXT*20;
+      tries : MANDATORY 0..2147483647;
+      nextAt : MANDATORY INTERLIS.XMLDateTime;
+      leaseUntil : INTERLIS.XMLDateTime;
+      UNIQUE id;
+    END Notification;
+    ASSOCIATION Notification_Delivery =
+      Delivery_R -- {0..1} Delivery;
+      Notification_R -- {0..1} Notification;
+    END Notification_Delivery;
   END Deliveries;
 
 END SO_AGI_Datahub_Log_20240403.

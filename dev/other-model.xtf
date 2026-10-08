@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TRANSFER xmlns="http://www.interlis.ch/INTERLIS2.3">
+<HEADERSECTION SENDER="DATAHUB-DEV" VERSION="2.3"><MODELS><MODEL NAME="OtherDemo" VERSION="2026-10-08" URI="https://example.test"/></MODELS></HEADERSECTION>
+<DATASECTION><OtherDemo.Delivery BID="b1"><OtherDemo.Delivery.Item TID="i1"><name>Example</name></OtherDemo.Delivery.Item></OtherDemo.Delivery></DATASECTION></TRANSFER>

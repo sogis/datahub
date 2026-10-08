@@ -19,6 +19,7 @@ plugins {
 apply plugin: 'org.apache.cayenne'
 apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/docker.gradle"
+apply from: "$rootDir/gradle/development.gradle"
 
 group = 'ch.so.agi.datahub'
 

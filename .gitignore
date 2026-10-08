@@ -316,3 +316,9 @@ gradle-app.setting
 **/build/
 
 # End of https://www.toptal.com/developers/gitignore/api/maven,gradle,java,groovy,windows,linux,macos,intellij+all,netbeans,eclipse
+
+# Local templates, runtime state and synthetic development transfers
+jte-classes/
+!dev/valid.xtf
+!dev/invalid.xtf
+!dev/other-model.xtf

@@ -1,4 +1,4 @@
-version: '3'
+name: datahub-dev
 services:
   edit-db:
     image: sogis/postgis:16-3.4
@@ -6,10 +6,25 @@ services:
       POSTGRES_DB: edit
       POSTGRES_PASSWORD: secret
     ports:
-      - "54321:5432"
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d edit"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     volumes:
       - type: volume
         source: postgresql_data_edit
         target: /var/lib/postgresql/data
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 volumes:
   postgresql_data_edit:

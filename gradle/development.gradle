@@ -1,0 +1,47 @@
+configurations { migrationTool }
+dependencies {
+    migrationTool 'org.flywaydb:flyway-core:11.14.1'
+    migrationTool 'org.flywaydb:flyway-database-postgresql:11.14.1'
+    migrationTool 'org.postgresql:postgresql'
+}
+
+sourceSets { migration { java.srcDir 'src/migration/java' } }
+configurations.migrationImplementation.extendsFrom configurations.migrationTool
+configurations.matching { it.name.toLowerCase().contains('migration') }.all {
+    resolutionStrategy.eachDependency { if (requested.group == 'org.flywaydb') useVersion '11.14.1' }
+}
+
+tasks.register('dbMigrate', JavaExec) {
+    group = 'development'
+    dependsOn 'migrationClasses'
+    classpath = sourceSets.migration.runtimeClasspath
+    mainClass = 'ch.so.agi.datahub.migration.SchemaMigration'
+    args providers.gradleProperty('migrationAction').getOrElse('migrate')
+
+}
+
+tasks.register('devInfrastructure', Exec) {
+    group = 'development'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'up', '-d', '--wait'
+}
+tasks.register('devUp') {
+    group = 'development'
+    dependsOn 'devInfrastructure', 'dbMigrate'
+}
+tasks.named('dbMigrate') { mustRunAfter 'devInfrastructure' }
+tasks.register('devSeed', Exec) {
+    group = 'development'
+    dependsOn 'devUp'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'exec', '-T', 'edit-db',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'edit'
+    doFirst { standardInput = file('dev/seed.sql').newInputStream() }
+}
+tasks.register('devDown', Exec) {
+    group = 'development'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'down'
+}
+tasks.register('devReset', Exec) {
+    group = 'development'
+    description = 'Deletes only the local Compose database volume. Run devSeed afterwards.'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'down', '--volumes'
+}
