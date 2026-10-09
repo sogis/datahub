@@ -1,13 +1,13 @@
-# AGENTS.md — Spring Boot 3.x (Java 21, Gradle, Spring Security)
+# AGENTS.md — Spring Boot 4.x (Java 21, Gradle, Spring Security)
 
 ## Purpose
 This file defines the working rules for coding agents (e.g., Codex) in this repository. Follow it strictly to keep changes safe, reviewable, and consistent.
 
 ## Tech baseline
 - Java: 21
-- Framework: Spring Boot 3.x
-- Build: Gradle (use wrapper)
-- Security: Spring Security
+- Framework: Spring Boot 4.1.1
+- Build: Gradle 8.14.3 (use wrapper)
+- Security: Spring Security 7.x
 - Tests: JUnit 5
 
 ## Ground rules (must follow)
@@ -24,10 +24,11 @@ Run from the repository root unless stated otherwise.
 ### Build & verification
 - Build: `./gradlew build`
 - Fast checks: `./gradlew test`
-- Full checks (if configured): `./gradlew check`
+- Full checks: `./gradlew check` (includes PostgreSQL integration and E2E tests; requires Docker)
 
 ### Running the app
-- Run (if Spring Boot plugin configured): `./gradlew bootRun`
+- Prepare the local PostgreSQL/Mailpit environment with `devSeed` using the explicitly local environment settings in `docs/develop-manual-de.md`.
+- Run: `./gradlew bootRun --args='--spring.profiles.active=dev'`
 
 ### Targeted testing
 - Single test class:
@@ -35,24 +36,26 @@ Run from the repository root unless stated otherwise.
 - Single test method:
   - `./gradlew test --tests com.example.SomeTest.someMethod`
 
-## Project structure (typical)
+## Project structure
 - Production code: `src/main/java/...`
 - Resources: `src/main/resources/...`
 - Tests: `src/test/java/...`
+- PostgreSQL integration tests: `src/integrationTest/java/...`
+- HTTP, mail and production-container E2E tests: `src/e2eTest/java/...`
 
 ## Spring Boot conventions
 - Prefer constructor injection.
 - Prefer `@ConfigurationProperties` for structured configuration.
 - Avoid reading environment variables directly in business logic.
 - Keep configuration explicit; avoid magic defaults unless already established in the repo.
-- Use SLF4J logging; avoid excessive debug/trace logs and never log secrets.
+- Use SLF4J logging; avoid excessive debug/trace logs and never log secrets except for the explicitly retained bootstrap admin-key output below.
 
 ## Spring Security conventions (high priority)
 Security changes are high-impact. Be conservative and explicit.
 
 ### General rules
 - Do not weaken authentication/authorization, CSRF, CORS, session policies, or password handling unless explicitly requested.
-- Prefer the Spring Security 6 / Boot 3 style:
+- Use the Spring Security 7 / Boot 4 style:
   - Define `SecurityFilterChain` beans (avoid deprecated `WebSecurityConfigurerAdapter`).
 - Keep authorization rules readable and minimal:
   - Prefer route grouping and clear matchers.
@@ -107,9 +110,8 @@ When touching security rules, add/adjust tests:
 
 ## Definition of Done (before finishing)
 - [ ] `./gradlew test` passes
-- [ ] `./gradlew check` passes (if configured)
+- [ ] `./gradlew check` passes
 - [ ] Security behavior is not weakened unintentionally
 - [ ] New/changed logic is covered by tests (including security tests when relevant)
-- [ ] No secrets added; no sensitive info logged
+- [ ] No secrets added; no sensitive info logged beyond the deliberately retained bootstrap admin-key output
 - [ ] Changes are scoped, clean, and consistent with repo patterns
-
