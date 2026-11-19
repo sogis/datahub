@@ -53,10 +53,12 @@ public class IlidataController {
   public ResponseEntity<?> getFile(
       @PathVariable("directory") String directory, @PathVariable("filename") String filename) {
 
+    if (filename.startsWith(".datahub-") && filename.endsWith(".tmp"))
+      return ResponseEntity.notFound().build();
     Path xtfFile;
     try {
       xtfFile =
-          ch.so.agi.datahub.service.LocalFilesStorageService.resolve(
+          ch.so.agi.datahub.service.DeliveryFiles.resolve(
               properties.getTargetDirectory(), directory, filename);
     } catch (IOException | IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();

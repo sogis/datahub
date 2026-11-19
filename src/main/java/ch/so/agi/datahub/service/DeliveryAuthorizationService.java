@@ -3,7 +3,6 @@ package ch.so.agi.datahub.service;
 import ch.so.agi.datahub.AppConstants;
 import ch.so.agi.datahub.auth.ApiKeyUser;
 import ch.so.agi.datahub.config.AppProperties;
-import ch.so.agi.datahub.model.AuthorizedDataset;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -28,7 +27,7 @@ public class DeliveryAuthorizationService {
     String s = p.configSchema();
     var rows =
         jdbc.query(
-            "SELECT d.t_id,t.aname,d.aname,o.aname,o.email,t.config,t.metaconfig,t.expected_models"
+            "SELECT t.aname,d.aname,o.aname,o.email,t.config,t.metaconfig,t.expected_models"
                 + " FROM "
                 + s
                 + ".core_operat d JOIN "
@@ -39,17 +38,16 @@ public class DeliveryAuthorizationService {
                 + (admin ? "" : " AND o.t_id=?"),
             (r, n) ->
                 new AuthorizedDataset(
-                    r.getLong(1),
+                    r.getString(1),
                     r.getString(2),
                     r.getString(3),
                     r.getString(4),
                     r.getString(5),
                     r.getString(6),
-                    r.getString(7),
-                    r.getString(8)),
+                    r.getString(7)),
             admin
                 ? new Object[] {theme, operat}
-                : new Object[] {theme, operat, actor.getOrganisationId()});
+                : new Object[] {theme, operat, actor.organisationId()});
     if (rows.size() != 1)
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not authorized");
     var target = rows.getFirst();
@@ -58,4 +56,7 @@ public class DeliveryAuthorizationService {
           HttpStatus.SERVICE_UNAVAILABLE, "Theme requires expected transfer models.");
     return target;
   }
+
+  record AuthorizedDataset(String theme, String operat, String organisation, String email,
+      String config, String metaConfig, String expectedModels) {}
 }

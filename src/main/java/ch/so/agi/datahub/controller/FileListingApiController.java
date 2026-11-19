@@ -1,13 +1,9 @@
 package ch.so.agi.datahub.controller;
 
-import ch.so.agi.datahub.AppConstants;
 import ch.so.agi.datahub.model.FileEntry;
 import ch.so.agi.datahub.service.FileListingService;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,17 +21,8 @@ public class FileListingApiController {
 
   @GetMapping
   public ResponseEntity<List<FileEntry>> listFiles(
-      Authentication authentication, @RequestParam(name = "path", required = false) String path) {
-    ensureAdmin(authentication);
+      @RequestParam(name = "path", required = false) String path) {
     return ResponseEntity.ok(fileListingService.listEntries(path));
   }
 
-  private void ensureAdmin(Authentication authentication) {
-    if (authentication == null
-        || !authentication
-            .getAuthorities()
-            .contains(new SimpleGrantedAuthority(AppConstants.ROLE_NAME_ADMIN))) {
-      throw new AccessDeniedException("Admin token required.");
-    }
-  }
 }

@@ -1,7 +1,10 @@
 package ch.so.agi.datahub.controller;
 
 import ch.so.agi.datahub.config.AppProperties;
-import ch.so.agi.datahub.service.*;
+import ch.so.agi.datahub.cayenne.DeliveriesDelivery;
+import org.apache.cayenne.CayenneRuntime;
+import ch.so.agi.datahub.service.DeliveryFiles;
+import org.apache.cayenne.query.ObjectSelect;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.*;
@@ -14,15 +17,15 @@ import org.springframework.web.server.ResponseStatusException;
 @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 @RestController
 public class LogController {
-  private final DeliveryRepository repository;
-  private final ArtifactStore artifacts;
+  private final CayenneRuntime cayenne;
+  private final DeliveryFiles files;
   private final AppProperties p;
   private final Clock clock;
 
   public LogController(
-      DeliveryRepository repository, ArtifactStore artifacts, AppProperties p, Clock clock) {
-    this.repository = repository;
-    this.artifacts = artifacts;
+      CayenneRuntime cayenne, DeliveryFiles files, AppProperties p, Clock clock) {
+    this.cayenne = cayenne;
+    this.files = files;
     this.p = p;
     this.clock = clock;
   }
@@ -35,26 +38,12 @@ public class LogController {
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown delivery");
     }
-    var row = repository.find(jobId);
-    if (row == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown delivery");
-    var finished = DeliveryRepository.time(row, "finished_at");
-    if (Boolean.TRUE.equals(row.get("artifacts_expired"))
-        || (finished != null
-            && finished.isBefore(LocalDateTime.now(clock).minus(p.getArtifactRetention()))))
+    var delivery = ObjectSelect.query(DeliveriesDelivery.class)
+        .where(DeliveriesDelivery.JOBID.eq(id.toString())).selectOne(cayenne.newContext());
+    if (delivery == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown delivery");
+    if (p.artifactsExpired(delivery.getArtifactsExpired(), delivery.getFinishedAt(), clock))
       throw new ResponseStatusException(HttpStatus.GONE, "Log retention expired");
-    Path log;
-    if (row.get("attempt_id") == null)
-      log =
-          LocalFilesStorageService.resolve(
-              p.getWorkDirectory(), p.getFolderPrefix() + id, id + ".log");
-    else {
-      var attempt = repository.attempt(jobId, (String) row.get("attempt_id"));
-      log =
-          artifacts.log(
-              id,
-              UUID.fromString((String) row.get("attempt_id")),
-              DeliveryRepository.number(attempt, "version"));
-    }
+    Path log = delivery.getLegacyLog() == null ? files.log(id) : files.legacyLog(id, delivery.getLegacyLog());
     if (!Files.isRegularFile(log))
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Log is not available");
     return ResponseEntity.ok()

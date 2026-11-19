@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,20 +31,20 @@ public class ApiKeyHeaderAuthenticationService {
     this.clock = clock;
   }
 
-  public ApiKeyHeaderAuthenticationToken authenticate(ApiKeyHeaderAuthenticationToken token) {
-    var parts = ApiKeyFormat.parseApiKey(token.getApiKey());
-    if (parts.isEmpty()) return token;
+  public UsernamePasswordAuthenticationToken authenticate(String apiKey) {
+    var parts = ApiKeyFormat.parseApiKey(apiKey);
+    if (parts.isEmpty()) throw new BadCredentialsException("Invalid API key");
     var key = loadActiveApiKeyById(parts.get().keyId());
-    if (key.isEmpty()) return token;
+    if (key.isEmpty()) throw new BadCredentialsException("Invalid API key");
     var stored = ApiKeyFormat.parseStoredValue(key.get().storedValue());
     if (stored.isEmpty()
         || !stored.get().keyId().equals(parts.get().keyId())
         || !encoder.matches(parts.get().secret().toString(), stored.get().hashedSecret()))
-      return token;
+      throw new BadCredentialsException("Invalid API key");
     var principal =
         new ApiKeyUser(key.get().organisationId(), parts.get().keyId(), key.get().organisation());
-    principal.setAuthorities(List.of(new SimpleGrantedAuthority(key.get().role())));
-    return new ApiKeyHeaderAuthenticationToken(null, principal);
+    return UsernamePasswordAuthenticationToken.authenticated(
+        principal, null, List.of(new SimpleGrantedAuthority(key.get().role())));
   }
 
   protected Optional<ActiveKey> loadActiveApiKeyById(UUID id) {
@@ -55,7 +57,7 @@ public class ApiKeyHeaderAuthenticationService {
                 + ".core_apikey k JOIN "
                 + schema
                 + ".core_organisation o ON o.t_id=k.organisation_r WHERE k.apikey LIKE ? AND"
-                + " k.issuance_state='ACTIVE' AND k.revokedat IS NULL AND (k.dateofexpiry IS NULL"
+                + " k.revokedat IS NULL AND (k.dateofexpiry IS NULL"
                 + " OR k.dateofexpiry>?)",
             (rs, n) ->
                 new ActiveKey(rs.getString(1), rs.getLong(2), rs.getString(3), rs.getString(4)),

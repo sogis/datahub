@@ -13,6 +13,9 @@ services:
       timeout: 3s
       retries: 30
     volumes:
+      - ../build/schema/config.sql:/docker-entrypoint-initdb.d/01-datahub-config.sql:ro
+      - ../build/schema/log.sql:/docker-entrypoint-initdb.d/02-datahub-log.sql:ro
+      - ./jobrunr-schema.sql:/docker-entrypoint-initdb.d/03-datahub-jobrunr.sql:ro
       - type: volume
         source: postgresql_data_edit
         target: /var/lib/postgresql/data

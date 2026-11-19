@@ -17,6 +17,12 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: gradle
+      - name: Regenerate Cayenne mapping and classes from INTERLIS
+        run: |
+          ./gradlew devUp --console=plain
+          ./gradlew cdbimport cgen --console=plain
+          git diff --exit-code -- src/main/resources/cayenne src/main/java/ch/so/agi/datahub/cayenne
+          test -z "$(git status --porcelain -- src/main/resources/cayenne src/main/java/ch/so/agi/datahub/cayenne)"
       - name: Unit, PostgreSQL, E2E and production container checks
         run: ./gradlew clean build --console=plain
       - name: Publish test reports

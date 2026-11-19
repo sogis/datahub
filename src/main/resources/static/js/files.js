@@ -29,4 +29,3 @@
                 rows.forEach(row => tbody.appendChild(row));
             });
         });
-    

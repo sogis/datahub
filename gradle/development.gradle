@@ -1,34 +1,41 @@
-configurations { migrationTool }
+configurations { ili2pg }
 dependencies {
-    migrationTool 'org.flywaydb:flyway-core:11.14.1'
-    migrationTool 'org.flywaydb:flyway-database-postgresql:11.14.1'
-    migrationTool 'org.postgresql:postgresql'
+    ili2pg 'ch.interlis:ili2pg:5.5.2'
+    ili2pg 'org.postgresql:postgresql'
 }
 
-sourceSets { migration { java.srcDir 'src/migration/java' } }
-configurations.migrationImplementation.extendsFrom configurations.migrationTool
-configurations.matching { it.name.toLowerCase().contains('migration') }.all {
-    resolutionStrategy.eachDependency { if (requested.group == 'org.flywaydb') useVersion '11.14.1' }
+['config', 'log'].each { model ->
+    tasks.register("generate${model.capitalize()}Sql", JavaExec) {
+        group = 'development'
+        classpath = configurations.ili2pg
+        mainClass = 'ch.ehi.ili2pg.PgMain'
+        inputs.file('dev/SO_AGI_Datahub_20240403.ili')
+        def ddl = layout.buildDirectory.file("schema/${model}.sql").get().asFile
+        outputs.file(ddl)
+        doFirst { ddl.parentFile.mkdirs() }
+        args '--createscript', ddl.absolutePath, '--modeldir', 'dev',
+                '--models', "SO_AGI_Datahub_${model.capitalize()}_20240403",
+                '--dbschema', "agi_datahub_${model}_v1", '--nameByTopic', '--createFk',
+                '--createFkIdx', '--createUnique', '--createImportTabs', '--createMetaInfo'
+    }
 }
 
-tasks.register('dbMigrate', JavaExec) {
+tasks.register('generateSchema') {
     group = 'development'
-    dependsOn 'migrationClasses'
-    classpath = sourceSets.migration.runtimeClasspath
-    mainClass = 'ch.so.agi.datahub.migration.SchemaMigration'
-    args providers.gradleProperty('migrationAction').getOrElse('migrate')
-
+    dependsOn 'generateConfigSql', 'generateLogSql'
 }
-
 tasks.register('devInfrastructure', Exec) {
     group = 'development'
+    dependsOn 'generateSchema'
     commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'up', '-d', '--wait'
 }
-tasks.register('devUp') {
+tasks.register('devUp', JavaExec) {
     group = 'development'
-    dependsOn 'devInfrastructure', 'dbMigrate'
+    dependsOn 'devInfrastructure'
+    classpath = configurations.runtimeClasspath
+    mainClass = 'org.jobrunr.storage.sql.common.DatabaseCreator'
+    args 'jdbc:postgresql://127.0.0.1:55432/edit', 'postgres', 'secret', 'agi_datahub_jobrunr_v1.'
 }
-tasks.named('dbMigrate') { mustRunAfter 'devInfrastructure' }
 tasks.register('devSeed', Exec) {
     group = 'development'
     dependsOn 'devUp'

@@ -1,14 +1,15 @@
 package ch.so.agi.datahub.config;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("app")
 public class AppProperties {
   private String dbSchemaConfig = "agi_datahub_config_v1";
   private String dbSchemaLog = "agi_datahub_log_v1";
-  private String dbSchemaJob = "agi_datahub_jobrunr_v1";
+  private String dbSchemaJob = "agi_datahub_jobrunr_v1.";
   private String apiKeyHeaderName = "X-API-KEY";
-  private String apiKeyQueryParamName = "token";
   private String publicBaseUrl = "http://localhost:8080";
   private String workDirectory = "./build/work";
   private String targetDirectory = "./build/target";
@@ -39,16 +40,7 @@ public class AppProperties {
     timeZone = value;
   }
 
-  private boolean dispatchEnabled = true;
   private boolean acceptDeliveries = true;
-
-  public boolean isDispatchEnabled() {
-    return dispatchEnabled;
-  }
-
-  public void setDispatchEnabled(boolean value) {
-    dispatchEnabled = value;
-  }
 
   public boolean isAcceptDeliveries() {
     return acceptDeliveries;
@@ -58,18 +50,14 @@ public class AppProperties {
     acceptDeliveries = value;
   }
 
-  private String mode = "web";
-  private String attemptId = null;
   private boolean mailEnabled = false;
   private String mailFrom = "datahub@example.test";
-  private boolean adminAccountInit = false;
+  private String adminKeyFile = "";
   private String adminAccountName = "AGI SO";
   private String adminAccountMail = "admin@example.test";
   private boolean createDirectories = true;
   private boolean cleanerEnabled = true;
   private int jobResponseListLimit = 300;
-  private String[] httpWhitelist = new String[] {"localhost"};
-  private java.time.Duration heartbeatTimeout = java.time.Duration.ofMinutes(2);
   private java.time.Duration artifactRetention = java.time.Duration.ofDays(3);
 
   public String getDbSchemaConfig() {
@@ -102,14 +90,6 @@ public class AppProperties {
 
   public void setApiKeyHeaderName(String value) {
     this.apiKeyHeaderName = value;
-  }
-
-  public String getApiKeyQueryParamName() {
-    return apiKeyQueryParamName;
-  }
-
-  public void setApiKeyQueryParamName(String value) {
-    this.apiKeyQueryParamName = value;
   }
 
   public String getPublicBaseUrl() {
@@ -154,22 +134,6 @@ public class AppProperties {
     this.preferredIliRepo = value;
   }
 
-  public String getMode() {
-    return mode;
-  }
-
-  public void setMode(String value) {
-    this.mode = value;
-  }
-
-  public String getAttemptId() {
-    return attemptId;
-  }
-
-  public void setAttemptId(String value) {
-    this.attemptId = value;
-  }
-
   public boolean isMailEnabled() {
     return mailEnabled;
   }
@@ -186,12 +150,12 @@ public class AppProperties {
     this.mailFrom = value;
   }
 
-  public boolean isAdminAccountInit() {
-    return adminAccountInit;
+  public String getAdminKeyFile() {
+    return adminKeyFile;
   }
 
-  public void setAdminAccountInit(boolean value) {
-    this.adminAccountInit = value;
+  public void setAdminKeyFile(String value) {
+    this.adminKeyFile = value;
   }
 
   public String getAdminAccountName() {
@@ -234,22 +198,6 @@ public class AppProperties {
     this.jobResponseListLimit = value;
   }
 
-  public String[] getHttpWhitelist() {
-    return httpWhitelist;
-  }
-
-  public void setHttpWhitelist(String[] value) {
-    this.httpWhitelist = value;
-  }
-
-  public java.time.Duration getHeartbeatTimeout() {
-    return heartbeatTimeout;
-  }
-
-  public void setHeartbeatTimeout(java.time.Duration value) {
-    this.heartbeatTimeout = value;
-  }
-
   public java.time.Duration getArtifactRetention() {
     return artifactRetention;
   }
@@ -267,7 +215,17 @@ public class AppProperties {
   }
 
   public String jobSchema() {
-    return schema(dbSchemaJob.replaceAll("\\.$", ""));
+    if (dbSchemaJob == null || !dbSchemaJob.endsWith("."))
+      throw new IllegalArgumentException("The JobRunr table prefix must be a schema followed by a dot");
+    return schema(dbSchemaJob.substring(0, dbSchemaJob.length() - 1));
+  }
+
+  public LocalDateTime artifactCutoff(Clock clock) {
+    return LocalDateTime.now(clock).minus(artifactRetention);
+  }
+
+  public boolean artifactsExpired(Boolean marked, LocalDateTime finished, Clock clock) {
+    return Boolean.TRUE.equals(marked) || (finished != null && finished.isBefore(artifactCutoff(clock)));
   }
 
   public String publicUrl(String path) {

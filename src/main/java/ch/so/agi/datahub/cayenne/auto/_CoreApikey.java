@@ -1,16 +1,16 @@
 package ch.so.agi.datahub.cayenne.auto;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.time.LocalDateTime;
 
-import org.apache.cayenne.BaseDataObject;
+import org.apache.cayenne.PersistentObject;
 import org.apache.cayenne.exp.property.DateProperty;
 import org.apache.cayenne.exp.property.EntityProperty;
+import org.apache.cayenne.exp.property.NumericIdProperty;
 import org.apache.cayenne.exp.property.PropertyFactory;
+import org.apache.cayenne.exp.property.SelfProperty;
 import org.apache.cayenne.exp.property.StringProperty;
 
+import ch.so.agi.datahub.cayenne.CoreApikey;
 import ch.so.agi.datahub.cayenne.CoreOrganisation;
 
 /**
@@ -19,26 +19,25 @@ import ch.so.agi.datahub.cayenne.CoreOrganisation;
  * since it may be overwritten next time code is regenerated.
  * If you need to make any customizations, please use subclass.
  */
-public abstract class _CoreApikey extends BaseDataObject {
+public abstract class _CoreApikey extends PersistentObject {
 
-    private static final long serialVersionUID = 1L;
+    public static final SelfProperty<CoreApikey> SELF = PropertyFactory.createSelf(CoreApikey.class);
 
+    public static final NumericIdProperty<Long> T_ID_PK_PROPERTY = PropertyFactory.createNumericId("t_id", "CoreApikey", Long.class);
     public static final String T_ID_PK_COLUMN = "t_id";
 
     public static final StringProperty<String> APIKEY = PropertyFactory.createString("apikey", String.class);
     public static final DateProperty<LocalDateTime> CREATEDAT = PropertyFactory.createDate("createdat", LocalDateTime.class);
     public static final DateProperty<LocalDateTime> DATEOFEXPIRY = PropertyFactory.createDate("dateofexpiry", LocalDateTime.class);
-    public static final StringProperty<String> ISSUANCE_STATE = PropertyFactory.createString("issuanceState", String.class);
     public static final DateProperty<LocalDateTime> REVOKEDAT = PropertyFactory.createDate("revokedat", LocalDateTime.class);
-    public static final EntityProperty<CoreOrganisation> CORE_ORGANISATION = PropertyFactory.createEntity("coreOrganisation", CoreOrganisation.class);
+    public static final EntityProperty<CoreOrganisation> ORGANISATION_R = PropertyFactory.createEntity("organisationR", CoreOrganisation.class);
 
     protected String apikey;
     protected LocalDateTime createdat;
     protected LocalDateTime dateofexpiry;
-    protected String issuanceState;
     protected LocalDateTime revokedat;
 
-    protected Object coreOrganisation;
+    protected Object organisationR;
 
     public void setApikey(String apikey) {
         beforePropertyWrite("apikey", this.apikey, apikey);
@@ -70,16 +69,6 @@ public abstract class _CoreApikey extends BaseDataObject {
         return this.dateofexpiry;
     }
 
-    public void setIssuanceState(String issuanceState) {
-        beforePropertyWrite("issuanceState", this.issuanceState, issuanceState);
-        this.issuanceState = issuanceState;
-    }
-
-    public String getIssuanceState() {
-        beforePropertyRead("issuanceState");
-        return this.issuanceState;
-    }
-
     public void setRevokedat(LocalDateTime revokedat) {
         beforePropertyWrite("revokedat", this.revokedat, revokedat);
         this.revokedat = revokedat;
@@ -90,12 +79,12 @@ public abstract class _CoreApikey extends BaseDataObject {
         return this.revokedat;
     }
 
-    public void setCoreOrganisation(CoreOrganisation coreOrganisation) {
-        setToOneTarget("coreOrganisation", coreOrganisation, true);
+    public void setOrganisationR(CoreOrganisation organisationR) {
+        setToOneTarget("organisationR", organisationR, true);
     }
 
-    public CoreOrganisation getCoreOrganisation() {
-        return (CoreOrganisation)readProperty("coreOrganisation");
+    public CoreOrganisation getOrganisationR() {
+        return (CoreOrganisation)readProperty("organisationR");
     }
 
     @Override
@@ -111,12 +100,10 @@ public abstract class _CoreApikey extends BaseDataObject {
                 return this.createdat;
             case "dateofexpiry":
                 return this.dateofexpiry;
-            case "issuanceState":
-                return this.issuanceState;
             case "revokedat":
                 return this.revokedat;
-            case "coreOrganisation":
-                return this.coreOrganisation;
+            case "organisationR":
+                return this.organisationR;
             default:
                 return super.readPropertyDirectly(propName);
         }
@@ -138,48 +125,15 @@ public abstract class _CoreApikey extends BaseDataObject {
             case "dateofexpiry":
                 this.dateofexpiry = (LocalDateTime)val;
                 break;
-            case "issuanceState":
-                this.issuanceState = (String)val;
-                break;
             case "revokedat":
                 this.revokedat = (LocalDateTime)val;
                 break;
-            case "coreOrganisation":
-                this.coreOrganisation = val;
+            case "organisationR":
+                this.organisationR = val;
                 break;
             default:
                 super.writePropertyDirectly(propName, val);
         }
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        writeSerialized(out);
-    }
-
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        readSerialized(in);
-    }
-
-    @Override
-    protected void writeState(ObjectOutputStream out) throws IOException {
-        super.writeState(out);
-        out.writeObject(this.apikey);
-        out.writeObject(this.createdat);
-        out.writeObject(this.dateofexpiry);
-        out.writeObject(this.issuanceState);
-        out.writeObject(this.revokedat);
-        out.writeObject(this.coreOrganisation);
-    }
-
-    @Override
-    protected void readState(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        super.readState(in);
-        this.apikey = (String)in.readObject();
-        this.createdat = (LocalDateTime)in.readObject();
-        this.dateofexpiry = (LocalDateTime)in.readObject();
-        this.issuanceState = (String)in.readObject();
-        this.revokedat = (LocalDateTime)in.readObject();
-        this.coreOrganisation = in.readObject();
     }
 
 }

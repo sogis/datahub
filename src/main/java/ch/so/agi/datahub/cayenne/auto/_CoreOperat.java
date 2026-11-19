@@ -1,14 +1,13 @@
 package ch.so.agi.datahub.cayenne.auto;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
-import org.apache.cayenne.BaseDataObject;
+import org.apache.cayenne.PersistentObject;
 import org.apache.cayenne.exp.property.EntityProperty;
+import org.apache.cayenne.exp.property.NumericIdProperty;
 import org.apache.cayenne.exp.property.PropertyFactory;
+import org.apache.cayenne.exp.property.SelfProperty;
 import org.apache.cayenne.exp.property.StringProperty;
 
+import ch.so.agi.datahub.cayenne.CoreOperat;
 import ch.so.agi.datahub.cayenne.CoreOrganisation;
 import ch.so.agi.datahub.cayenne.CoreTheme;
 
@@ -18,20 +17,33 @@ import ch.so.agi.datahub.cayenne.CoreTheme;
  * since it may be overwritten next time code is regenerated.
  * If you need to make any customizations, please use subclass.
  */
-public abstract class _CoreOperat extends BaseDataObject {
+public abstract class _CoreOperat extends PersistentObject {
 
-    private static final long serialVersionUID = 1L;
+    public static final SelfProperty<CoreOperat> SELF = PropertyFactory.createSelf(CoreOperat.class);
 
+    public static final NumericIdProperty<Long> T_ID_PK_PROPERTY = PropertyFactory.createNumericId("t_id", "CoreOperat", Long.class);
     public static final String T_ID_PK_COLUMN = "t_id";
 
+    public static final StringProperty<String> ADESCRIPTION = PropertyFactory.createString("adescription", String.class);
     public static final StringProperty<String> ANAME = PropertyFactory.createString("aname", String.class);
-    public static final EntityProperty<CoreOrganisation> CORE_ORGANISATION = PropertyFactory.createEntity("coreOrganisation", CoreOrganisation.class);
-    public static final EntityProperty<CoreTheme> CORE_THEME = PropertyFactory.createEntity("coreTheme", CoreTheme.class);
+    public static final EntityProperty<CoreOrganisation> ORGANISATION_R = PropertyFactory.createEntity("organisationR", CoreOrganisation.class);
+    public static final EntityProperty<CoreTheme> THEME_R = PropertyFactory.createEntity("themeR", CoreTheme.class);
 
+    protected String adescription;
     protected String aname;
 
-    protected Object coreOrganisation;
-    protected Object coreTheme;
+    protected Object organisationR;
+    protected Object themeR;
+
+    public void setAdescription(String adescription) {
+        beforePropertyWrite("adescription", this.adescription, adescription);
+        this.adescription = adescription;
+    }
+
+    public String getAdescription() {
+        beforePropertyRead("adescription");
+        return this.adescription;
+    }
 
     public void setAname(String aname) {
         beforePropertyWrite("aname", this.aname, aname);
@@ -43,20 +55,20 @@ public abstract class _CoreOperat extends BaseDataObject {
         return this.aname;
     }
 
-    public void setCoreOrganisation(CoreOrganisation coreOrganisation) {
-        setToOneTarget("coreOrganisation", coreOrganisation, true);
+    public void setOrganisationR(CoreOrganisation organisationR) {
+        setToOneTarget("organisationR", organisationR, true);
     }
 
-    public CoreOrganisation getCoreOrganisation() {
-        return (CoreOrganisation)readProperty("coreOrganisation");
+    public CoreOrganisation getOrganisationR() {
+        return (CoreOrganisation)readProperty("organisationR");
     }
 
-    public void setCoreTheme(CoreTheme coreTheme) {
-        setToOneTarget("coreTheme", coreTheme, true);
+    public void setThemeR(CoreTheme themeR) {
+        setToOneTarget("themeR", themeR, true);
     }
 
-    public CoreTheme getCoreTheme() {
-        return (CoreTheme)readProperty("coreTheme");
+    public CoreTheme getThemeR() {
+        return (CoreTheme)readProperty("themeR");
     }
 
     @Override
@@ -66,12 +78,14 @@ public abstract class _CoreOperat extends BaseDataObject {
         }
 
         switch(propName) {
+            case "adescription":
+                return this.adescription;
             case "aname":
                 return this.aname;
-            case "coreOrganisation":
-                return this.coreOrganisation;
-            case "coreTheme":
-                return this.coreTheme;
+            case "organisationR":
+                return this.organisationR;
+            case "themeR":
+                return this.themeR;
             default:
                 return super.readPropertyDirectly(propName);
         }
@@ -84,42 +98,21 @@ public abstract class _CoreOperat extends BaseDataObject {
         }
 
         switch (propName) {
+            case "adescription":
+                this.adescription = (String)val;
+                break;
             case "aname":
                 this.aname = (String)val;
                 break;
-            case "coreOrganisation":
-                this.coreOrganisation = val;
+            case "organisationR":
+                this.organisationR = val;
                 break;
-            case "coreTheme":
-                this.coreTheme = val;
+            case "themeR":
+                this.themeR = val;
                 break;
             default:
                 super.writePropertyDirectly(propName, val);
         }
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        writeSerialized(out);
-    }
-
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        readSerialized(in);
-    }
-
-    @Override
-    protected void writeState(ObjectOutputStream out) throws IOException {
-        super.writeState(out);
-        out.writeObject(this.aname);
-        out.writeObject(this.coreOrganisation);
-        out.writeObject(this.coreTheme);
-    }
-
-    @Override
-    protected void readState(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        super.readState(in);
-        this.aname = (String)in.readObject();
-        this.coreOrganisation = in.readObject();
-        this.coreTheme = in.readObject();
     }
 
 }

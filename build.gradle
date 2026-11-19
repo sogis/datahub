@@ -4,7 +4,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'org.apache.cayenne.plugins:cayenne-gradle-plugin:4.2.3'
+        classpath 'org.apache.cayenne.plugins:cayenne-gradle-plugin:5.0-RC1'
         classpath 'org.postgresql:postgresql:42.6.0'
     }
 }
@@ -42,13 +42,23 @@ repositories {
     maven { url 'https://jars.interlis.ch/' }
 }
 
+sourceSets {
+    integrationTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+    e2eTest {
+        compileClasspath += sourceSets.main.output + sourceSets.integrationTest.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.integrationTest.output
+    }
+}
+
 configurations {
     integrationTestImplementation.extendsFrom testImplementation
     integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
-    e2eTestImplementation.extendsFrom testImplementation
-    e2eTestRuntimeOnly.extendsFrom testRuntimeOnly
+    e2eTestImplementation.extendsFrom integrationTestImplementation
+    e2eTestRuntimeOnly.extendsFrom integrationTestRuntimeOnly
 }
-
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -60,7 +70,7 @@ dependencies {
 
     implementation 'ch.interlis:ilivalidator:1.14.3'
 
-    implementation 'org.apache.cayenne:cayenne-server:4.2.3'
+    implementation 'org.apache.cayenne:cayenne:5.0-RC1'
 
     runtimeOnly 'org.postgresql:postgresql'
 
@@ -73,32 +83,10 @@ dependencies {
     testImplementation 'org.awaitility:awaitility:4.2.0'
     integrationTestImplementation 'org.testcontainers:testcontainers-postgresql:2.0.5'
     integrationTestImplementation 'org.testcontainers:testcontainers:2.0.5'
-    integrationTestImplementation 'org.flywaydb:flyway-core:11.14.1'
-    integrationTestImplementation 'org.flywaydb:flyway-database-postgresql:11.14.1'
 }
 
-sourceSets {
-    integrationTest {
-        java.srcDir 'src/integrationTest/java'
-        resources.setSrcDirs(['src/integrationTest/resources'])
-        compileClasspath += sourceSets.main.output
-        runtimeClasspath += output + compileClasspath
-    }
-    e2eTest {
-        java.srcDir 'src/e2eTest/java'
-        resources.setSrcDirs(['src/e2eTest/resources'])
-        compileClasspath += sourceSets.main.output + configurations.e2eTestCompileClasspath
-        runtimeClasspath += output + compileClasspath + configurations.e2eTestRuntimeClasspath
-    }
-}
-
-configurations.e2eTestImplementation.extendsFrom configurations.integrationTestImplementation
-configurations.e2eTestRuntimeOnly.extendsFrom configurations.integrationTestRuntimeOnly
-sourceSets.e2eTest.compileClasspath += sourceSets.integrationTest.output
-sourceSets.e2eTest.runtimeClasspath += sourceSets.integrationTest.output
 configurations.matching { it.name.toLowerCase().contains('integrationtest') || it.name.toLowerCase().contains('e2etest') }.all {
     resolutionStrategy.eachDependency {
-        if (requested.group == 'org.flywaydb') useVersion '11.14.1'
         if (requested.group == 'org.testcontainers') useVersion '2.0.5'
     }
 }
@@ -107,22 +95,22 @@ tasks.register('integrationTest', Test) {
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
     shouldRunAfter test
+    dependsOn 'generateSchema'
+    systemProperty 'app.ili2pgClasspath', configurations.ili2pg.asPath
     useJUnitPlatform()
 }
 tasks.named('check') { dependsOn 'integrationTest', 'e2eTest' }
 
 tasks.register('e2eTest', Test) {
-    description = 'Runs end-to-end tests.'
     group = 'verification'
     testClassesDirs = sourceSets.e2eTest.output.classesDirs
     classpath = sourceSets.e2eTest.runtimeClasspath
     shouldRunAfter test, integrationTest
-    dependsOn 'bootJar'
+    dependsOn 'buildImage', 'generateSchema'
     useJUnitPlatform()
-    doFirst {
-        systemProperty 'app.testRuntimeClasspath', sourceSets.e2eTest.runtimeClasspath.asPath
-        systemProperty 'app.productionJar', tasks.bootJar.archiveFile.get().asFile.absolutePath
-    }
+    inputs.file('Dockerfile')
+    inputs.file(tasks.bootJar.archiveFile)
+    systemProperty 'app.productionImage', localImage
 }
 
 jte {
@@ -132,16 +120,15 @@ jte {
 
 tasks.named('test') {
     useJUnitPlatform()
-    include 'ch/so/agi/datahub/**'
 }
 
 cayenne.defaultDataMap "$projectDir/src/main/resources/cayenne/datamap.map.xml"
 
+processResources { mustRunAfter 'cdbimport' }
+
 cgen {
-    client = false
-    mode = 'entity'
+    mustRunAfter 'cdbimport'
     overwrite = true
-    //createPKProperties = true
 }
 
 cdbimport {
@@ -151,7 +138,7 @@ cdbimport {
 
     dataSource {
         driver 'org.postgresql.Driver'
-        url "jdbc:postgresql://localhost:55432/edit"
+        url providers.gradleProperty("cayenneJdbcUrl").getOrElse("jdbc:postgresql://localhost:55432/edit")
         username 'postgres'
         password 'secret'
     }
@@ -165,15 +152,10 @@ cdbimport {
                 includeTable 'core_organisation'
                 includeTable 'core_apikey'
                 includeTable 'core_theme'
-                includeTable 'core_user'
-                includeTable 'deliveries_delivery'
             }
             schema {
                 name 'agi_datahub_log_v1'
                 includeTable 'deliveries_delivery'
-                includeTable 'dataset_publication'
-                includeTable 'validation_attempt'
-                includeTable 'notification'
             }
     }
 }

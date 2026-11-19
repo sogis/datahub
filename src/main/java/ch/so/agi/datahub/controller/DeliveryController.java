@@ -1,7 +1,7 @@
 package ch.so.agi.datahub.controller;
 
 import ch.so.agi.datahub.config.AppProperties;
-import ch.so.agi.datahub.service.DeliverySubmissionService;
+import ch.so.agi.datahub.service.DeliveryService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -17,10 +17,10 @@ import org.springframework.web.server.ResponseStatusException;
 @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 @RestController
 public class DeliveryController {
-  private final DeliverySubmissionService service;
+  private final DeliveryService service;
   private final AppProperties p;
 
-  public DeliveryController(DeliverySubmissionService service, AppProperties p) {
+  public DeliveryController(DeliveryService service, AppProperties p) {
     this.service = service;
     this.p = p;
   }
@@ -36,7 +36,7 @@ public class DeliveryController {
     validate(request, Map.of("theme", theme, "operat", operat));
     if (file.isEmpty())
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Empty transfer file");
-    var id = service.submit(new DeliverySubmissionService.Command(theme, operat, file), actor);
+    var id = service.submit(theme, operat, file, actor);
     return ResponseEntity.accepted()
         .header("Operation-Location", p.publicUrl("/api/jobs/" + id))
         .build();
@@ -53,16 +53,26 @@ public class DeliveryController {
     if (request.getQueryString() != null)
       for (String pair : request.getQueryString().split("&")) {
         String[] kv = pair.split("=", 2);
-        String key = URLDecoder.decode(kv[0], StandardCharsets.UTF_8);
+        String key = decode(kv[0]);
+        if ("file".equals(key))
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is a multipart field");
         if (fields.containsKey(key))
           query
               .computeIfAbsent(key, k -> new ArrayList<>())
-              .add(URLDecoder.decode(kv.length == 2 ? kv[1] : "", StandardCharsets.UTF_8));
+              .add(decode(kv.length == 2 ? kv[1] : ""));
       }
     for (var entry : query.entrySet())
       if (entry.getValue().size() != 1
           || !entry.getValue().getFirst().equals(fields.get(entry.getKey())))
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Conflicting delivery parameters");
+  }
+
+  private static String decode(String value) {
+    try {
+      return URLDecoder.decode(value, StandardCharsets.UTF_8);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid delivery query");
+    }
   }
 }

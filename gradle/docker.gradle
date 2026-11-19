@@ -1,29 +1,17 @@
-tasks.register('copyJar', Copy) {
-    dependsOn 'bootJar'
-    from file("$buildDir/libs/datahub-$version-exec.jar")
-    into file("$projectDir/docker/image/tmp")
-}
-
-// Zum Testen des Images mit den Integrationstest
+ext.localImage = "sogis/datahub:${version}-local".toString()
 tasks.register('buildImage', Exec) {
-    dependsOn 'copyJar'
-    def githash = getCheckedOutGitCommitHash()
-    def build_timestamp = getTimestamp()
-
-    workingDir "$projectDir/docker/image"
-    commandLine 'docker', 'build',
-                '--no-cache', '--force-rm',
-                '-t', "sogis/datahub:local",
-                '-f', 'Dockerfile.ubi-layered',  '.'
+    dependsOn 'bootJar'
+    environment 'DOCKER_BUILDKIT', '1'
+    commandLine 'docker', 'build', '-t', localImage,
+                '--build-arg', "JAR_FILE=build/libs/datahub-${version}-exec.jar", '.'
 }
 
 // Zum Publizieren der Images
 tasks.register('buildAndPushMultiArchImage', Exec) {
-    dependsOn 'copyJar', 'check'
+    dependsOn 'bootJar', 'check'
     def githash = getCheckedOutGitCommitHash()
     def build_timestamp = getTimestamp()
 
-    workingDir "$projectDir/docker/image"
     commandLine 'docker', 'buildx', 'build',
                 '--cache-from', 'sogis/datahub:cache',
                 '--cache-to', 'sogis/datahub:cache',
@@ -35,7 +23,7 @@ tasks.register('buildAndPushMultiArchImage', Exec) {
                 '--label', "datahub.created=$build_timestamp", 
                 '--label', "datahub.git_commit=$githash",
                 '--label', "datahub.version=$version",
-                '-f', 'Dockerfile.ubi-layered',  '.', '--push'
+                '--build-arg', "JAR_FILE=build/libs/datahub-${version}-exec.jar", '.', '--push'
 }
 
 
