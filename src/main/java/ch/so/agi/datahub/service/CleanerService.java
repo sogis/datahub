@@ -36,8 +36,9 @@ public class CleanerService {
     for (String id : jdbc.queryForList("SELECT d.jobid FROM " + table
         + " d WHERE d.finished_at<? AND d.artifacts_expired IS NOT TRUE"
         + " AND d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED','FAILED','PUBLICATION_FAILED')"
-        + " AND NOT EXISTS (SELECT 1 FROM " + jobs + " j WHERE j.id=d.jobid::char(36)"
-        + " AND j.state NOT IN ('SUCCEEDED','FAILED','DELETED'))",
+        + " AND (d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED')"
+        + " OR NOT EXISTS (SELECT 1 FROM " + jobs + " j WHERE j.id=d.jobid::char(36)"
+        + " AND j.state NOT IN ('SUCCEEDED','FAILED','DELETED')))",
         String.class, properties.artifactCutoff(clock))) {
       try {
         files.delete(UUID.fromString(id));
