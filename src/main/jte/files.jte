@@ -1,7 +1,9 @@
-@param ch.so.agi.datahub.model.FileListingViewModel model
+@param String currentPath
+@param String parentPath
+@param java.util.List<ch.so.agi.datahub.model.FileListingViewEntry> entries
 @param String context
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,14 +15,14 @@
 
     <div class="breadcrumbs">
         <strong>Pfad:</strong>
-        @if(model.currentPath() == null || model.currentPath().isBlank())
+        @if(currentPath == null || currentPath.isBlank())
             /
         @else
-            ${model.currentPath()}
+            ${currentPath}
         @endif
-        @if(model.parentPath() != null)
+        @if(parentPath != null)
             &nbsp;|&nbsp;
-            <a href="${context}/ui/files?path=${model.parentPath()}${model.tokenQueryParam()}">Eine Ebene hoch</a>
+            <a href="${context}/ui/files?path=${parentPath}">Eine Ebene hoch</a>
         @endif
     </div>
 
@@ -34,14 +36,14 @@
             </tr>
         </thead>
         <tbody>
-            @for (var entry : model.entries())
+            @for (var entry : entries)
                 <tr>
                     <td data-value="${entry.name().toLowerCase()}">
                         @if(entry.directory())
                             <span class="dir-badge">DIR</span>
-                            <a href="${context}/ui/files?path=${entry.encodedRelativePath()}${model.tokenQueryParam()}">${entry.name()}</a>
+                            <a href="${context}/ui/files?path=${entry.encodedRelativePath()}">${entry.name()}</a>
                         @else
-                            <a href="${context}/ui/files/download?path=${entry.encodedRelativePath()}${model.tokenQueryParam()}">${entry.name()}</a>
+                            <a href="${context}/ui/files/download?path=${entry.encodedRelativePath()}">${entry.name()}</a>
                         @endif
                     </td>
                     <td data-value='${entry.directory() ? "dir" : "file"}'>

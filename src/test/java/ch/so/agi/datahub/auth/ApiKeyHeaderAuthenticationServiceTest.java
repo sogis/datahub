@@ -28,22 +28,14 @@ class ApiKeyHeaderAuthenticationServiceTest {
                     "USER"));
           }
         };
-    var token =
-        service.authenticate(
-            new ApiKeyHeaderAuthenticationToken(ApiKeyFormat.buildApiKey(id, secret)));
+    var token = service.authenticate(ApiKeyFormat.buildApiKey(id, secret));
     assertThat(token.isAuthenticated()).isTrue();
     assertThat(token.getCredentials()).isNull();
-    assertThat(token.getApiKey()).isNull();
     var actor = (ApiKeyUser) token.getPrincipal();
-    assertThat(actor.getOrganisationId()).isEqualTo(42);
-    assertThat(actor.getKeyId()).isEqualTo(id);
+    assertThat(actor.organisationId()).isEqualTo(42);
+    assertThat(actor.keyId()).isEqualTo(id);
     assertThat(token.getName()).isEqualTo("Acme");
-    assertThat(
-            service
-                .authenticate(
-                    new ApiKeyHeaderAuthenticationToken(
-                        ApiKeyFormat.buildApiKey(id, UUID.randomUUID())))
-                .isAuthenticated())
-        .isFalse();
+    assertThatThrownBy(() -> service.authenticate(ApiKeyFormat.buildApiKey(id, UUID.randomUUID())))
+        .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
   }
 }

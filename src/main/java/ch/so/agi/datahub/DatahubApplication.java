@@ -5,25 +5,19 @@ import java.time.Clock;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @SpringBootApplication
+@EnableScheduling
 @EnableConfigurationProperties(AppProperties.class)
 public class DatahubApplication {
   public static void main(String[] args) {
-    SpringApplication app = new SpringApplication(DatahubApplication.class);
-    if (java.util.Arrays.stream(args).anyMatch(a -> a.equals("--app.mode=worker-single"))) {
-      app.setWebApplicationType(WebApplicationType.NONE);
-    }
-    var context = app.run(args);
-    if (context.getBean(AppProperties.class).getMode().equals("worker-single")) {
-      System.exit(SpringApplication.exit(context));
-    }
+    SpringApplication.run(DatahubApplication.class, args);
   }
 
   @Bean

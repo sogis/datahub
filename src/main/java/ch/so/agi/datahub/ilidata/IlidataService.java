@@ -31,15 +31,15 @@ public class IlidataService {
         int tid = 1;
         var rows =
             jdbc.queryForList(
-                "SELECT d.*,a.result_models,a.transfer_version FROM "
-                    + p.logSchema()
-                    + ".dataset_publication pub JOIN "
-                    + p.logSchema()
-                    + ".deliveries_delivery d ON d.t_id=pub.delivery_id JOIN "
-                    + p.logSchema()
-                    + ".validation_attempt a ON a.id=d.attempt_id WHERE"
-                    + " d.publication_status='DELIVERED' AND d.isvalid=true ORDER BY"
-                    + " d.theme,d.operat");
+                """
+                SELECT * FROM (
+                    SELECT DISTINCT ON (lower(normalize(theme)), lower(normalize(operat))) *
+                    FROM %s.deliveries_delivery
+                    WHERE isvalid AND processing_status <> 'SUPERSEDED'
+                    ORDER BY lower(normalize(theme)), lower(normalize(operat)), t_id DESC
+                ) d WHERE processing_status='DELIVERED' AND result_models IS NOT NULL
+                ORDER BY theme, operat
+                """.formatted(p.logSchema()));
         for (var row : rows) {
           var entry =
               new Iom_jObject("DatasetIdx16.DataIndex.DatasetMetadata", Integer.toString(tid++));

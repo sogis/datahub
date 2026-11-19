@@ -1,114 +1,95 @@
 package ch.so.agi.datahub.auth;
 
+import static ch.so.agi.datahub.AppConstants.ROLE_NAME_ADMIN;
+import static ch.so.agi.datahub.AppConstants.ROLE_NAME_USER;
+import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.POST;
+
 import ch.so.agi.datahub.config.AppProperties;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import jakarta.servlet.DispatcherType;
+import java.util.Collections;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.authentication.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import tools.jackson.databind.json.JsonMapper;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 @Configuration
-@ConditionalOnWebApplication
 public class WebSecurityConfig {
   @Bean
-  AuthenticationManager authenticationManager(ApiKeyHeaderAuthenticationService service) {
-    return new ProviderManager(new ApiKeyHeaderAuthenticationProvider(service));
-  }
-
-  @Bean
-  FilterRegistrationBean<RevokeApiKeyFilter> revokeKeyFilter(
-      KeyManagementService keys, AppProperties p, JsonMapper mapper) {
-    var bean = new FilterRegistrationBean<>(new RevokeApiKeyFilter(keys, p, mapper));
-    bean.addUrlPatterns("/*");
-    bean.setOrder(1);
-    return bean;
+  AuthenticationManager apiKeys(ApiKeyHeaderAuthenticationService keys) {
+    return auth -> keys.authenticate((String) auth.getCredentials());
   }
 
   @Bean
   @Order(1)
-  SecurityFilterChain files(
-      HttpSecurity http,
-      AuthenticationManager manager,
-      AppProperties p,
-      ApiErrorAuthenticationEntryPoint entry,
-      ApiErrorAccessDeniedHandler denied)
+  SecurityFilterChain fileBrowser(HttpSecurity http, ApiKeyHeaderAuthenticationService keys)
       throws Exception {
-    return http.securityMatcher("/api/files/**", "/ui/files/**")
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .formLogin(AbstractHttpConfigurer::disable)
-        .logout(AbstractHttpConfigurer::disable)
-        .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-        .addFilterBefore(
-            new ApiKeyHeaderOrQueryAuthenticationFilter(
-                manager, p.getApiKeyHeaderName(), p.getApiKeyQueryParamName(), entry, denied),
-            LogoutFilter.class)
-        .exceptionHandling(e -> e.authenticationEntryPoint(entry).accessDeniedHandler(denied))
+    return stateless(http.securityMatcher("/ui/files/**"))
+        .authenticationManager(auth -> keys.authenticate(auth.getName() + "." + auth.getCredentials()))
+        .httpBasic(Customizer.withDefaults())
+        .authorizeHttpRequests(a -> a.requestMatchers(GET, "/ui/files", "/ui/files/download")
+            .hasAuthority(ROLE_NAME_ADMIN).anyRequest().denyAll())
         .build();
   }
 
   @Bean
-  @Order(2)
-  SecurityFilterChain api(
-      HttpSecurity http,
-      AuthenticationManager manager,
-      AppProperties p,
-      ApiErrorAuthenticationEntryPoint entry,
-      ApiErrorAccessDeniedHandler denied)
-      throws Exception {
-    return http.securityMatcher("/api/keys/**", "/api/deliveries/**", "/protected/**")
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        // Header-authenticated operations do not rely on ambient browser cookies.
-        .csrf(c -> c.ignoringRequestMatchers("/api/keys/**", "/api/deliveries/**"))
-        .formLogin(AbstractHttpConfigurer::disable)
-        .logout(AbstractHttpConfigurer::disable)
-        .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-        .addFilterBefore(
-            new ApiKeyHeaderAuthenticationFilter(manager, p.getApiKeyHeaderName(), entry, denied),
-            LogoutFilter.class)
-        .exceptionHandling(e -> e.authenticationEntryPoint(entry).accessDeniedHandler(denied))
+  SecurityFilterChain routes(HttpSecurity http, AuthenticationManager apiKeys,
+      AppProperties properties) throws Exception {
+    var entry = new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED);
+    var filter = new AuthenticationFilter(apiKeys,
+        request -> {
+          var headers = Collections.list(request.getHeaders(properties.getApiKeyHeaderName()));
+          if (headers.isEmpty()) return null;
+          if (headers.size() != 1) throw new BadCredentialsException("Expected one API key header");
+          return UsernamePasswordAuthenticationToken.unauthenticated("api-key", headers.getFirst());
+        });
+    var paths = PathPatternRequestMatcher.withDefaults();
+    filter.setRequestMatcher(new OrRequestMatcher(
+        paths.matcher(POST, "/api/keys"), paths.matcher(DELETE, "/api/keys/*"),
+        paths.matcher(POST, "/api/deliveries"), paths.matcher(GET, "/api/files"),
+        paths.matcher(GET, "/protected/hello")));
+    filter.setSuccessHandler((request, response, authentication) -> {});
+    filter.setFailureHandler(new AuthenticationEntryPointFailureHandler(entry));
+    return stateless(http)
+        // These routes accept an explicit API-key header and never authenticate browser sessions.
+        .csrf(c -> c.ignoringRequestMatchers("/api/keys", "/api/keys/*", "/api/deliveries"))
+        .exceptionHandling(e -> e.authenticationEntryPoint(entry))
+        .addFilterBefore(filter, LogoutFilter.class)
+        .authorizeHttpRequests(a -> a
+            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+            .requestMatchers(POST, "/api/keys")
+                .hasAuthority(ROLE_NAME_ADMIN)
+            .requestMatchers(DELETE, "/api/keys/*")
+                .hasAuthority(ROLE_NAME_ADMIN)
+            .requestMatchers(POST, "/api/deliveries").hasAnyAuthority(ROLE_NAME_USER, ROLE_NAME_ADMIN)
+            .requestMatchers(GET, "/api/files").hasAuthority(ROLE_NAME_ADMIN)
+            .requestMatchers(GET, "/protected/hello").authenticated()
+            .requestMatchers(GET, "/", "/jobs", "/jobs/table", "/web/jobs.xhtml", "/web/index.xhtml",
+                "/api/jobs", "/api/jobs/*", "/api/logs/*", "/ilidata.xml", "/ilimodels.xml",
+                "/ilisite.xml", "/files/*/*", "/css/**", "/js/**", "/favicon.ico", "/ping",
+                "/public/hello", "/actuator/health/**").permitAll()
+            .anyRequest().denyAll())
         .build();
   }
 
-  @Bean
-  @Order(3)
-  SecurityFilterChain publicRoutes(HttpSecurity http) throws Exception {
+  private HttpSecurity stateless(HttpSecurity http) throws Exception {
     return http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .formLogin(AbstractHttpConfigurer::disable)
-        .logout(AbstractHttpConfigurer::disable)
-        .authorizeHttpRequests(
-            a ->
-                a.requestMatchers(
-                        org.springframework.http.HttpMethod.GET,
-                        "/",
-                        "/jobs",
-                        "/jobs/table",
-                        "/web/jobs.xhtml",
-                        "/web/index.xhtml",
-                        "/api/jobs",
-                        "/api/jobs/*",
-                        "/api/logs/*",
-                        "/ilidata.xml",
-                        "/ilimodels.xml",
-                        "/ilisite.xml",
-                        "/files/*/*",
-                        "/css/**",
-                        "/js/**",
-                        "/favicon.ico",
-                        "/ping",
-                        "/public/hello",
-                        "/actuator/health/**")
-                    .permitAll()
-                    .requestMatchers("/error")
-                    .permitAll()
-                    .anyRequest()
-                    .denyAll())
-        .build();
+        .logout(AbstractHttpConfigurer::disable);
   }
 }

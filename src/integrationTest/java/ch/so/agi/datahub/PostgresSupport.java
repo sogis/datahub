@@ -1,43 +1,47 @@
 package ch.so.agi.datahub;
 
 import java.nio.file.*;
-import java.time.*;
-import java.util.*;
-import org.flywaydb.core.Flyway;
+import org.jobrunr.storage.sql.common.DatabaseCreator;
+import org.jobrunr.storage.sql.postgres.PostgresStorageProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public abstract class PostgresSupport {
   protected static final Network NETWORK = Network.newNetwork();
   protected static final PostgreSQLContainer DATABASE =
-      new PostgreSQLContainer("postgres:16-alpine")
-          .withNetwork(NETWORK)
-          .withNetworkAliases("database");
+      new PostgreSQLContainer(DockerImageName.parse("sogis/postgis:16-3.4").asCompatibleSubstituteFor("postgres")).withNetwork(NETWORK).withNetworkAliases("database");
   protected static final GenericContainer<?> MAIL =
-      new GenericContainer<>("axllent/mailpit:v1.31.4")
-          .withExposedPorts(1025, 8025)
-          .withNetwork(NETWORK)
-          .withNetworkAliases("mail");
+      new GenericContainer<>("axllent/mailpit:v1.31.4").withExposedPorts(1025, 8025)
+          .withNetwork(NETWORK).withNetworkAliases("mail");
   protected static final Path ROOT;
 
   static {
     try {
       ROOT = Files.createTempDirectory("datahub-postgres-tests-");
-    } catch (java.io.IOException e) {
+      DATABASE.start();
+      MAIL.start();
+      initialize("test");
+    } catch (Exception e) {
       throw new ExceptionInInitializerError(e);
     }
-    DATABASE.start();
-    MAIL.start();
-    Flyway.configure()
-        .dataSource(DATABASE.getJdbcUrl(), DATABASE.getUsername(), DATABASE.getPassword())
-        .locations("filesystem:sql/migrations")
-        .placeholders(
-            Map.of(
-                "configSchema", "test_config", "logSchema", "test_log", "jobSchema", "test_jobs"))
-        .load()
-        .migrate();
+  }
+
+  protected static JdbcTemplate initialize(String prefix) throws Exception {
+    var source = new DriverManagerDataSource(
+        DATABASE.getJdbcUrl(), DATABASE.getUsername(), DATABASE.getPassword());
+    var jdbc = new JdbcTemplate(source);
+    for (String model : new String[]{"config", "log"}) {
+      String ddl = Files.readString(Path.of("build/schema/" + model + ".sql"));
+      jdbc.execute(ddl.replace("agi_datahub_" + model + "_v1", prefix + "_" + model));
+    }
+    jdbc.execute("CREATE SCHEMA " + prefix + "_jobs");
+    new DatabaseCreator(source, prefix + "_jobs.", PostgresStorageProvider.class).runMigrations();
+    return jdbc;
   }
 
   @DynamicPropertySource
@@ -47,23 +51,13 @@ public abstract class PostgresSupport {
     registry.add("spring.datasource.password", DATABASE::getPassword);
     registry.add("app.dbSchemaConfig", () -> "test_config");
     registry.add("app.dbSchemaLog", () -> "test_log");
-    registry.add("app.dbSchemaJob", () -> "test_jobs");
     registry.add("app.workDirectory", () -> ROOT.resolve("work").toString());
     registry.add("app.targetDirectory", () -> ROOT.resolve("target").toString());
     registry.add("app.publicBaseUrl", () -> "http://example.test/datahub");
     registry.add("app.preferredIliRepo", () -> Path.of("dev/models").toAbsolutePath().toString());
     registry.add("app.defaultIliRepositories", () -> false);
-    registry.add("app.adminAccountInit", () -> false);
     registry.add("app.cleanerEnabled", () -> false);
-    registry.add("app.mailEnabled", () -> true);
-    registry.add("app.mailFrom", () -> "sender@example.test");
     registry.add("jobrunr.database.table-prefix", () -> "test_jobs.");
-    registry.add("jobrunr.database.skip-create", () -> true);
-    registry.add("spring.mail.host", MAIL::getHost);
-    registry.add("spring.mail.port", () -> MAIL.getMappedPort(1025));
-    registry.add("spring.mail.properties.mail.smtp.auth", () -> false);
-    registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> false);
-    registry.add("gg.jte.development-mode", () -> true);
     registry.add("spring.devtools.restart.enabled", () -> false);
   }
 }
