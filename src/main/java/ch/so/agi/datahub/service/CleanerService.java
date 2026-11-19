@@ -1,71 +1,97 @@
 package ch.so.agi.datahub.service;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.util.FileSystemUtils;
-
+import ch.so.agi.datahub.config.AppProperties;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileTime;
+import java.nio.file.*;
+import java.time.Clock;
 import java.time.Instant;
-import java.util.Date;
-
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
-@ConditionalOnProperty(
-        value="app.cleanerEnabled", 
-        havingValue = "true", 
-        matchIfMissing = false)
 @Service
+@ConditionalOnProperty(name = "app.cleanerEnabled", havingValue = "true")
 public class CleanerService {
-    private final Logger log = LoggerFactory.getLogger(this.getClass());
+  private static final Logger log = LoggerFactory.getLogger(CleanerService.class);
+  private final JdbcTemplate jdbc;
+  private final DeliveryFiles files;
+  private final AppProperties properties;
+  private final Clock clock;
 
-    @Value("${app.workDirectory}")
-    private String workDirectory;
-    
-    @Value("${app.folderPrefix}")
-    private String folderPrefix;
+  public CleanerService(JdbcTemplate jdbc, DeliveryFiles files, AppProperties properties, Clock clock) {
+    this.jdbc = jdbc;
+    this.files = files;
+    this.properties = properties;
+    this.clock = clock;
+  }
 
-    private FilesStorageService storageService;
-       
-    public CleanerService(FilesStorageService storageService) {
-        this.storageService = storageService;
+  @Scheduled(fixedDelay = 3600000)
+  public void cleanUp() {
+    var table = properties.logSchema() + ".deliveries_delivery";
+    var jobs = properties.jobSchema() + ".jobrunr_jobs";
+    for (String id : jdbc.queryForList("SELECT d.jobid FROM " + table
+        + " d WHERE d.finished_at<? AND d.artifacts_expired IS NOT TRUE"
+        + " AND d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED','FAILED','PUBLICATION_FAILED')"
+        + " AND (d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED')"
+        + " OR NOT EXISTS (SELECT 1 FROM " + jobs + " j WHERE j.id=d.jobid::char(36)"
+        + " AND j.state NOT IN ('SUCCEEDED','FAILED','DELETED')))",
+        String.class, properties.artifactCutoff(clock))) {
+      try {
+        files.delete(UUID.fromString(id));
+        jdbc.update("UPDATE " + table + " SET artifacts_expired=true WHERE jobid=?", id);
+      } catch (IOException | IllegalArgumentException e) {
+        log.warn("Could not clean up artifacts for delivery {}", id, e);
+      }
     }
+    cleanOrphans(table);
+  }
 
-     @Async("asyncTaskExecutor")
-     //@Scheduled(cron="0 */30 * * * *")
-     @Scheduled(fixedRate = 60 * 60 * 1000) /* Runs every 60 * 60 seconds */
-     public void cleanUp() {    
-         long deleteFileAge = 60*60*24*3; // = 3 Tag
-         log.info("Deleting files from previous delivery runs older than {} [s]...", deleteFileAge);
-
-         if (storageService instanceof LocalFilesStorageService) {
-             java.io.File[] tmpDirs = new java.io.File(workDirectory).listFiles();
-             if(tmpDirs!=null) {
-                 for (java.io.File tmpDir : tmpDirs) {
-                     if (tmpDir.getName().startsWith(folderPrefix)) {
-                         try {
-                             FileTime lastModifiedTime = Files.getLastModifiedTime(Paths.get(tmpDir.getAbsolutePath()));
-                             Instant now = Instant.now();
-
-                             long fileAge = now.getEpochSecond() - lastModifiedTime.toInstant().getEpochSecond();
-                             log.trace("found folder with prefix: {}, age [s]: {}", tmpDir, fileAge);
-
-                             if (fileAge > deleteFileAge) {
-                                 log.info("deleting {}", tmpDir.getAbsolutePath());
-                                 FileSystemUtils.deleteRecursively(tmpDir);
-                             }
-                         } catch (IOException e) {
-                             throw new IllegalStateException(e);
-                         }
-                     }
-                 }
-             }            
-         } 
-     }
+  private void cleanOrphans(String table) {
+    Path root = Path.of(properties.getWorkDirectory());
+    if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return;
+    var cutoff = Instant.now(clock).minus(properties.getArtifactRetention());
+    String prefix = properties.getFolderPrefix();
+    try (var folders = Files.list(root)) {
+      for (var folder : folders.toList()) {
+        String name = folder.getFileName().toString();
+        if (!name.startsWith(prefix) || !Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS))
+          continue;
+        UUID id;
+        try {
+          id = UUID.fromString(name.substring(prefix.length()));
+        } catch (IllegalArgumentException e) {
+          continue;
+        }
+        if (!name.equals(prefix + id)) continue;
+        try {
+          if (!Files.getLastModifiedTime(folder, LinkOption.NOFOLLOW_LINKS)
+              .toInstant().isBefore(cutoff)) continue;
+          // Keep directories whose upload or log was still being written recently.
+          boolean recent = false;
+          try (var contents = Files.list(folder)) {
+            for (var entry : contents.toList()) {
+              if (!Files.getLastModifiedTime(entry, LinkOption.NOFOLLOW_LINKS)
+                  .toInstant().isBefore(cutoff)) {
+                recent = true;
+                break;
+              }
+            }
+          }
+          if (recent) continue;
+          Boolean registered = jdbc.queryForObject(
+              "SELECT EXISTS (SELECT 1 FROM " + table + " WHERE jobid=?)",
+              Boolean.class, id.toString());
+          if (!Boolean.TRUE.equals(registered)) files.delete(id);
+        } catch (IOException e) {
+          log.warn("Could not inspect or clean orphan upload {}", id, e);
+        }
+      }
+    } catch (IOException e) {
+      log.warn("Could not inspect orphan upload directories", e);
+    }
+  }
 }

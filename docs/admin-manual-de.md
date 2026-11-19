@@ -1,177 +1,139 @@
 # Betriebshandbuch
 
-## Abhängigkeiten
+## Neue Datenbank
 
-Der Betrieb der Anwendung erfordert eine vorhandene PostgreSQL-Datenbank und ein Filesystem.
+`./gradlew generateSchema` erzeugt aus dem INTERLIS-Modell die SQL-Dateien
+`build/schema/config.sql` und `build/schema/log.sql`. Als Schema-Owner in der leeren Datenbank
+anwenden und das Schema für JobRunr anlegen.
 
-### Datenbank
-
-Die Datenbank wird für die Autorisierung und für das Registrieren (aka Logging) der Datenlieferungen verwendet. Die verwendete Bibliothek für die Jobqueue benötigt ebenfalls eine Datenbank zum Tracken der Jobs. Für die ersten beiden Fälle wurde je ein INTERLIS-Datenmodell geschrieben:
-
-- `SO_AGI_Datahub_Config_20240403`: Autorisierung
-- `SO_AGI_Datahub_Log_20240403`: Logging
-
-Die zwei Datenbankschemen können mit _ili2pg_ erzeugt werden:
-
-```
-java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --defaultSrsCode 2056 --createGeomIdx  --createFk --createFkIdx --createEnumTabs --createMetaInfo --nameByTopic --strokeArcs --createUnique --createNumChecks --createTextChecks --createDateTimeChecks --createImportTabs --createUnique --dbschema agi_datahub_config_v1 --models SO_AGI_Datahub_Config_20240403 --schemaimport
+```sh
+psql -X -v ON_ERROR_STOP=1 -f build/schema/config.sql -f build/schema/log.sql \
+  -c 'CREATE SCHEMA agi_datahub_jobrunr_v1'
 ```
 
-```
-java -jar ili2pg-4.9.1.jar --dbhost localhost --dbport 54321 --dbdatabase edit --dbusr postgres --dbpwd secret --defaultSrsCode 2056 --createGeomIdx  --createFk --createFkIdx --createEnumTabs --createMetaInfo --nameByTopic --strokeArcs --createUnique --createNumChecks --createTextChecks --createDateTimeChecks --createImportTabs --createUnique --dbschema agi_datahub_log_v1 --models SO_AGI_Datahub_Log_20240403 --schemaimport
-```
+Mit dem JobRunr-8.8.2-Artefakt und dessen Runtime-Abhängigkeiten auf dem Klassenpfad den
+[JobRunr-Tabellenersteller](https://www.jobrunr.io/en/documentation/installation/storage/)
+einmal offline aufrufen. `JOBRUNR_CLASSPATH` enthält auch den PostgreSQL-Treiber.
 
-_Jobrunr_ (die Jobqueue-Bibliothek) erzeugt das DDL entweder automatisch (z.B. während der Entwicklung) oder man kann mit einem Java-Tool die SQL-Dateien selber herstellen. Dazu müssen die beiden Jar-Dateien `jobrunr-6.3.4.jar` und `slf4j-api-2.0.12.jar` heruntergeladen werden. 
-
-```
-java -cp jobrunr-6.3.4.jar:slf4j-api-2.0.12.jar org.jobrunr.storage.sql.common.DatabaseSqlMigrationFileProvider postgres agi_datahub_jobrunr_v1.
-```
-
-**Achtung:** Der Punkt am Ende des Schemanamens ist zwingend notwendig.
-
-Die Inbetriebname in die GDI-SO ist im [Kapitel Konfiguration GDI](#Konfiguration-GDI) beschrieben.
-
-Es steht ein _jbang_-Skript zur Verfügung, das die SQL-DDL-Skripte vollständig erzeugt und vom DB-Admin anschliessend verwendet werden können, um alle Schemen und Tabellen anzulegen:
-
-```
-jbang create_schema_sql.java
+```sh
+java -cp "$JOBRUNR_CLASSPATH" org.jobrunr.storage.sql.common.DatabaseCreator \
+  "$JDBC_URL" "$SCHEMA_OWNER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
+psql -X -v ON_ERROR_STOP=1 -f sql/grants.sql
 ```
 
-Oder falls _jbang_ nicht vorhanden ist:
+Die Rolle `datahub` vor der Rechtevergabe anlegen und die Laufzeitidentität Mitglied dieser Rolle
+machen. Der Betriebsuser der Anwendung benötigt DML und Sequenzzugriff. Das [JobRunr-Dashboard](https://www.jobrunr.io/en/documentation/deployment/) läuft
+bei Aktivierung auf einem eigenen internen Port, standardmässig 8000. Dafür
+`JOBRUNR_DASHBOARD_ENABLED=true`, `JOBRUNR_DASHBOARD_USER` und `JOBRUNR_DASHBOARD_PWD`
+mit eigenen Zugangsdaten setzen. Der öffentliche Dienst exponiert Port 8080. Die JobRunr-Tabellen werden vor dem Anwendungsstart eingerichtet.
 
-```
-curl -Ls https://sh.jbang.dev | bash -s - create_schema_sql.java
-```
+## Bestehende Datenbank aktualisieren
 
-Die Schemanamen und Rollennamen sind hardcodiert im Quellcode. Im Repository ist eine `setup_gdi.sql`-Datei bereits eingecheckt.
+Dieser Ablauf gilt für die Standardschemas aus `main` oder dem bisherigen Modernisierungsbranch.
+Auf einer Wiederherstellungskopie proben. Den Export von Konfiguration und Lieferungshistorie,
+die installierte PostGIS-Erweiterung und doppelte Thema-Operat-Paare vor dem Wechsel prüfen.
 
-### Filesystem
+1. Annahme am Gateway pausieren, laufende Lieferungen vollständig abarbeiten und die bisherige
+   Anwendung samt Workern stoppen. Bestehende JobRunr-Zeitpläne und fehlgeschlagene Altläufe sichten.
+2. Einen vollständigen `pg_dump -Fc`, die Rollendefinitionen und konsistente Sicherungen der Arbeits-
+   und Zielablage erstellen. Alte Image-Referenz, Konfiguration und den Wiederherstellungspunkt
+   festhalten.
+3. `psql -X -v ON_ERROR_STOP=1 -f sql/upgrade-r0.sql` als Schema-Owner ausführen. Das Skript
+   prüft, ob die Jobs abgearbeitet sind, erhält Lieferungen, Key-Hashes und Widerrufszeitpunkte.
+   Früher unvollständig ausgestellte Keys werden gesperrt. Vorhandene XTF-Dateien bleiben am
+   bisherigen Ort. Für modernisierte Lieferungen bleiben die Protokollpfade und die einfachen
+   Modell- und Validatorangaben erhalten.
+4. Die Modellmetadaten mit ili2pg 5.5.2 neu registrieren und danach JobRunr offline mit dem oben
+   beschriebenen Tabellenersteller aktualisieren. Bei Installationen von `main` enthält das
+   Upgrade-SQL die Einträge für bereits vorhandene JobRunr-Tabellen. Erst der Tabellenersteller
+   wendet die noch ausstehende Bibliotheksmigration an.
 
-Es wird ein Filesystem für das temporäre Speichern der Dateien (während der Anlieferungsphase) und ein Zielverzeichnis für das Ablegen der Daten nach erfolgreicher Validierung benötigt. In einer geclusterten Umgebung müssen sämtliche Nodes (o.ä.) Zugriff auf das gleiche Filesystem haben. Die beiden Verzeichnisse sind als Option exponiert.
+   ```sh
+   for spec in Config:config Log:log; do
+     java -jar "$ILI2PG_JAR" --schemaimport --dbparams "$ILI2PG_DBPARAMS" \
+       --modeldir dev --models "SO_AGI_Datahub_${spec%:*}_20240403" \
+       --dbschema "agi_datahub_${spec#*:}_v1" --nameByTopic --createFk --createFkIdx \
+       --createUnique --createImportTabs --createMetaInfo || exit 1
+   done
+   java -cp "$JOBRUNR_CLASSPATH" org.jobrunr.storage.sql.common.DatabaseCreator \
+     "$JDBC_URL" "$SCHEMA_OWNER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
+   psql -X -v ON_ERROR_STOP=1 -f sql/grants.sql
+   ```
 
-### SMTP-Server
+5. In `core_theme.expected_models` je Thema die zulässigen Modellnamen mit Semikolon trennen.
+   Bestehende Themen ohne Modellliste bleiben gespeichert, bis zur Pflege pausiert ihre Annahme.
+   Altdateien aus `main` ohne Modellnachweis sind direkt abrufbar. Eine neue gültige Lieferung
+   nimmt das Dataset in `ilidata.xml` auf.
+6. Das neue Image starten und zunächst bei pausierter Annahme Health, einen bestehenden Key,
+   öffentliche Historie und Protokolle prüfen. Danach Annahme öffnen und eine kontrollierte
+   Lieferung samt Zieldatei prüfen.
 
-Die Anwendung benötigt für das Verschicken von E-Mail einen SMTP-Server. Die notwendigen Einstellungen sind als Optionen exponiert. Die Optionen müssen gesetzt werden, sonst kann die Anwendung nicht gestartet werden. Es können jedoch auch Fantisiewerte eingesetzt werden. Dies führt zu einer Exception auf dem Server. Die Anlieferung kann trotzdem erfolgen, nur erhält der Lieferant keine E-Mail.
+Bei einem Fehler vor dem Commit des SQL-Upgrades rollt PostgreSQL das Skript zurück. Für einen
+Rückfall nach dem Commit zuerst die Annahme sperren und das neue Image stoppen. Datenbank und
+beide Ablagen aus demselben Sicherungspunkt auf einem sauberen Ziel wiederherstellen und das
+bisherige Image mit seiner Konfiguration starten. Falls bereits neue Lieferungen angenommen wurden,
+deren Datenbankzeilen und Arbeitsdateien vor dem Rückfall sichern und nach der Wiederherstellung
+gezielt erneut einreichen.
 
-## Optionen
+## Container und Konfiguration
 
-| Name | Beschreibung | Standard |
-|-----|-----|-----|
-| `TZ` | Zeitzone des Linux-Betriebssystems. Muss auf `Europe/Zurich` gesetzt werden, falls Cluster eine andere Zeitzone verwendet. | |
-| `MAX_FILE_SIZE` | Die maximale Grösse einer Datei, die hochgeladen werden kann in Megabyte. | `200` |
-| `LOG_LEVEL` | Das Logging-Level des Spring Boot Frameworks. | `INFO` |
-| `LOG_LEVEL_DB_CONNECTION_POOL` | Das Logging-Level des DB-Connection-Poolsocket. | `INFO` |
-| `LOG_LEVEL_CAYENNE` | Das Logging-Level der ORM-Bibliothek. | `WARN` |
-| `LOG_LEVEL_APPLICATION` | Das Logging-Level der Anwendung (= selber geschriebener Code). | `INFO` |
-| `TOMCAT_THREADS_MAX` | Maximale Anzahl Threads, welche die Anwendung gleichzeitig bearbeitet. Muss abgestimmt sein mit der Anwendungscharakteristik (z.B. lange DB-Queries) und der Anzahl DB-Connections im Pool. | `5` |
-| `TOMCAT_ACCEPT_COUNT` | Maximale Grösser der Queue, falls keine Threads mehr verfügbar. | `50` |
-| `TOMCAT_MAX_CONNECTIONS` | Maximale Threads des Servers. | `200` |
-| `HIKARI_MAX_POOL_SIZE` | Grösse des DB-Connections-Pools | `5` |
-| `DBURL` | JDBC-Url für die Datenbank | `jdbc:postgresql://localhost:54321/edit` |
-| `DBUSR` | Datenbankbenutzer | `postgres` |
-| `DBPWD` | Datenbankpasswort | `secret` |
-| `JOBRUNR_SERVER_ENABLED` | Dient die Instanz als sogenannter Background-Jobserver, d.h. werden mittels REST-API hochgeladene INTERLIS-Transferdateien validiert. Wird nur eine Instanz betrieben, muss die Option zwingend `true` sein, da sonst der Job nicht ausgeführt wird. | `true` |
-| `JOBRUNR_POLL_INTERVAL` | Es wird im Intervall (in Sekunden) nach neuen Validierungsjobs geprüft. | `10` |
-| `JOBRUNR_WORKER_COUNT` | Anzahl Jobs, die in einem "Worker"/Background-Server gleichzeitig durchgeführt werden können. Im Prinzip nicht sehr relevant, da der Validierungsjob synchronisiert ist (nicht thread safe). | `1` |
-| `JOBRUNR_DASHBOARD_ENABLED` | Das Jobrunr-Dashboard wird auf dem Port 8000 gestartet. | `false` |
-| `JOBRUNR_DASHBOARD_USER` | Username für Jobrunr-Dasboard. Achtung: Basic Authentication. | `admin` |
-| `JOBRUNR_DASHBOARD_PWD` | Passwort für Jobrunr-Dasboard. Achtung: Basic Authentication. | `admin` |
-| `JOBRUNR_DB_SCHEMA` | Schemanamen für Jobrunr-Tabellen und -views. Abschliessender Punkt ist zwingend. | `agi_datahub_jobrunr_v1.` |
-| `JOBRUNR_SKIP_CREATE` | Sollen die Jobrunr-Tabellen automatisch erstellt werden? | `false` |
-| `MAIL_ENABLED` | E-Mailversand des Prüfresultates ja/nein. | `true` |
-| `MAIL_HOST` | SMTP-Host. | `smtp.elasticemail.com` |
-| `MAIL_PORT` | SMTP-Port. | `2525` |
-| `MAIL_USERNAME` | Benutzername / Absender der E-Mail. | |
-| `MAIL_PASSWORD` | E-Mail-Passwort | |
-| `MAIL_SMTP_AUTH` | - | `true` |
-| `MAIL_SMTP_STARTTLS` | - | `true` |
-| `CONFIG_DB_SCHEMA` | Schemanamen für die Autorisierungstabellen.  | `agi_datahub_config_v1` |
-| `LOG_DB_SCHEMA` | Schemanamen für die Logtabellen | `agi_datahub_log_v1` |
-| `JOB_RESPONSE_LIST_LIMIT` | Anzahl der Lieferungen, die zurückgeliefert werden sollen. Betrifft REST-API (`/api/jobs`) und GUI (`/web/jobs.xhtml`) | `300` |
-| `API_KEY_HEADER_NAME` | Name des API-Key-Headers. | `X-API-KEY` |
-| `ADMIN_ACCOUNT_INIT` | Soll beim Starten der Anwendung eine Admin-Organisation im Autorisierungschema erstellt werden? Fall bereits eine Organisation mit gleichem Namen vorhanden ist, wird nichts gemacht. Der API-Key wird einmalig nach Stdout geloggt. | `true` |
-| `ADMIN_ACCOUNT_NAME` | Name der Admin-Organisation | `AGI SO` |
-| `ADMIN_ACCOUNT_MAIL` | E-Mail-Adresse der Admin-Organisation | `stefan.ziegler@bd.so.ch` |
-| `WORK_DIRECTORY` | Verzeichnis, in das die hochgeladenen Dateien temporär gespeichtert werden. | `/Users/stefan/tmp/` |
-| `FOLDER_PREFIX` | Prefix für das pro Anlieferung temporär erstellt Verzeichnis im `WORK_DIRECTORY` | `datahub_` |
-| `TARGET_DIRECTORY` | Zielverzeichnis, in das erfolgreich geprüfte Daten gespeichert werden. Nicht vorhandene Themenverzeichnisse werden erstellt. | `/Users/stefan/tmp/target_datahub/` |
-| `CREATE_DIRECTORIES` | Die Anwendung versucht beim Starten die beiden Verzeichnisse `WORK_DIRECTORY` und `TARGET_DIRECTORY` zu erstellen. | `true` |
-| `PREFERRED_ILI_REPO` | Modellrepositories, die bei der Modellsuche prioritär berücksichtigt werden. | `https://geo.so.ch/models` |
-| `CLEANER_ENABLED` | Soll der Cronjob, welcher veraltete Daten aus dem  `WORK_DIRECTORY` löscht, eingeschaltet werden. | `true` |
-| `HTTP_WHITELIST` | Liste mit Hostnamen für die ein HTTP-Request (ohne "s") _nicht_ zum deaktiveren des API-Keys führt. | `localhost,datahub-agi-apps-test.apps.ocp.so.ch` |
-| `DIRECTORY_LISTING_USERNAME` | Benutzername für Directory Listing des `TARGET_DIRECTORY`. | `admin` |
-| `DIRECTORY_LISTING_PASSWORD` | Password für Directory Listing des `TARGET_DIRECTORY`. | `admin` |
+`./gradlew buildImage` baut das Image `sogis/datahub:<Version>-local`. Das Image verwendet UBI9
+OpenJDK 25 und startet mit `1001:0`. Unter OpenShift kann eine zufällige UID mit Gruppe 0 verwendet
+werden. Das Root-Dateisystem kann schreibgeschützt bleiben. Zwei persistente Volumes an `/work` und
+`/datahub` sowie ein beschreibbares temporäres Dateisystem an `/tmp` mounten. Die Volumes müssen
+die Arbeits- und Zielverzeichnisse mit Gruppenrechten bereitstellen. Bei mehreren Instanzen
+verwenden Web und JobRunr dieselben Volumes. Die Zielablage muss atomare Umbenennungen erlauben
+und unterschiedliche Schreibweisen und Unicode-Normalformen getrennt speichern. Das Thema
+bestimmt das Verzeichnis, das Operat den Dateinamen.
+Das Dockerfile erbt direkt vom gepinnten UBI9-OpenJDK-25-Runtime-Image. Das Basisimage kann Port 8443 als OCI-Metadatum deklarieren; der Datahub-Dienst veröffentlicht nur Port 8080. Die JVM-Minderung `-XX:-UseBASE64Intrinsics` für CVE-2026-114938 bleibt erhalten.
 
-## Autorisierung
+| Einstellung | Verwendung |
+| --- | --- |
+| `DBURL`, `DBUSR`, `DBPWD` | Laufzeitverbindung mit PostgreSQL |
+| `CONFIG_DB_SCHEMA`, `LOG_DB_SCHEMA`, `JOBRUNR_DB_SCHEMA` | Schemas, JobRunr-Präfix mit abschliessendem Punkt |
+| `WORK_DIRECTORY`, `TARGET_DIRECTORY` | Arbeits- und Zielablage, im Image `/work` und `/datahub` |
+| `PREFERRED_ILI_REPO`, `PUBLIC_BASE_URL` | INTERLIS-Repository und öffentliche HTTPS-URL |
+| `ACCEPT_DELIVERIES` | Annahme vor Wartungsfenstern pausieren |
+| `JOBRUNR_WORKER_COUNT` | Standard 1. Bei mehr Workern JDBC-Pool und Validator-Last berücksichtigen |
+| `MAIL_ENABLED`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_FROM` | Optionaler SMTP-Versand für Ergebnisse |
+| `ADMIN_KEY_FILE` | Pfad zu einer einmalig eingehängten Bootstrap-Secret-Datei |
 
-Siehe [Benutzerhandbuch](user-manual-de.md) -> Autorisierung / Konfiguration
+Das Gateway terminiert HTTPS und setzt vertrauenswürdige Forwarded-Header. Direkter Zugriff auf
+Port 8080 gehört ins interne Netz. Der Bootstrap einer leeren Installation findet mit einer
+Instanz statt. Zwei zufällige UUIDs als `KEY_ID.SECRET` im Secret-Speicher ablegen. Die Datei mit
+restriktiven Leserechten für die Laufzeitidentität an `ADMIN_KEY_FILE` bereitstellen. Mit
+`ADMIN_ACCOUNT_NAME` und `ADMIN_ACCOUNT_MAIL` bei Bedarf die Organisation konfigurieren.
+Existiert bereits eine Admin-Organisation, überspringt der Start die Anlage. Nach dem ersten
+erfolgreichen administrativen Zugriff die Bootstrap-Datei aus der Deployment-Konfiguration nehmen.
 
-## Rest-API
+## Verarbeitung und Wiederherstellung
 
-Das Rest-API verwendet folgende Befehle (Verben), Header und Statuscodes. Insbesondere die Statuscodes müssen transparent dem Benutzer transparent zurückgeliefert werden.
+Datahub speichert die Datei und registriert die Lieferung, bevor JobRunr sie übernimmt. Fehlt der
+JobRunr-Eintrag einer angenommenen Lieferung oder begonnenen Übernahme, stellt Datahub ihn
+unter derselben ID wieder her.
+Technische Fehler wiederholt JobRunr. Eine fehlgeschlagene Übernahme kann nach Beheben der
+Ursache im internen Dashboard über denselben Job erneut angestossen werden. Die Prüfeingabe bleibt dafür erhalten.
+Jobs aus Versionen vor R0 bleiben als Historie erhalten. Eine fehlgeschlagene Altlieferung bei
+Bedarf mit der gesicherten Transferdatei neu einreichen.
 
-### Befehle
+Vor der Übernahme speichert Datahub die Freigabeabsicht. PostgreSQL serialisiert die Übernahme
+für identische Zielpfade. Datahub legt beide Dateien vollständig bereit und ersetzt dann das
+Protokoll und zuletzt den Transfer atomar. Scheitert der letzte Dateitausch, stellt Datahub das
+bisherige Protokoll wieder her. Nach einem Prozessabbruch zwischen den Umbenennungen stellt
+derselbe Job das Paar erneut her. Der Datenindex enthält das Ziel wieder, sobald die Übernahme
+bestätigt ist. Dadurch sind neu geschriebene Bytes während eines Fehlers keiner älteren
+Modellangabe im Index zugeordnet.
 
-- GET:
-  - "/api/jobs"
-  - "/api/jobs/{jobId}"
-  - "/api/logs/{jobId}"
-  - "/ping"
-  - "/protected/hello"
-  - "/public/hello"
-- POST:
-  - "/api/deliveries"
-  - "/api/keys"
-- DELETE:
-  - "/api/keys/{apiKey}"
+Ergebnis-Mail ist optional. Der Versand erfolgt einmal nach Abschluss der Verarbeitung und kann
+bei einem Abbruch unmittelbar nach dem Datenbank-Commit entfallen. Arbeitsdateien werden standardmässig nach drei Tagen für alle abgeschlossenen Lieferungen
+bereinigt, einschliesslich endgültiger technischer Fehler und gescheiterter Übernahmen.
+Solange JobRunr einen noch nicht abgeschlossenen oder geplanten Versuch führt, bleibt der Input
+erhalten. Danach sind manuelle Wiederholungen nur bis zum Ablauf der Aufbewahrungsfrist
+möglich; abgelaufene Lieferungen müssen neu eingereicht werden. Verwaiste Upload-Verzeichnisse
+ohne Datenbankeintrag werden nach derselben Frist entfernt. Fachhistorie und Zieldateien
+werden nicht gelöscht.
 
-### Header
+## GDI-Infrastruktur
 
-- "X-API-KEY" muss von WAF etc. weitergeleitet werden.
-
-### Statuscode
-
-- 200
-- 202
-- 400
-- 401
-- 403
-- 500
-
-### Varia
-
-- Dateigrössen bis 200 MB müssen hochgeladen werden können.
-
-### Fehlerformat
-
-Fehlerantworten werden als JSON mit folgendem gemeinsamen Format ausgeliefert:
-
-```
-{
-  "code": "ch.so.agi.datahub.controller.ApiKeyController",
-  "message": "API key not deleted.",
-  "timestamp": "2024-04-11T06:24:56.218306Z",
-  "path": "/api/keys/5b4fd340-adbb-441a-b9c3-e1d2f13cb1e0",
-  "details": [
-    {
-      "field": "organisation",
-      "message": "must not be blank"
-    }
-  ]
-}
-```
-
-`path` und `details` sind optional. `details` wird hauptsächlich für Validierungsfehler (Statuscode `400`) genutzt.
-
-## Cluster
-
-Idealerweise wird _datahub_ in einem einfachen Cluster betrieben. Eine Instanz ist verantworlich für die Entgegennahme der Dateien und die Jobqueue. Mindestens eine zweite Instanz ist für das Abbarbeiten der Jobs aus der Jobqueue zuständig. Somit verhindert man, dass eine hohe Joblast auf die Kommunikation mit dem Benutzer negativen Einfluss hat. Es können beliebig viele "Worker"-Instanzen hochgefahren werden. Diese müssten nicht im Internet exponiert werden. Sie müssen lediglich Zugriff auf die Datenbank haben und das gleiche Filesystem (Volume) teilen (Optionen `WORK_DIRECTORY` und `TARGET_DIRECTORY`)
-
-## Directory Listing
-
-Auf dem Endpunkt `/datahub`ist ein read-only Directory Listing vorhanden. 
-
-
-## Konfiguration GDI
-
-Siehe [sogis/doc](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md)
+Die installationsbezogene Infrastruktur beschreibt die [GDI-Dokumentation](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md).
+Für Datenbank-Upgrade und Laufzeitkonfiguration gilt die Anleitung in diesem Handbuch.

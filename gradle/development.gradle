@@ -1,0 +1,55 @@
+configurations { ili2pg }
+dependencies {
+    ili2pg 'ch.interlis:ili2pg:5.5.2'
+    ili2pg 'org.postgresql:postgresql'
+}
+
+['config', 'log'].each { model ->
+    tasks.register("generate${model.capitalize()}Sql", JavaExec) {
+        group = 'development'
+        classpath = configurations.ili2pg
+        mainClass = 'ch.ehi.ili2pg.PgMain'
+        inputs.file('dev/SO_AGI_Datahub_20240403.ili')
+        def ddl = layout.buildDirectory.file("schema/${model}.sql").get().asFile
+        outputs.file(ddl)
+        doFirst { ddl.parentFile.mkdirs() }
+        args '--createscript', ddl.absolutePath, '--modeldir', 'dev',
+                '--models', "SO_AGI_Datahub_${model.capitalize()}_20240403",
+                '--dbschema', "agi_datahub_${model}_v1", '--nameByTopic', '--createFk',
+                '--createFkIdx', '--createUnique', '--createImportTabs', '--createMetaInfo'
+    }
+}
+
+tasks.register('generateSchema') {
+    group = 'development'
+    dependsOn 'generateConfigSql', 'generateLogSql'
+}
+tasks.register('devInfrastructure', Exec) {
+    group = 'development'
+    dependsOn 'generateSchema'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'up', '-d', '--wait'
+}
+tasks.register('devUp', JavaExec) {
+    group = 'development'
+    dependsOn 'devInfrastructure'
+    classpath = configurations.runtimeClasspath
+    mainClass = 'org.jobrunr.storage.sql.common.DatabaseCreator'
+    args 'jdbc:postgresql://127.0.0.1:55432/edit', 'postgres', 'secret', 'agi_datahub_jobrunr_v1.'
+}
+tasks.register('devSeed', Exec) {
+    group = 'development'
+    dependsOn 'devUp'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'exec', '-T', 'edit-db',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'edit'
+    doFirst { standardInput = file('dev/seed.sql').newInputStream() }
+    doLast { standardInput.close() }
+}
+tasks.register('devDown', Exec) {
+    group = 'development'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'down'
+}
+tasks.register('devReset', Exec) {
+    group = 'development'
+    description = 'Deletes only the local Compose database volume. Run devSeed afterwards.'
+    commandLine 'docker', 'compose', '-f', 'dev/docker-compose.yml', 'down', '--volumes'
+}

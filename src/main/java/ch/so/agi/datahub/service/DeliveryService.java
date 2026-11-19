@@ -1,134 +1,160 @@
 package ch.so.agi.datahub.service;
 
-import java.io.File;
-import java.io.FileInputStream;
+import ch.so.agi.datahub.cayenne.DeliveriesDelivery;
+import ch.so.agi.datahub.config.AppProperties;
+import org.apache.cayenne.CayenneRuntime;
 import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.List;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.ResourceBundle;
-
-import org.apache.cayenne.ObjectContext;
-import org.apache.cayenne.query.ObjectSelect;
-import org.interlis2.validator.Validator;
+import java.util.UUID;
 import org.jobrunr.jobs.annotations.Job;
-import org.jobrunr.jobs.context.JobContext;
+import org.jobrunr.scheduling.JobScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import ch.ehi.basics.settings.Settings;
-import ch.so.agi.datahub.cayenne.DeliveriesDelivery;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DeliveryService {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+  private static final Logger log = LoggerFactory.getLogger(DeliveryService.class);
+  private final DeliveryAuthorizationService authorization;
+  private final CayenneRuntime cayenne;
+  private final DeliveryRepository deliveries;
+  private final DeliveryFiles files;
+  private final IliValidatorService validator;
+  private final JobScheduler scheduler;
+  private final EmailService mail;
+  private final ResourceBundle messages;
+  private final AppProperties properties;
+  private final Clock clock;
 
-    @Value("${app.workDirectory}")
-    private String workDirectory;
-    
-    @Value("${app.folderPrefix}")
-    private String folderPrefix;
+  public DeliveryService(DeliveryAuthorizationService authorization, CayenneRuntime cayenne,
+      DeliveryRepository deliveries, DeliveryFiles files, IliValidatorService validator,
+      JobScheduler scheduler, EmailService mail, ResourceBundle messages,
+      AppProperties properties, Clock clock) {
+    this.authorization = authorization;
+    this.cayenne = cayenne;
+    this.deliveries = deliveries;
+    this.files = files;
+    this.validator = validator;
+    this.scheduler = scheduler;
+    this.mail = mail;
+    this.messages = messages;
+    this.properties = properties;
+    this.clock = clock;
+  }
 
-    @Value("${app.targetDirectory}")
-    private String targetDirectory;
-    
-    @Value("${app.preferredIliRepo}")
-    private String preferredIliRepo;
-    
-    @Value("${app.mailEnabled}")
-    private boolean mailEnabled;
+  public UUID submit(String theme, String operat, MultipartFile file, Authentication actor)
+      throws IOException {
+    if (!properties.isAcceptDeliveries())
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Delivery acceptance paused");
+    var target = authorization.resolve(theme, operat, actor);
+    DeliveryFiles.segment(target.theme());
+    DeliveryFiles.segment(target.operat());
+    var id = UUID.randomUUID();
+    files.saveInput(id, file.getInputStream());
 
-    private FilesStorageService filesStorageService;
-    
-    private ObjectContext objectContext;
-    
-    private EmailService emailService;
+    var context = cayenne.newContext();
+    var delivery = context.newObject(DeliveriesDelivery.class);
+    delivery.setJobid(id.toString());
+    delivery.setDeliverydate(LocalDateTime.now(clock));
+    delivery.setOrganisation(target.organisation());
+    delivery.setTheme(target.theme());
+    delivery.setOperat(target.operat());
+    delivery.setEmail(target.email());
+    delivery.setValidatorConfig(target.config());
+    delivery.setValidatorMetaConfig(target.metaConfig());
+    delivery.setExpectedModels(target.expectedModels());
+    delivery.setProcessingStatus("PENDING");
+    context.commitChanges();
 
-    private DeliveryValidationService validationService;
-    
-    private ResourceBundle resourceBundle;
-    
-    public DeliveryService(FilesStorageService filesStorageService, ObjectContext objectContext, EmailService emailService,
-            DeliveryValidationService validationService, ResourceBundle resourceBundle) {
-        this.filesStorageService = filesStorageService;
-        this.objectContext = objectContext;
-        this.emailService = emailService;
-        this.validationService = validationService;
-        this.resourceBundle = resourceBundle;
+    enqueue(id.toString());
+    return id;
+  }
+
+  // Restore the JobRunr job if acceptance or a committed publication intent has no job row.
+  @Scheduled(fixedDelay = 5000)
+  public void recoverUnqueuedDeliveries() {
+    deliveries.unqueued().forEach(this::enqueue);
+  }
+
+  private void enqueue(String id) {
+    try {
+      scheduler.enqueue(UUID.fromString(id), () -> process(id));
+    } catch (RuntimeException e) {
+      log.warn("JobRunr enqueue unavailable for delivery {}", id, e);
+    }
+  }
+
+  @Job(name = "Delivery %0", retries = 3)
+  public void process(String id) throws IOException {
+    UUID jobId = UUID.fromString(id);
+    // Lock only this delivery during validation. An uncommitted result can be rebuilt from input.
+    var validation = deliveries.inTransaction(() -> {
+      var delivery = deliveries.lock(id);
+      if (delivery == null || !delivery.needsValidation()) return null;
+      try {
+        var result = validator.validate(files.input(jobId), files.log(jobId), delivery);
+        deliveries.validationResult(id, result.valid(), result.transfer());
+        return new ValidationStep(result.valid() ? null : delivery, null);
+      } catch (IOException e) {
+        deliveries.complete(id, "FAILED");
+        return new ValidationStep(null, e);
+      }
+    });
+    if (validation != null) {
+      if (validation.failure() != null) throw validation.failure();
+      if (validation.rejected() != null) {
+        notifySupplier(validation.rejected(), "INVALID");
+        return;
+      }
     }
 
-    @Job(name = "Delivery", retries=0)
-    public synchronized void deliver(JobContext jobContext, String email, String theme, String operat, String fileName, String config, String metaConfig, String host) throws IOException {                
-        String jobId = jobContext.getJobId().toString();
-        
-//        try {
-//            Thread.sleep(120000);
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
+    // The validation transaction committed the publication intent before any target file changes.
+    var publication = deliveries.inTransaction(() -> {
+      var delivery = deliveries.lock(id);
+      if (delivery == null || !delivery.needsPublication()) return null;
+      deliveries.lockTarget(delivery);
+      try {
+        String outcome = "SUPERSEDED";
+        if (!deliveries.hasNewerPublication(delivery)) {
+          files.publish(jobId, delivery.theme(), delivery.operat());
+          outcome = "DELIVERED";
+        }
+        deliveries.complete(id, outcome);
+        return new PublicationStep(delivery, outcome, null);
+      } catch (IOException e) {
+        deliveries.complete(id, "PUBLICATION_FAILED");
+        return new PublicationStep(null, null, e);
+      }
+    });
+    if (publication != null) {
+      if (publication.failure() != null) throw publication.failure();
+      notifySupplier(publication.delivery(), publication.outcome());
+    }
+  }
 
-        // Validate file.
-        Resource resource = filesStorageService.load(fileName, jobId, folderPrefix, workDirectory);        
-        File transferFile = resource.getFile();
-        logger.debug("<{}> transfer file: {}", jobId, transferFile.getAbsolutePath().toString());
-        
-        File logFile = Paths.get(transferFile.getAbsoluteFile().getParent(), jobId + ".log").toFile();
-        String logFileName = logFile.getAbsolutePath();                
-        logger.debug("<{}> log file name: {}", jobId, logFileName);
-        
-        Settings settings = new Settings();
-        settings.setValue(Validator.SETTING_LOGFILE, logFileName);
-        //settings.setValue(Validator.SETTING_XTFLOG, logFileName + ".xtf");
-        //settings.setValue(Validator.SETTING_CSVLOG, logFileName + ".csv");
-        settings.setValue(Validator.SETTING_ILIDIRS, preferredIliRepo+";"+Validator.SETTING_DEFAULT_ILIDIRS);
+  private void notifySupplier(DeliveryRepository.Delivery delivery, String outcome) {
+    if (!properties.isMailEnabled() || delivery.email() == null) return;
+    var id = delivery.id();
+    String result = "SENT";
+    try {
+      mail.send(delivery.email(),
+          messages.getString("deliveryEmailSubject").formatted(outcome, delivery.theme(), delivery.operat()),
+          messages.getString("deliveryEmailBody").formatted(
+              id, properties.publicUrl("/api/logs/" + id), properties.publicUrl("/jobs")));
+    } catch (RuntimeException e) {
+      result = "FAILED";
+      log.warn("Result email could not be sent for delivery {}", id);
+    }
+    deliveries.notificationResult(id, result);
+  }
 
-        if (!config.isEmpty()) {
-            settings.setValue(Validator.SETTING_CONFIGFILE, "ilidata:" + config);
-        }
-
-        if (!metaConfig.isEmpty()) {
-            settings.setValue(Validator.SETTING_META_CONFIGFILE, "ilidata:" + metaConfig);
-        }
-        
-        logger.info("<{}> Validation start", jobId);
-        boolean valid = validationService.validate(transferFile.getAbsolutePath().toString(), settings);
-        logger.info("<{}> Validation end", jobId);
-        
-        // Copy file ("deliver") to target directory.
-        boolean delivered;         
-        try {
-            filesStorageService.save(new FileInputStream(transferFile), transferFile.getName(), theme, null, targetDirectory);            
-            filesStorageService.save(new FileInputStream(new File(logFileName)), transferFile.getName()+".log", theme, null, targetDirectory);            
-            delivered = true;
-        } catch (IOException e) {
-            delivered = false;
-        }
-        
-        // Update tables in database.
-        DeliveriesDelivery deliveriesDelivery = ObjectSelect
-                .query(DeliveriesDelivery.class)
-                .where(DeliveriesDelivery.JOBID.eq(jobId))
-                .selectOne(objectContext);
-        deliveriesDelivery.setIsvalid(valid);
-        deliveriesDelivery.setIsdelivered(delivered);
-        objectContext.commitChanges();                
-        logger.info("<{}> File delivered", jobId);
-        
-        // Send email to delivery organisation
-        // HTML content: https://stackoverflow.com/questions/5289849/how-do-i-send-html-email-in-spring-mvc
-        // String linkLogFile = "<a href='"+host+"/api/logs"+jobId+"'>"+jobId+"</a>";
-        if (mailEnabled) {
-            String mailSubject = resourceBundle.getString("deliveryEmailSubject").formatted(valid?"DONE":"FAILED", theme, operat);
-            String mailBody = resourceBundle.getString("deliveryEmailBody").formatted(jobId, host + "/api/logs/" + jobId, host + "/web/jobs.xhtml");
-            try {
-                emailService.send(email, mailSubject, mailBody);
-            } catch (Exception e) {
-                e.printStackTrace();
-                logger.error("<{}> Error while sending email: {}", jobId, e.getMessage());
-            }            
-        }
-    }    
+  private record ValidationStep(DeliveryRepository.Delivery rejected, IOException failure) {}
+  private record PublicationStep(DeliveryRepository.Delivery delivery, String outcome, IOException failure) {}
 }

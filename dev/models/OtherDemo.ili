@@ -1,0 +1,8 @@
+INTERLIS 2.3;
+MODEL OtherDemo AT "https://example.test" VERSION "2026-10-08" =
+  TOPIC Delivery =
+    CLASS Item =
+      name : MANDATORY TEXT*80;
+    END Item;
+  END Delivery;
+END OtherDemo.

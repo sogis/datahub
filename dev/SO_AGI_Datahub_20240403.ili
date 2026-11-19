@@ -12,7 +12,7 @@ INTERLIS 2.3;
 !!@ furtherInformation=http://geo.so.ch/models/AGI/SO_AGI_Datahub_20240301.uml
 MODEL SO_AGI_Datahub_Config_20240403 (de)
 AT "https://agi.so.ch"
-VERSION "2024-03-01"  =
+VERSION "2026-11-19"  =
 
   TOPIC Core =
 
@@ -66,6 +66,8 @@ VERSION "2024-03-01"  =
       /** Name / ID der Meta-Config-Datei, die für die Validierung verwendet wird.
        */
       metaConfig : TEXT*512;
+      /** Semicolon-separated names of permitted transfer models. */
+      expected_models : TEXT*2048;
       description : TEXT*1024;
       /** ID des Themas ist eindeutig.
        */
@@ -87,6 +89,10 @@ VERSION "2024-03-01"  =
       Theme_R -- {1} Theme;
     END Theme_Operat;
 
+    CONSTRAINTS OF Operat =
+      UNIQUE name, Theme_R;
+    END;
+
   END Core;
 
 END SO_AGI_Datahub_Config_20240403.
@@ -101,7 +107,7 @@ END SO_AGI_Datahub_Config_20240403.
 !!@ furtherInformation=http://geo.so.ch/models/AGI/SO_AGI_Datahub_20240301.uml
 MODEL SO_AGI_Datahub_Log_20240403 (de)
 AT "https://agi.so.ch"
-VERSION "2024-04-03"  =
+VERSION "2026-11-19"  =
 
   TOPIC Deliveries =
 
@@ -113,9 +119,21 @@ VERSION "2024-04-03"  =
       organisation : MANDATORY TEXT*512;
       theme : MANDATORY TEXT*512;
       operat : MANDATORY TEXT*512;
+      email : TEXT*512;
+      validator_config : TEXT*512;
+      validator_meta_config : TEXT*512;
+      expected_models : TEXT*2048;
+      processing_status : TEXT*20;
+      result_models : MTEXT;
+      transfer_version : TEXT*10;
+      validator_version : TEXT*128;
+      notification_status : TEXT*20;
+      updated_at : INTERLIS.XMLDateTime;
+      finished_at : INTERLIS.XMLDateTime;
+      artifacts_expired : BOOLEAN;
+      legacy_log : TEXT*100;
       UNIQUE jobId;
     END Delivery;
-
   END Deliveries;
 
 END SO_AGI_Datahub_Log_20240403.
