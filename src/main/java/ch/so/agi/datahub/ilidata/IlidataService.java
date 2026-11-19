@@ -32,13 +32,12 @@ public class IlidataService {
         var rows =
             jdbc.queryForList(
                 """
-                SELECT * FROM (
-                    SELECT DISTINCT ON (theme, operat) *
-                    FROM %s.deliveries_delivery
-                    WHERE isvalid AND processing_status <> 'SUPERSEDED'
-                    ORDER BY theme, operat, t_id DESC
-                ) d WHERE processing_status='DELIVERED' AND result_models IS NOT NULL
-                ORDER BY theme, operat
+                SELECT DISTINCT ON (theme, operat) *
+                FROM %s.deliveries_delivery
+                WHERE isvalid
+                  AND processing_status = 'DELIVERED'
+                  AND result_models IS NOT NULL
+                ORDER BY theme, operat, t_id DESC
                 """.formatted(p.logSchema()));
         for (var row : rows) {
           var entry =

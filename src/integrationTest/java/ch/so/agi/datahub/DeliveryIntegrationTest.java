@@ -130,6 +130,75 @@ class DeliveryIntegrationTest extends PostgresSupport {
   }
 
   @Test
+  void datasetIndexKeepsLastPublishedVersionDuringPendingAndFailedReplacement() throws Exception {
+    String previous = submit(valid());
+    deliveries.process(previous);
+    assertThat(request("/ilidata.xml", "GET", null).body()).contains(previous);
+
+    String replacement = submit(valid());
+    assertThat(request("/ilidata.xml", "GET", null).body())
+        .contains(previous).doesNotContain(replacement);
+
+    jdbc.update("UPDATE " + DELIVERIES
+        + " SET processing_status='PUBLISHING', isvalid=true,"
+        + " result_models='DatahubDemo', transfer_version='2.3' WHERE jobid=?",
+        replacement);
+    assertThat(request("/ilidata.xml", "GET", null).body())
+        .contains(previous).doesNotContain(replacement);
+
+    jdbc.update("UPDATE " + DELIVERIES + " SET processing_status='PUBLICATION_FAILED'"
+        + " WHERE jobid=?", replacement);
+    assertThat(request("/ilidata.xml", "GET", null).body())
+        .contains(previous).doesNotContain(replacement);
+
+    jdbc.update("UPDATE " + DELIVERIES
+        + " SET processing_status='PENDING', isvalid=NULL, result_models=NULL"
+        + " WHERE jobid=?", replacement);
+    deliveries.process(replacement);
+    assertThat(request("/ilidata.xml", "GET", null).body())
+        .contains(replacement).doesNotContain(previous);
+  }
+
+  @Test
+  void cleanupDeletesExpiredTerminalFailuresAndOrphansButNotQueuedRetries() throws Exception {
+    String failed = submit(valid());
+    var input = files.input(UUID.fromString(failed));
+    jdbc.update("UPDATE " + DELIVERIES
+        + " SET processing_status='PUBLICATION_FAILED', finished_at=now() - interval '4 days'"
+        + " WHERE jobid=?", failed);
+    jdbc.update("UPDATE " + JOBS + " SET state='SCHEDULED' WHERE id=?", failed);
+    var cleaner = new CleanerService(jdbc, files, properties, clock);
+    cleaner.cleanUp();
+    assertThat(input).exists();
+
+    jdbc.update("UPDATE " + JOBS + " SET state='FAILED' WHERE id=?", failed);
+    cleaner.cleanUp();
+    assertThat(input).doesNotExist();
+    assertThat(jdbc.queryForObject("SELECT artifacts_expired FROM " + DELIVERIES
+        + " WHERE jobid=?", Boolean.class, failed)).isTrue();
+
+    UUID orphan = UUID.randomUUID();
+    Path orphanDirectory = files.input(orphan).getParent();
+    Files.createDirectories(orphanDirectory);
+    Files.writeString(orphanDirectory.resolve("input.xtf"), "orphan");
+    java.nio.file.Files.setLastModifiedTime(orphanDirectory,
+        java.nio.file.attribute.FileTime.from(
+            java.time.Instant.now(clock).minus(properties.getArtifactRetention()).minusSeconds(3600)));
+    java.nio.file.Files.setLastModifiedTime(orphanDirectory.resolve("input.xtf"),
+        java.nio.file.attribute.FileTime.from(
+            java.time.Instant.now(clock).minus(properties.getArtifactRetention()).minusSeconds(3600)));
+
+    UUID recent = UUID.randomUUID();
+    Path recentDirectory = files.input(recent).getParent();
+    Files.createDirectories(recentDirectory);
+    Files.writeString(recentDirectory.resolve("input.xtf"), "recent");
+
+    cleaner.cleanUp();
+    assertThat(orphanDirectory).doesNotExist();
+    assertThat(recentDirectory).exists();
+  }
+
+  @Test
   void repairsTheEnqueueGapAndDistinguishesTechnicalFailure() throws Exception {
     String id = submit(valid());
     jdbc.update("DELETE FROM " + JOBS + " WHERE id=?", id);

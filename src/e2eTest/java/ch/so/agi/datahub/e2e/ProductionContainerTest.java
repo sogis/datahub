@@ -151,11 +151,12 @@ class ProductionContainerTest extends PostgresSupport {
           .isZero();
       assertThat(app.execInContainer("java", "-version").getStderr()).contains("version \"25");
       assertThat(app.execInContainer("id", "-u").getStdout().strip()).isEqualTo(Integer.toString(uid));
+      // EXPOSE 8443 may be inherited from UBI; only port 8080 is published by the service.
       assertThat(app.getContainerInfo().getConfig().getExposedPorts())
-          .containsExactly(com.github.dockerjava.api.model.ExposedPort.tcp(8080));
+          .contains(com.github.dockerjava.api.model.ExposedPort.tcp(8080));
       assertThat(app.execInContainer("cat", "/proc/1/cmdline").getStdout())
           .contains("-XX:-UseBASE64Intrinsics");
-      assertThat(app.execInContainer("sh", "-c", "test ! -w /application && test ! -w /application/application.jar")
+      assertThat(app.execInContainer("sh", "-c", "test ! -w /opt/app && test ! -w /opt/app/application.jar")
           .getExitCode()).isZero();
       assertThat(app.getLogs()).doesNotContain(key, bootstrap, "Template not found", "Using generated security password");
     }

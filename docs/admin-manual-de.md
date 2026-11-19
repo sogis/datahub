@@ -85,7 +85,7 @@ die Arbeits- und Zielverzeichnisse mit Gruppenrechten bereitstellen. Bei mehrere
 verwenden Web und JobRunr dieselben Volumes. Die Zielablage muss atomare Umbenennungen erlauben
 und unterschiedliche Schreibweisen und Unicode-Normalformen getrennt speichern. Das Thema
 bestimmt das Verzeichnis, das Operat den Dateinamen.
-Die separate Dateisystemstufe übernimmt UBI9 und entfernt den vom Basis-Image geerbten OCI-Port 8443. Das Image belässt die JVM-Minderung `-XX:-UseBASE64Intrinsics` für CVE-2026-114938.
+Das Dockerfile erbt direkt vom gepinnten UBI9-OpenJDK-25-Runtime-Image. Das Basisimage kann Port 8443 als OCI-Metadatum deklarieren; der Datahub-Dienst veröffentlicht nur Port 8080. Die JVM-Minderung `-XX:-UseBASE64Intrinsics` für CVE-2026-114938 bleibt erhalten.
 
 | Einstellung | Verwendung |
 | --- | --- |
@@ -125,9 +125,13 @@ bestätigt ist. Dadurch sind neu geschriebene Bytes während eines Fehlers keine
 Modellangabe im Index zugeordnet.
 
 Ergebnis-Mail ist optional. Der Versand erfolgt einmal nach Abschluss der Verarbeitung und kann
-bei einem Abbruch unmittelbar nach dem Datenbank-Commit entfallen. Der Arbeitsbereich abgeschlossener
-Lieferungen wird standardmässig nach drei Tagen bereinigt. Prüfeingaben bei technischen Fehlern
-sowie verwaiste Dateien aus unterbrochenen Uploads sind bei der Betriebsbereinigung zu sichten.
+bei einem Abbruch unmittelbar nach dem Datenbank-Commit entfallen. Arbeitsdateien werden standardmässig nach drei Tagen für alle abgeschlossenen Lieferungen
+bereinigt, einschliesslich endgültiger technischer Fehler und gescheiterter Übernahmen.
+Solange JobRunr einen noch nicht abgeschlossenen oder geplanten Versuch führt, bleibt der Input
+erhalten. Danach sind manuelle Wiederholungen nur bis zum Ablauf der Aufbewahrungsfrist
+möglich; abgelaufene Lieferungen müssen neu eingereicht werden. Verwaiste Upload-Verzeichnisse
+ohne Datenbankeintrag werden nach derselben Frist entfernt. Fachhistorie und Zieldateien
+werden nicht gelöscht.
 
 ## GDI-Infrastruktur
 
