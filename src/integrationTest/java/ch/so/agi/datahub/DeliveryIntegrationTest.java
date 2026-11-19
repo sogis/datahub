@@ -153,7 +153,19 @@ class DeliveryIntegrationTest extends PostgresSupport {
     jdbc.update("UPDATE " + DELIVERIES + " SET finished_at=now() - interval '4 days' WHERE jobid=?", valid);
     assertThat(request("/api/logs/" + valid, "GET", null).statusCode()).isEqualTo(410);
     assertThat(request("/api/jobs/" + valid, "GET", null).body()).contains("Log retention expired");
-    new CleanerService(jdbc, files, properties, clock).cleanUp();
+    Path staleStage = Files.writeString(TARGET.resolveSibling(".datahub-" + valid + "-42.tmp"), "staged");
+    Path recoveryCopy = Files.writeString(TARGET.resolveSibling(".datahub-" + dtd + "-42.tmp"), "retained");
+    var oldFileTime = java.nio.file.attribute.FileTime.from(java.time.Instant.now(clock).minusSeconds(4 * 86400));
+    Files.setLastModifiedTime(staleStage, oldFileTime);
+    Files.setLastModifiedTime(recoveryCopy, oldFileTime);
+    try {
+      new CleanerService(jdbc, files, properties, clock).cleanUp();
+      assertThat(staleStage).doesNotExist();
+      assertThat(recoveryCopy).exists();
+    } finally {
+      Files.deleteIfExists(staleStage);
+      Files.deleteIfExists(recoveryCopy);
+    }
     assertThat(Files.exists(files.input(UUID.fromString(valid)))).isFalse();
     assertThat(Files.readString(TARGET)).isEqualTo(valid());
   }
@@ -244,6 +256,8 @@ class DeliveryIntegrationTest extends PostgresSupport {
     String interrupted = submit(valid());
     jdbc.update("UPDATE " + JOBS + " SET state='FAILED',"
         + " updatedat=(now() AT TIME ZONE 'UTC') - interval '4 days' WHERE id=?", interrupted);
+    assertThat(json.readTree(request("/api/jobs/" + interrupted, "GET", null).body())
+        .get("deliveryStatus").asText()).isEqualTo("FAILED");
     cleaner.cleanUp();
     assertThat(status(interrupted)).isEqualTo("FAILED");
     assertThat(files.input(UUID.fromString(interrupted))).doesNotExist();

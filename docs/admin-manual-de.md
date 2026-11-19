@@ -200,7 +200,10 @@ erneut einreichen.
 Ergebnis-Mail ist optional. Der Versand erfolgt nach dem Datenbank-Commit und kann bei einem
 Abbruch in diesem Zeitfenster entfallen. Cleanup entfernt Arbeitsdateien nach der Aufbewahrungsfrist
 und überspringt laufende und geplante JobRunr-Versuche. Endgültige Fehler und verwaiste Uploads
-werden ebenfalls bereinigt. Lieferungshistorie und veröffentlichte Lieferungsdateien bleiben erhalten.
+werden ebenfalls bereinigt. Verwaiste temporäre Dateien im Zielverzeichnis werden für bestätigte
+oder überholte Lieferungen nach der Aufbewahrungsfrist entfernt. Bei endgültig fehlgeschlagenen
+Übernahmen verbleiben Wiederherstellungskopien bis zur manuellen Prüfung.
+Lieferungshistorie und veröffentlichte Lieferungsdateien bleiben erhalten.
 
 ## GDI-Infrastruktur
 

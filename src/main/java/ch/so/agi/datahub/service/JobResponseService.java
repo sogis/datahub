@@ -76,17 +76,17 @@ public class JobResponseService {
           SELECT d.*, CASE
             WHEN processing_status IN ('PENDING','PUBLISHING','FAILED','PUBLICATION_FAILED')
               AND j.state IN ('ENQUEUED','PROCESSING','SCHEDULED') THEN j.state
-            WHEN processing_status='PENDING' THEN COALESCE(j.state,'ENQUEUED')
-            WHEN processing_status='PUBLISHING' THEN COALESCE(j.state,'ENQUEUED')
+            WHEN processing_status IN ('PENDING','PUBLISHING') THEN COALESCE(j.state,'ENQUEUED')
             WHEN processing_status IN ('FAILED','PUBLICATION_FAILED') THEN 'FAILED'
             ELSE 'SUCCEEDED'
           END AS execution_status,
           CASE WHEN isvalid THEN 'DONE' WHEN NOT isvalid THEN 'FAILED' END AS validation_status,
-          CASE processing_status
-            WHEN 'PENDING' THEN 'WAITING'
-            WHEN 'INVALID' THEN 'SKIPPED'
-            WHEN 'PUBLICATION_FAILED' THEN 'FAILED'
-            WHEN 'PUBLISHING' THEN 'PENDING'
+          CASE
+            WHEN processing_status IN ('PENDING','PUBLISHING') AND j.state IN ('FAILED','DELETED') THEN 'FAILED'
+            WHEN processing_status='PENDING' THEN 'WAITING'
+            WHEN processing_status='INVALID' THEN 'SKIPPED'
+            WHEN processing_status='PUBLICATION_FAILED' THEN 'FAILED'
+            WHEN processing_status='PUBLISHING' THEN 'PENDING'
             ELSE processing_status
           END AS publication_status
           FROM %s.deliveries_delivery d

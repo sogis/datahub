@@ -72,10 +72,11 @@ public class DeliveryFiles {
     }
     var directory = file.getParent();
     sync(directory.getParent());
-    try (var stagedInput = stage(input(id), directory);
-         var stagedLog = stage(log(id), directory);
-         var previousInput = backup(file);
-         var previousLog = backup(result)) {
+    String prefix = ".datahub-" + id + "-";
+    try (var stagedInput = stage(input(id), directory, prefix);
+         var stagedLog = stage(log(id), directory, prefix);
+         var previousInput = backup(file, prefix);
+         var previousLog = backup(result, prefix)) {
       replace(stagedLog, result);
       boolean replacedInput = false;
       try {
@@ -95,8 +96,8 @@ public class DeliveryFiles {
     }
   }
 
-  private static StagedFile backup(Path target) throws IOException {
-    return Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) ? stage(target, target.getParent()) : null;
+  private static StagedFile backup(Path target, String prefix) throws IOException {
+    return Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) ? stage(target, target.getParent(), prefix) : null;
   }
 
   private static void restore(StagedFile previous, Path target, Exception failure) {
@@ -133,20 +134,20 @@ public class DeliveryFiles {
   }
 
   static void atomicCopy(InputStream source, Path target) throws IOException {
-    try (var staged = stage(source, target.getParent())) {
+    try (var staged = stage(source, target.getParent(), ".datahub-")) {
       replace(staged, target);
       sync(target.getParent());
     }
   }
 
-  private static StagedFile stage(Path source, Path directory) throws IOException {
+  private static StagedFile stage(Path source, Path directory, String prefix) throws IOException {
     try (var input = Files.newInputStream(source, LinkOption.NOFOLLOW_LINKS)) {
-      return stage(input, directory);
+      return stage(input, directory, prefix);
     }
   }
 
-  private static StagedFile stage(InputStream source, Path directory) throws IOException {
-    var temp = Files.createTempFile(directory, ".datahub-", ".tmp");
+  private static StagedFile stage(InputStream source, Path directory, String prefix) throws IOException {
+    var temp = Files.createTempFile(directory, prefix, ".tmp");
     try {
       try (var output = Files.newOutputStream(temp)) {
         source.transferTo(output);

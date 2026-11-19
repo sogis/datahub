@@ -2,10 +2,12 @@ package ch.so.agi.datahub.service;
 
 import ch.so.agi.datahub.config.AppProperties;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(name = "app.cleanerEnabled", havingValue = "true")
 public class CleanerService {
   private static final Logger log = LoggerFactory.getLogger(CleanerService.class);
+  private static final Pattern TARGET_STAGING = Pattern.compile(
+      "\\.datahub-([a-f0-9-]{36})-[0-9]+\\.tmp");
   private final JdbcTemplate jdbc;
   private final DeliveryFiles files;
   private final AppProperties properties;
@@ -61,6 +65,33 @@ public class CleanerService {
       }
     }
     cleanUnclaimedDirectories(table);
+    cleanPublishedStaging(table);
+  }
+
+  private void cleanPublishedStaging(String table) {
+    Path root = Path.of(properties.getTargetDirectory());
+    if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return;
+    var cutoff = Instant.now(clock).minus(properties.getArtifactRetention());
+    try (var files = Files.find(root, 2, (path, attrs) -> attrs.isRegularFile()
+        && attrs.lastModifiedTime().toInstant().isBefore(cutoff))) {
+      files.forEach(path -> {
+        var name = TARGET_STAGING.matcher(path.getFileName().toString());
+        if (root.relativize(path).getNameCount() != 2 || !name.matches()) return;
+        var published = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM " + table
+            + " WHERE jobid=? AND processing_status IN ('DELIVERED','SUPERSEDED'))",
+            Boolean.class, name.group(1));
+        // A failed publication may still need this copy as its only recovery source.
+        if (Boolean.TRUE.equals(published)) {
+          try {
+            Files.deleteIfExists(path);
+          } catch (IOException e) {
+            log.warn("Could not remove obsolete staging file {}", path, e);
+          }
+        }
+      });
+    } catch (IOException | UncheckedIOException e) {
+      log.warn("Could not inspect publication staging files", e);
+    }
   }
 
   private void cleanUnclaimedDirectories(String table) {
