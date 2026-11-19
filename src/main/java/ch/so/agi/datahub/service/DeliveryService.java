@@ -126,18 +126,18 @@ public class DeliveryService {
       var delivery = deliveries.lock(id);
       if (delivery == null || !delivery.needsPublication()) return null;
       deliveries.lockTarget(delivery);
-      try {
-        String outcome = "SUPERSEDED";
-        if (!deliveries.hasNewerPublication(delivery)) {
+      boolean superseded = deliveries.hasNewerPublication(delivery);
+      if (!superseded) {
+        try {
           files.publish(jobId, delivery.theme(), delivery.operat());
-          outcome = "DELIVERED";
+        } catch (IOException | RuntimeException e) {
+          deliveries.complete(id, "PUBLICATION_FAILED");
+          return new PublicationStep(null, null, new IOException("Could not publish delivery " + id, e));
         }
-        deliveries.complete(id, outcome);
-        return new PublicationStep(delivery, outcome, null);
-      } catch (IOException e) {
-        deliveries.complete(id, "PUBLICATION_FAILED");
-        return new PublicationStep(null, null, e);
       }
+      String outcome = superseded ? "SUPERSEDED" : "DELIVERED";
+      deliveries.complete(id, outcome);
+      return new PublicationStep(delivery, outcome, null);
     });
     if (publication != null) {
       if (publication.failure() != null) throw publication.failure();

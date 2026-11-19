@@ -191,8 +191,9 @@ vor älteren Jobs. Der Index folgt der letzten bestätigten Publikation mit Mode
 
 Dateisystem und Datenbank haben getrennte Commit-Grenzen. Bei einem Prozessabbruch zwischen
 Dateitausch und Datenbank-Commit können Index und Dateien vorübergehend unterschiedliche Stände
-zeigen. Derselbe Job schreibt beim Wiederanlauf beide Dateien erneut. Bei wiederholten
-Speicherfehlern den Zustand von Transfer, Protokoll und Index nach Behebung der Ursache prüfen.
+zeigen. Solange JobRunr einen Versuch ausführt oder einen Retry plant, kann es beide Dateien
+erneut schreiben. Nach ausgeschöpften Wiederholungen die Ursache beheben und den Job im
+Dashboard erneut ausführen. Transfer, Protokoll und Index anschliessend vergleichen.
 Falls die Eingabe inzwischen abgelaufen ist, die Lieferung aus einer gesicherten Transferdatei
 erneut einreichen.
 

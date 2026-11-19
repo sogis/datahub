@@ -82,12 +82,12 @@ public class DeliveryFiles {
         replace(stagedInput, file);
         replacedInput = true;
         sync(directory);
-      } catch (IOException failure) {
+      } catch (IOException | RuntimeException failure) {
         if (replacedInput) restore(previousInput, file, failure);
         restore(previousLog, result, failure);
         try {
           sync(directory);
-        } catch (IOException rollback) {
+        } catch (IOException | RuntimeException rollback) {
           failure.addSuppressed(rollback);
         }
         throw failure;
@@ -99,11 +99,11 @@ public class DeliveryFiles {
     return Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) ? stage(target, target.getParent()) : null;
   }
 
-  private static void restore(StagedFile previous, Path target, IOException failure) {
+  private static void restore(StagedFile previous, Path target, Exception failure) {
     try {
       if (previous == null) Files.deleteIfExists(target);
       else replace(previous, target);
-    } catch (IOException rollback) {
+    } catch (IOException | RuntimeException rollback) {
       if (previous != null) {
         previous.keep = true;
         log.error("Could not restore {}; retained backup at {}", target, previous.path);
@@ -116,16 +116,16 @@ public class DeliveryFiles {
     if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       Files.createDirectory(path, PosixFilePermissions.asFileAttribute(
           PosixFilePermissions.fromString("rwxrwxr-x")));
-      // The process umask can mask group write even when supplied at creation.
-      // Set only the missing bit, preserving the group inherited from a setgid mount.
-      var permissions = Files.getPosixFilePermissions(path);
-      if (!permissions.contains(PosixFilePermission.GROUP_WRITE)) {
-        if (path.getFileSystem().supportedFileAttributeViews().contains("unix")) {
-          Files.setAttribute(path, "unix:mode", (int) Files.getAttribute(path, "unix:mode") | 0020);
-        } else {
-          permissions.add(PosixFilePermission.GROUP_WRITE);
-          Files.setPosixFilePermissions(path, permissions);
-        }
+      // Restore group access masked by umask, keeping an inherited setgid bit.
+      if (path.getFileSystem().supportedFileAttributeViews().contains("unix")) {
+        int mode = (int) Files.getAttribute(path, "unix:mode");
+        if ((mode & 0070) != 0070) Files.setAttribute(path, "unix:mode", mode | 0070);
+      } else {
+        var permissions = Files.getPosixFilePermissions(path);
+        permissions.add(PosixFilePermission.GROUP_READ);
+        permissions.add(PosixFilePermission.GROUP_WRITE);
+        permissions.add(PosixFilePermission.GROUP_EXECUTE);
+        Files.setPosixFilePermissions(path, permissions);
       }
     } else {
       Files.createDirectory(path);
