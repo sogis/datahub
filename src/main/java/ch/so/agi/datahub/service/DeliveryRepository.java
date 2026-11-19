@@ -34,7 +34,8 @@ public class DeliveryRepository {
 
   List<String> unqueued() {
     return jdbc.queryForList("SELECT d.jobid FROM " + table + " d"
-        + " WHERE d.processing_status IN ('PENDING','PUBLISHING') AND NOT EXISTS"
+        + " WHERE d.processing_status IN ('PENDING','PUBLISHING') AND d.artifacts_expired IS NOT TRUE"
+        + " AND NOT EXISTS"
         + " (SELECT 1 FROM " + jobs + " j WHERE j.id=d.jobid::char(36)) ORDER BY d.t_id LIMIT 50",
         String.class);
   }
@@ -57,7 +58,7 @@ public class DeliveryRepository {
 
   boolean hasNewerPublication(Delivery delivery) {
     return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM " + table
-        + " WHERE t_id>? AND isvalid AND theme=? AND operat=?)",
+        + " WHERE t_id>? AND processing_status='DELIVERED' AND theme=? AND operat=?)",
         Boolean.class, delivery.sequence(), delivery.theme(), delivery.operat()));
   }
 

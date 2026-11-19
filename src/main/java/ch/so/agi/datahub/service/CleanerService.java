@@ -12,18 +12,22 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @ConditionalOnProperty(name = "app.cleanerEnabled", havingValue = "true")
 public class CleanerService {
   private static final Logger log = LoggerFactory.getLogger(CleanerService.class);
   private final JdbcTemplate jdbc;
+  private final TransactionTemplate transactions;
   private final DeliveryFiles files;
   private final AppProperties properties;
   private final Clock clock;
 
-  public CleanerService(JdbcTemplate jdbc, DeliveryFiles files, AppProperties properties, Clock clock) {
+  public CleanerService(JdbcTemplate jdbc, TransactionTemplate transactions, DeliveryFiles files,
+      AppProperties properties, Clock clock) {
     this.jdbc = jdbc;
+    this.transactions = transactions;
     this.files = files;
     this.properties = properties;
     this.clock = clock;
@@ -33,18 +37,39 @@ public class CleanerService {
   public void cleanUp() {
     var table = properties.logSchema() + ".deliveries_delivery";
     var jobs = properties.jobSchema() + ".jobrunr_jobs";
-    for (String id : jdbc.queryForList("SELECT d.jobid FROM " + table
-        + " d WHERE d.finished_at<? AND d.artifacts_expired IS NOT TRUE"
-        + " AND d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED','FAILED','PUBLICATION_FAILED')"
-        + " AND (d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED')"
-        + " OR NOT EXISTS (SELECT 1 FROM " + jobs + " j WHERE j.id=d.jobid::char(36)"
-        + " AND j.state NOT IN ('SUCCEEDED','FAILED','DELETED')))",
-        String.class, properties.artifactCutoff(clock))) {
+    var eligible = """
+        FROM %s d LEFT JOIN %s j ON j.id=d.jobid::char(36)
+        WHERE d.artifacts_expired IS NOT TRUE
+          AND (j.state IS NULL OR j.state IN ('SUCCEEDED','FAILED','DELETED'))
+          AND COALESCE(d.finished_at,
+                CASE WHEN j.state IN ('FAILED','DELETED')
+                  THEN timezone(?, j.updatedat AT TIME ZONE 'UTC') END) < ?
+        """.formatted(table, jobs);
+    var zone = clock.getZone().getId();
+    var cutoff = properties.artifactCutoff(clock);
+    for (String id : jdbc.queryForList("SELECT d.jobid " + eligible, String.class, zone, cutoff)) {
       try {
-        files.delete(UUID.fromString(id));
-        jdbc.update("UPDATE " + table + " SET artifacts_expired=true WHERE jobid=?", id);
-      } catch (IOException | IllegalArgumentException e) {
-        log.warn("Could not clean up artifacts for delivery {}", id, e);
+        transactions.executeWithoutResult(status -> {
+          // A retry holding this lock owns the input. Recheck eligibility after the initial scan.
+          if (jdbc.queryForList("SELECT d.jobid " + eligible + " AND d.jobid=? FOR UPDATE OF d SKIP LOCKED",
+              String.class, zone, cutoff, id).isEmpty()) return;
+          try {
+            files.delete(UUID.fromString(id));
+          } catch (IOException | IllegalArgumentException e) {
+            log.warn("Could not clean up artifacts for delivery {}", id, e);
+            return;
+          }
+          jdbc.update("""
+              UPDATE %s SET artifacts_expired=true,
+                processing_status=CASE processing_status
+                  WHEN 'PENDING' THEN 'FAILED'
+                  WHEN 'PUBLISHING' THEN 'PUBLICATION_FAILED'
+                  ELSE processing_status END
+              WHERE jobid=?
+              """.formatted(table), id);
+        });
+      } catch (org.springframework.dao.DataAccessException e) {
+        log.warn("Could not record cleanup for delivery {}", id, e);
       }
     }
     cleanOrphans(table);

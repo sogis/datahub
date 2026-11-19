@@ -2,67 +2,96 @@
 
 ## Neue Datenbank
 
-`./gradlew generateSchema` erzeugt aus dem INTERLIS-Modell die SQL-Dateien
-`build/schema/config.sql` und `build/schema/log.sql`. Als Schema-Owner in der leeren Datenbank
-anwenden und das Schema für JobRunr anlegen.
+Die Befehle in diesem Handbuch werden im Repository-Root ausgeführt. Für `psql` die
+Zieldatenbank und den Schema-Owner über `PGHOST`, `PGPORT`, `PGDATABASE` und `PGUSER`
+festlegen. Die Zugangsdaten über eine geschützte Passwortdatei (`PGPASSFILE`, Modus 0600)
+oder ein anderes in PostgreSQL eingerichtetes Verfahren bereitstellen. Die Beispiele verwenden
+die drei Standardschemas.
+
+Die Datenbankadministration legt vorab die Gruppenrolle `datahub` an und weist sie der
+Laufzeitidentität zu. Der Schema-Owner benötigt das Recht, Schemas in der Datenbank anzulegen.
+`./gradlew generateSchema` erzeugt `build/schema/config.sql` und `build/schema/log.sql`.
+Die Konfigurations-DDL enthält zusätzlich den zusammengesetzten Operat-Index aus
+`sql/operat-unique.sql`, den ili2pg 5.5.2 für die INTERLIS-Regel mit einer Beziehung nicht erzeugt.
 
 ```sh
+./gradlew generateSchema
 psql -X -v ON_ERROR_STOP=1 -f build/schema/config.sql -f build/schema/log.sql \
   -c 'CREATE SCHEMA agi_datahub_jobrunr_v1'
 ```
 
-Mit dem JobRunr-8.8.2-Artefakt und dessen Runtime-Abhängigkeiten auf dem Klassenpfad den
-[JobRunr-Tabellenersteller](https://www.jobrunr.io/en/documentation/installation/storage/)
-einmal offline aufrufen. `JOBRUNR_CLASSPATH` enthält auch den PostgreSQL-Treiber.
+Für Neuinstallation und Upgrade den JobRunr-Tabellenersteller offline mit den Bibliotheken
+der zu installierenden Datahub-Version aufrufen. Dazu das ausführbare Release-JAR
+(`DATAHUB_JAR`) verwenden. Das JAR liegt im Image unter `/opt/app/application.jar` und
+kann mit `docker create` und `docker cp` entnommen werden. Aus dem passenden Commit
+erzeugt `./gradlew bootJar` das JAR unter `build/libs/*-exec.jar`. `JDBC_URL` für dieselbe Datenbank
+setzen, etwa `jdbc:postgresql://db.example:5432/datahub`. `SCHEMA_OWNER_PASSWORD` aus dem
+Secret-Speicher laden. Da Java das Passwort als Prozessargument erhält, den Befehl in einer
+geschützten Betriebssitzung ohne Shell-Tracing ausführen.
 
 ```sh
+JOBRUNR_LIBDIR=$(mktemp -d)
+unzip -q "$DATAHUB_JAR" 'BOOT-INF/lib/*' -d "$JOBRUNR_LIBDIR"
+JOBRUNR_CLASSPATH="$JOBRUNR_LIBDIR/BOOT-INF/lib/*"
 java -cp "$JOBRUNR_CLASSPATH" org.jobrunr.storage.sql.common.DatabaseCreator \
-  "$JDBC_URL" "$SCHEMA_OWNER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
+  "$JDBC_URL" "$PGUSER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
 psql -X -v ON_ERROR_STOP=1 -f sql/grants.sql
 ```
 
-Die Rolle `datahub` vor der Rechtevergabe anlegen und die Laufzeitidentität Mitglied dieser Rolle
-machen. Der Betriebsuser der Anwendung benötigt DML und Sequenzzugriff. Das [JobRunr-Dashboard](https://www.jobrunr.io/en/documentation/deployment/) läuft
-bei Aktivierung auf einem eigenen internen Port, standardmässig 8000. Dafür
-`JOBRUNR_DASHBOARD_ENABLED=true`, `JOBRUNR_DASHBOARD_USER` und `JOBRUNR_DASHBOARD_PWD`
-mit eigenen Zugangsdaten setzen. Der öffentliche Dienst exponiert Port 8080. Die JobRunr-Tabellen werden vor dem Anwendungsstart eingerichtet.
+`sql/grants.sql` erteilt der Rolle `datahub` Zugriff auf Tabellen und Sequenzen. Die bereits
+vorhandene optionale Rolle `datahub_read` erhält Zugriff auf die JobRunr-Statistik. Vor dem
+Anwendungsstart müssen die JobRunr-Tabellen vorhanden sein.
 
 ## Bestehende Datenbank aktualisieren
 
-Dieser Ablauf gilt für die Standardschemas aus `main` oder dem bisherigen Modernisierungsbranch.
-Auf einer Wiederherstellungskopie proben. Den Export von Konfiguration und Lieferungshistorie,
-die installierte PostGIS-Erweiterung und doppelte Thema-Operat-Paare vor dem Wechsel prüfen.
+Dieser einmalige Ablauf gilt für den historischen Datahub vor der Modernisierung
+(Referenz `7df15c5`, `sql/setup_gdi.sql`) und für Installationen des damaligen
+Modernisierungsbranches vor R0. Auf einer Wiederherstellungskopie proben.
+Doppelte Organisations- oder Themennamen und doppelte Operatnamen innerhalb eines Themas
+vor dem Wechsel fachlich bereinigen. API-Keys und Operate müssen auf vorhandene
+Organisationen verweisen, Operate zudem auf vorhandene Themen. Ein Fehler beim Anlegen
+eines eindeutigen Indexes oder Fremdschlüssels bricht die SQL-Transaktion ab.
+
+Enthält die Installation bereits die Spalte `deliveries_delivery.processing_status`, wurde
+das R0-Schema eingerichtet. Auf einer bereits modernisierten Neuinstallation genügt für die
+Operat-Eindeutigkeit `psql -X -v ON_ERROR_STOP=1 -f sql/operat-unique.sql` als Schema-Owner.
 
 1. Annahme am Gateway pausieren, laufende Lieferungen vollständig abarbeiten und die bisherige
-   Anwendung samt Workern stoppen. Bestehende JobRunr-Zeitpläne und fehlgeschlagene Altläufe sichten.
+   Anwendung samt Workern und Cleanup stoppen. Historische JobRunr-Zeitpläne entfernen und
+   fehlgeschlagene Altläufe sichten.
 2. Einen vollständigen `pg_dump -Fc`, die Rollendefinitionen und konsistente Sicherungen der Arbeits-
    und Zielablage erstellen. Alte Image-Referenz, Konfiguration und den Wiederherstellungspunkt
    festhalten.
 3. `psql -X -v ON_ERROR_STOP=1 -f sql/upgrade-r0.sql` als Schema-Owner ausführen. Das Skript
-   prüft, ob die Jobs abgearbeitet sind, erhält Lieferungen, Key-Hashes und Widerrufszeitpunkte.
+   lädt `operat-unique.sql` aus demselben Verzeichnis, prüft den Jobbestand und lehnt einen
+   zweiten Lauf ab. Lieferungen, Key-Hashes und Widerrufszeitpunkte bleiben erhalten.
    Früher unvollständig ausgestellte Keys werden gesperrt. Vorhandene XTF-Dateien bleiben am
    bisherigen Ort. Für modernisierte Lieferungen bleiben die Protokollpfade und die einfachen
    Modell- und Validatorangaben erhalten.
 4. Die Modellmetadaten mit ili2pg 5.5.2 neu registrieren und danach JobRunr offline mit dem oben
-   beschriebenen Tabellenersteller aktualisieren. Bei Installationen von `main` enthält das
-   Upgrade-SQL die Einträge für bereits vorhandene JobRunr-Tabellen. Erst der Tabellenersteller
-   wendet die noch ausstehende Bibliotheksmigration an.
+   beschriebenen Tabellenersteller aktualisieren. Das SQL registriert die bereits vorhandenen
+   historischen JobRunr-Tabellen im Migrationsjournal. Der Tabellenersteller spielt die
+   ausstehenden Bibliotheksmigrationen ein. `ILI2PG_JAR` ist das JAR aus der entpackten
+   ili2pg-5.5.2-Distribution samt benachbartem `libs/`. Die Verbindungswerte stammen aus
+   derselben Betriebssitzung wie im Abschnitt für neue Datenbanken.
 
    ```sh
    for spec in Config:config Log:log; do
-     java -jar "$ILI2PG_JAR" --schemaimport --dbparams "$ILI2PG_DBPARAMS" \
+     java -jar "$ILI2PG_JAR" --schemaimport \
+       --dbhost "$PGHOST" --dbport "$PGPORT" --dbdatabase "$PGDATABASE" \
+       --dbusr "$PGUSER" --dbpwd "$SCHEMA_OWNER_PASSWORD" \
        --modeldir dev --models "SO_AGI_Datahub_${spec%:*}_20240403" \
        --dbschema "agi_datahub_${spec#*:}_v1" --nameByTopic --createFk --createFkIdx \
        --createUnique --createImportTabs --createMetaInfo || exit 1
    done
    java -cp "$JOBRUNR_CLASSPATH" org.jobrunr.storage.sql.common.DatabaseCreator \
-     "$JDBC_URL" "$SCHEMA_OWNER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
+     "$JDBC_URL" "$PGUSER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
    psql -X -v ON_ERROR_STOP=1 -f sql/grants.sql
    ```
 
 5. In `core_theme.expected_models` je Thema die zulässigen Modellnamen mit Semikolon trennen.
    Bestehende Themen ohne Modellliste bleiben gespeichert, bis zur Pflege pausiert ihre Annahme.
-   Altdateien aus `main` ohne Modellnachweis sind direkt abrufbar. Eine neue gültige Lieferung
+   Transferdateien des historischen Datahub ohne Modellnachweis sind direkt abrufbar. Eine neue gültige Lieferung
    nimmt das Dataset in `ilidata.xml` auf.
 6. Das neue Image starten und zunächst bei pausierter Annahme Health, einen bestehenden Key,
    öffentliche Historie und Protokolle prüfen. Danach Annahme öffnen und eine kontrollierte
@@ -81,11 +110,15 @@ gezielt erneut einreichen.
 OpenJDK 25 und startet mit `1001:0`. Unter OpenShift kann eine zufällige UID mit Gruppe 0 verwendet
 werden. Das Root-Dateisystem kann schreibgeschützt bleiben. Zwei persistente Volumes an `/work` und
 `/datahub` sowie ein beschreibbares temporäres Dateisystem an `/tmp` mounten. Die Volumes müssen
-die Arbeits- und Zielverzeichnisse mit Gruppenrechten bereitstellen. Bei mehreren Instanzen
-verwenden Web und JobRunr dieselben Volumes. Die Zielablage muss atomare Umbenennungen erlauben
+die Arbeits- und Zielverzeichnisse mit Gruppe 0 und Gruppen-Schreibrecht bereitstellen.
+Bei mehreren Instanzen verwenden Web und JobRunr dieselben Volumes. Bereits existierende
+Arbeits- und Themenverzeichnisse vor dem Start mit abweichenden UIDs ebenfalls mit diesen
+Gruppenrechten versehen. Die Zielablage muss atomare Umbenennungen erlauben
 und unterschiedliche Schreibweisen und Unicode-Normalformen getrennt speichern. Das Thema
 bestimmt das Verzeichnis, das Operat den Dateinamen.
-Das Dockerfile erbt direkt vom gepinnten UBI9-OpenJDK-25-Runtime-Image. Das Basisimage kann Port 8443 als OCI-Metadatum deklarieren; der Datahub-Dienst veröffentlicht nur Port 8080. Die JVM-Minderung `-XX:-UseBASE64Intrinsics` für CVE-2026-114938 bleibt erhalten.
+Das Dockerfile erbt direkt vom gepinnten UBI9-OpenJDK-25-Runtime-Image. Das Basisimage kann Port 8443 als OCI-Metadatum deklarieren; der Datahub-Dienst veröffentlicht nur Port 8080. Das gepinnte Image enthält auf amd64 und arm64 das RPM `25.0.5.0.8-1.0.el9`. Red Hat nennt
+`25.0.5.1.2-1.1.el9` als korrigierten Stand. Deshalb bleibt die JVM-Minderung
+`-XX:-UseBASE64Intrinsics` aktiv. [Red Hat Security Advisory RHSA-2026:100571](https://access.redhat.com/errata/RHSA-2026:100571)
 
 | Einstellung | Verwendung |
 | --- | --- |
@@ -94,16 +127,33 @@ Das Dockerfile erbt direkt vom gepinnten UBI9-OpenJDK-25-Runtime-Image. Das Basi
 | `WORK_DIRECTORY`, `TARGET_DIRECTORY` | Arbeits- und Zielablage, im Image `/work` und `/datahub` |
 | `PREFERRED_ILI_REPO`, `PUBLIC_BASE_URL` | INTERLIS-Repository und öffentliche HTTPS-URL |
 | `ACCEPT_DELIVERIES` | Annahme vor Wartungsfenstern pausieren |
+| `JOBRUNR_SERVER_ENABLED` | Standard `true`. Auf einem Web-Pod ohne Verarbeitung auf `false` setzen |
+| `CLEANER_ENABLED`, `APP_ARTIFACTRETENTION` | Bereinigung aktivieren und Aufbewahrungsdauer setzen, Standard `true` und 3 Tage |
 | `JOBRUNR_WORKER_COUNT` | Standard 1. Bei mehr Workern JDBC-Pool und Validator-Last berücksichtigen |
 | `MAIL_ENABLED`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_FROM` | Optionaler SMTP-Versand für Ergebnisse |
 | `ADMIN_KEY_FILE` | Pfad zu einer einmalig eingehängten Bootstrap-Secret-Datei |
 
-Das Gateway terminiert HTTPS und setzt vertrauenswürdige Forwarded-Header. Direkter Zugriff auf
-Port 8080 gehört ins interne Netz. Der Bootstrap einer leeren Installation findet mit einer
-Instanz statt. Zwei zufällige UUIDs als `KEY_ID.SECRET` im Secret-Speicher ablegen. Die Datei mit
+Ein separater Worker verwendet `JOBRUNR_SERVER_ENABLED=true` und kann mit
+`SPRING_MAIN_WEB_APPLICATION_TYPE=none` ohne HTTP-Dienst starten. Web und Worker benötigen
+dieselbe Datenbank-, Schema-, Ablage- und Modellkonfiguration. Cleanup kann auf einer
+Instanz laufen. Der JobRunr-Tabellenersteller bleibt ein separater Wartungsschritt.
+OpenShift-Mounts, UID/Gruppenrechte und Netzwerkregeln sind im Zielcluster abzunehmen.
+
+Das Gateway terminiert HTTPS, entfernt vom Client gesetzte Forwarded-Header und setzt die
+eigenen Header. Direkter Zugriff auf Port 8080 gehört ins interne Netz. Die öffentliche
+Basis-URL mit `PUBLIC_BASE_URL` setzen. `/actuator/health`, `/actuator/health/liveness` und
+`/actuator/health/readiness` dienen den HTTP-Probes am Web-Pod. `/ping` prüft nur die
+Erreichbarkeit des HTTP-Servers. Der SMTP-Check läuft bei aktiviertem Mailversand.
+Anwendungslogs gehen auf Standardausgabe. Zugangsdaten
+gehören weder in URLs noch in Gateway- oder Header-Logging. Das optionale JobRunr-Dashboard
+mit `JOBRUNR_DASHBOARD_ENABLED=true`, `JOBRUNR_DASHBOARD_USER` und `JOBRUNR_DASHBOARD_PWD`
+auf einem internen Port (Standard 8000) betreiben.
+
+Der Bootstrap einer leeren Installation findet mit einer Instanz statt. Zwei zufällige UUIDs als `KEY_ID.SECRET` im Secret-Speicher ablegen. Die Datei mit
 restriktiven Leserechten für die Laufzeitidentität an `ADMIN_KEY_FILE` bereitstellen. Mit
 `ADMIN_ACCOUNT_NAME` und `ADMIN_ACCOUNT_MAIL` bei Bedarf die Organisation konfigurieren.
-Existiert bereits eine Admin-Organisation, überspringt der Start die Anlage. Nach dem ersten
+Existiert bereits eine Admin-Organisation oder eine Organisation unter demselben Namen,
+überspringt der Start die Anlage. Nach dem ersten
 erfolgreichen administrativen Zugriff die Bootstrap-Datei aus der Deployment-Konfiguration nehmen.
 
 ## Verarbeitung und Wiederherstellung
@@ -116,22 +166,29 @@ Ursache im internen Dashboard über denselben Job erneut angestossen werden. Die
 Jobs aus Versionen vor R0 bleiben als Historie erhalten. Eine fehlgeschlagene Altlieferung bei
 Bedarf mit der gesicherten Transferdatei neu einreichen.
 
-Vor der Übernahme speichert Datahub die Freigabeabsicht. PostgreSQL serialisiert die Übernahme
-für identische Zielpfade. Datahub legt beide Dateien vollständig bereit und ersetzt dann das
-Protokoll und zuletzt den Transfer atomar. Scheitert der letzte Dateitausch, stellt Datahub das
-bisherige Protokoll wieder her. Nach einem Prozessabbruch zwischen den Umbenennungen stellt
-derselbe Job das Paar erneut her. Der Datenindex enthält das Ziel wieder, sobald die Übernahme
-bestätigt ist. Dadurch sind neu geschriebene Bytes während eines Fehlers keiner älteren
-Modellangabe im Index zugeordnet.
+Während der Validierung hält die Anwendung eine PostgreSQL-Transaktion mit einer Sperre
+auf genau der Lieferungszeile. Damit erzeugt eine doppelte Ausführung keine konkurrierenden
+Prüfprotokolle. Lange Validierungen belegen jeweils eine Verbindung. Workerzahl und JDBC-Pool
+entsprechend dimensionieren.
 
-Ergebnis-Mail ist optional. Der Versand erfolgt einmal nach Abschluss der Verarbeitung und kann
-bei einem Abbruch unmittelbar nach dem Datenbank-Commit entfallen. Arbeitsdateien werden standardmässig nach drei Tagen für alle abgeschlossenen Lieferungen
-bereinigt, einschliesslich endgültiger technischer Fehler und gescheiterter Übernahmen.
-Solange JobRunr einen noch nicht abgeschlossenen oder geplanten Versuch führt, bleibt der Input
-erhalten. Danach sind manuelle Wiederholungen nur bis zum Ablauf der Aufbewahrungsfrist
-möglich; abgelaufene Lieferungen müssen neu eingereicht werden. Verwaiste Upload-Verzeichnisse
-ohne Datenbankeintrag werden nach derselben Frist entfernt. Fachhistorie und Zieldateien
-werden nicht gelöscht.
+Vor der Übernahme speichert Datahub die Freigabeabsicht. PostgreSQL serialisiert Veröffentlichungen
+für denselben Zielpfad. Datahub stellt beide Dateien bereit und ersetzt dann das Prüfprotokoll
+und den XTF-Transfer über je eine atomare Umbenennung. Bei einem Fehler während des Dateitauschs
+oder beim anschliessenden Synchronisieren versucht Datahub, die vorherigen Dateien
+wiederherzustellen. Dafür wird vorab eine Kopie der vorhandenen Zieldateien angelegt. Eine bereits bestätigte neuere Publikation hat Vorrang
+vor älteren Jobs. Der Index folgt der letzten bestätigten Publikation mit Modellangaben.
+
+Dateisystem und Datenbank haben getrennte Commit-Grenzen. Bei einem Prozessabbruch zwischen
+Dateitausch und Datenbank-Commit können Index und Dateien vorübergehend unterschiedliche Stände
+zeigen. Derselbe Job schreibt beim Wiederanlauf beide Dateien erneut. Bei wiederholten
+Speicherfehlern den Zustand von Transfer, Protokoll und Index nach Behebung der Ursache prüfen.
+Falls die Eingabe inzwischen abgelaufen ist, die Lieferung aus einer gesicherten Transferdatei
+erneut einreichen.
+
+Ergebnis-Mail ist optional. Der Versand erfolgt nach dem Datenbank-Commit und kann bei einem
+Abbruch in diesem Zeitfenster entfallen. Cleanup entfernt Arbeitsdateien nach der Aufbewahrungsfrist
+und überspringt laufende und geplante JobRunr-Versuche. Endgültige Fehler und verwaiste Uploads
+werden ebenfalls bereinigt. Lieferungshistorie und veröffentlichte Lieferungsdateien bleiben erhalten.
 
 ## GDI-Infrastruktur
 

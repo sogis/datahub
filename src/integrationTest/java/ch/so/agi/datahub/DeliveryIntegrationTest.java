@@ -8,6 +8,7 @@ import ch.so.agi.datahub.service.CleanerService;
 import java.time.Clock;
 import ch.so.agi.datahub.service.DeliveryFiles;
 import ch.so.agi.datahub.service.DeliveryService;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.*;
@@ -40,6 +41,7 @@ class DeliveryIntegrationTest extends PostgresSupport {
   @Autowired JsonMapper json;
   @Autowired AppProperties properties;
   @Autowired Clock clock;
+  @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
   String supplier;
   String admin;
 
@@ -71,6 +73,18 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThat(post("/api/deliveries", upload, null).statusCode()).isEqualTo(401);
     assertThat(post("/api/deliveries", upload, "invalid").statusCode()).isEqualTo(401);
     assertThat(post("/api/deliveries?token=" + supplier, upload, null).statusCode()).isEqualTo(401);
+    assertThat(send(HttpRequest.newBuilder(uri("/api/files"))
+        .header("X-API-KEY", admin).header("X-API-KEY", admin)).statusCode()).isEqualTo(401);
+    String expired = createKey(1000);
+    jdbc.update("UPDATE test_config.core_apikey SET dateofexpiry=now()-interval '1 day' WHERE apikey LIKE ?",
+        expired.substring(0, 36) + ":%");
+    assertThat(post("/api/deliveries", upload, expired).statusCode()).isEqualTo(401);
+    jdbc.execute("ALTER TABLE test_config.core_apikey RENAME TO unavailable");
+    try {
+      assertThat(post("/api/deliveries", upload, supplier).statusCode()).isEqualTo(500);
+    } finally {
+      jdbc.execute("ALTER TABLE test_config.unavailable RENAME TO core_apikey");
+    }
     assertThat(post("/api/deliveries", upload("other", valid()), supplier).statusCode()).isEqualTo(403);
     assertThat(post("/api/deliveries?theme=Other", upload, supplier).statusCode()).isEqualTo(400);
     assertThat(post("/api/deliveries?file=unknown", upload, supplier).statusCode()).isEqualTo(400);
@@ -89,11 +103,11 @@ class DeliveryIntegrationTest extends PostgresSupport {
     var body = json.readTree(issued.body());
     String key = body.get("apiKey").asText();
     String keyId = body.get("id").asText();
-    assertThat(request("/protected/hello", "GET", key).statusCode()).isEqualTo(200);
+    assertThat(post("/api/deliveries", upload("sample", valid()), key).statusCode()).isEqualTo(202);
     assertThat(request("/api/keys/" + keyId, "DELETE", supplier).statusCode()).isEqualTo(403);
     assertThat(request("/api/keys/" + key, "DELETE", admin).statusCode()).isEqualTo(404);
     assertThat(request("/api/keys/" + keyId, "DELETE", admin).statusCode()).isEqualTo(204);
-    assertThat(request("/protected/hello", "GET", key).statusCode()).isEqualTo(401);
+    assertThat(post("/api/deliveries", upload("sample", valid()), key).statusCode()).isEqualTo(401);
     assertThat(request("/api/files", "GET", supplier).statusCode()).isEqualTo(403);
     assertThat(request("/api/files", "GET", admin).statusCode()).isEqualTo(200);
     assertThat(request("/ui/files?token=" + admin, "GET", null).statusCode()).isEqualTo(401);
@@ -112,6 +126,11 @@ class DeliveryIntegrationTest extends PostgresSupport {
       assertThat(status(id)).isEqualTo("INVALID");
       assertThat(request("/api/logs/" + id, "GET", null).statusCode()).isEqualTo(200);
     }
+    String withDoctype = valid().replace("<TRANSFER ", "<!DOCTYPE TRANSFER><TRANSFER ");
+    assertThat(withDoctype).isNotEqualTo(valid());
+    String dtd = submit(withDoctype);
+    deliveries.process(dtd);
+    assertThat(status(dtd)).isEqualTo("INVALID");
     assertThat(status(valid)).isEqualTo("DELIVERED");
     assertThat(Files.readString(TARGET)).isEqualTo(valid());
     assertThat(request("/jobs", "GET", null).body()).contains("Übernahme", "DELIVERED");
@@ -124,9 +143,25 @@ class DeliveryIntegrationTest extends PostgresSupport {
     jdbc.update("UPDATE " + DELIVERIES + " SET finished_at=now() - interval '4 days' WHERE jobid=?", valid);
     assertThat(request("/api/logs/" + valid, "GET", null).statusCode()).isEqualTo(410);
     assertThat(request("/api/jobs/" + valid, "GET", null).body()).contains("Log retention expired");
-    new CleanerService(jdbc, files, properties, clock).cleanUp();
+    new CleanerService(jdbc, transactions, files, properties, clock).cleanUp();
     assertThat(Files.exists(files.input(UUID.fromString(valid)))).isFalse();
     assertThat(Files.readString(TARGET)).isEqualTo(valid());
+  }
+
+  @Test
+  void publishedIndexPathResolvesToTheTransferWithSpacesAndAHash() throws Exception {
+    jdbc.update("INSERT INTO test_config.core_operat(aname,theme_r,organisation_r) VALUES (?,1002,1000)",
+        "Areal #1");
+    var response = post("/api/deliveries", upload("Areal #1", valid()), supplier);
+    String location = response.headers().firstValue("Operation-Location").orElseThrow();
+    try {
+      deliveries.process(location.substring(location.lastIndexOf('/') + 1));
+      assertThat(request("/ilidata.xml", "GET", null).body()).contains("files/Demo/Areal%20%231.xtf");
+      assertThat(request("/files/Demo/Areal%20%231.xtf", "GET", null).body()).isEqualTo(valid());
+    } finally {
+      Files.deleteIfExists(TARGET.resolveSibling("Areal #1.xtf"));
+      Files.deleteIfExists(TARGET.resolveSibling("Areal #1.xtf.log"));
+    }
   }
 
   @Test
@@ -167,11 +202,20 @@ class DeliveryIntegrationTest extends PostgresSupport {
         + " SET processing_status='PUBLICATION_FAILED', finished_at=now() - interval '4 days'"
         + " WHERE jobid=?", failed);
     jdbc.update("UPDATE " + JOBS + " SET state='SCHEDULED' WHERE id=?", failed);
-    var cleaner = new CleanerService(jdbc, files, properties, clock);
+    var cleaner = new CleanerService(jdbc, transactions, files, properties, clock);
     cleaner.cleanUp();
     assertThat(input).exists();
 
     jdbc.update("UPDATE " + JOBS + " SET state='FAILED' WHERE id=?", failed);
+    transactions.executeWithoutResult(tx -> {
+      jdbc.queryForList("SELECT jobid FROM " + DELIVERIES + " WHERE jobid=? FOR UPDATE", failed);
+      try (var pool = Executors.newSingleThreadExecutor()) {
+        pool.submit(cleaner::cleanUp).get(10, TimeUnit.SECONDS);
+      } catch (Exception e) {
+        throw new AssertionError(e);
+      }
+      assertThat(input).exists();
+    });
     cleaner.cleanUp();
     assertThat(input).doesNotExist();
     assertThat(jdbc.queryForObject("SELECT artifacts_expired FROM " + DELIVERIES
@@ -211,6 +255,10 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThatThrownBy(() -> deliveries.process(id)).isInstanceOf(IOException.class);
     assertThat(status(id)).isEqualTo("FAILED");
     assertThat(Files.exists(TARGET)).isFalse();
+    files.saveInput(UUID.fromString(id), new ByteArrayInputStream(valid().getBytes(StandardCharsets.UTF_8)));
+    deliveries.process(id);
+    assertThat(status(id)).isEqualTo("DELIVERED");
+    assertThat(Files.readString(TARGET)).isEqualTo(valid());
   }
 
   @Test
@@ -219,6 +267,7 @@ class DeliveryIntegrationTest extends PostgresSupport {
     deliveries.process(previous);
     Path targetLog = TARGET.resolveSibling("sample.xtf.log");
     String previousLog = Files.readString(targetLog);
+    String delayed = submit(valid());
     String older = submit(valid());
     String newerContent = valid().replace("sample", "new version") + "\n";
     String newer = submit(newerContent);
@@ -228,9 +277,10 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThat(status(newer)).isEqualTo("PUBLICATION_FAILED");
     assertThat(Files.readString(targetLog)).isEqualTo(previousLog);
 
-    deliveries.process(older);
-    assertThat(status(older)).isEqualTo("SUPERSEDED");
     Files.delete(TARGET);
+    deliveries.process(older);
+    assertThat(status(older)).isEqualTo("DELIVERED");
+    Files.writeString(targetLog, "Interrupted after replacing the log");
     // Model the recovery point before a publication failure could commit, with its JobRunr row missing.
     jdbc.update("UPDATE " + DELIVERIES + " SET processing_status='PUBLISHING' WHERE jobid=?", newer);
     jdbc.update("DELETE FROM " + JOBS + " WHERE id=?", newer);
@@ -245,6 +295,10 @@ class DeliveryIntegrationTest extends PostgresSupport {
       duplicate.get(15, TimeUnit.SECONDS);
     }
     assertThat(status(newer)).isEqualTo("DELIVERED");
+    assertThat(Files.readString(TARGET)).isEqualTo(newerContent);
+    assertThat(Files.readString(targetLog)).isEqualTo(Files.readString(files.log(UUID.fromString(newer))));
+    deliveries.process(delayed);
+    assertThat(status(delayed)).isEqualTo("SUPERSEDED");
     assertThat(Files.readString(TARGET)).isEqualTo(newerContent);
   }
 

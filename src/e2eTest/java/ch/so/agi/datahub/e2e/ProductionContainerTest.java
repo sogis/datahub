@@ -70,8 +70,6 @@ class ProductionContainerTest extends PostgresSupport {
             .withEnv("CONFIG_DB_SCHEMA", "container_config")
             .withEnv("LOG_DB_SCHEMA", "container_log")
             .withEnv("JOBRUNR_DB_SCHEMA", "container_jobs.")
-            .withEnv("WORK_DIRECTORY", "/work")
-            .withEnv("TARGET_DIRECTORY", "/datahub")
             .withEnv("PREFERRED_ILI_REPO", "/models")
             .withEnv("APP_DEFAULTILIREPOSITORIES", "false")
             .withEnv("MAIL_ENABLED", "true")
@@ -146,7 +144,9 @@ class ProductionContainerTest extends PostgresSupport {
                       "sh",
                       "-c",
                       "test -s /datahub/Demo/sample.xtf && test -s /datahub/Demo/sample.xtf.log"
-                          + " && test -s /datahub/Demo/Sample.xtf")
+                          + " && test -s /datahub/Demo/Sample.xtf && test -s /datahub/Demo/Sample.xtf.log"
+                          + " && find /datahub/Demo -group 0 -perm -0020 | grep -q ."
+                          + " && find /work -mindepth 1 -maxdepth 1 -type d -group 0 -perm -0020 | grep -q .")
                   .getExitCode())
           .isZero();
       assertThat(app.execInContainer("java", "-version").getStderr()).contains("version \"25");
@@ -158,6 +158,8 @@ class ProductionContainerTest extends PostgresSupport {
           .contains("-XX:-UseBASE64Intrinsics");
       assertThat(app.execInContainer("sh", "-c", "test ! -w /opt/app && test ! -w /opt/app/application.jar")
           .getExitCode()).isZero();
+      assertThat(app.execInContainer("stat", "-c", "%a", "/opt/app/application.jar").getStdout().strip())
+          .isEqualTo("444");
       assertThat(app.getLogs()).doesNotContain(key, bootstrap, "Template not found", "Using generated security password");
     }
   }

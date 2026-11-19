@@ -12,6 +12,11 @@ dependencies {
         inputs.file('dev/SO_AGI_Datahub_20240403.ili')
         def ddl = layout.buildDirectory.file("schema/${model}.sql").get().asFile
         outputs.file(ddl)
+        if (model == 'config') {
+            def operatConstraint = file('sql/operat-unique.sql')
+            inputs.file(operatConstraint)
+            doLast { ddl.append('\n' + operatConstraint.text, 'UTF-8') }
+        }
         doFirst { ddl.parentFile.mkdirs() }
         args '--createscript', ddl.absolutePath, '--modeldir', 'dev',
                 '--models', "SO_AGI_Datahub_${model.capitalize()}_20240403",

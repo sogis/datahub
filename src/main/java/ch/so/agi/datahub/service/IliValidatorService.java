@@ -79,6 +79,8 @@ public class IliValidatorService {
       try {
         while (reader.hasNext()) {
           int event = reader.next();
+          if (event == javax.xml.stream.XMLStreamConstants.DTD)
+            throw new XMLStreamException("Document type declarations are not permitted");
           if (event == javax.xml.stream.XMLStreamConstants.START_ELEMENT) {
             depth++;
             String name = reader.getLocalName();

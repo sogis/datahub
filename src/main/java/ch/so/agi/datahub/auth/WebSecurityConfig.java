@@ -9,6 +9,7 @@ import static org.springframework.http.HttpMethod.POST;
 import ch.so.agi.datahub.config.AppProperties;
 import jakarta.servlet.DispatcherType;
 import java.util.Collections;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -29,6 +30,7 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 @Configuration
+@ConditionalOnWebApplication
 public class WebSecurityConfig {
   @Bean
   AuthenticationManager apiKeys(ApiKeyHeaderAuthenticationService keys) {
@@ -59,30 +61,25 @@ public class WebSecurityConfig {
           return UsernamePasswordAuthenticationToken.unauthenticated("api-key", headers.getFirst());
         });
     var paths = PathPatternRequestMatcher.withDefaults();
-    filter.setRequestMatcher(new OrRequestMatcher(
-        paths.matcher(POST, "/api/keys"), paths.matcher(DELETE, "/api/keys/*"),
-        paths.matcher(POST, "/api/deliveries"), paths.matcher(GET, "/api/files"),
-        paths.matcher(GET, "/protected/hello")));
+    var admin = new OrRequestMatcher(paths.matcher(POST, "/api/keys"),
+        paths.matcher(DELETE, "/api/keys/*"), paths.matcher(GET, "/api/files"));
+    var delivery = paths.matcher(POST, "/api/deliveries");
+    filter.setRequestMatcher(new OrRequestMatcher(admin, delivery));
     filter.setSuccessHandler((request, response, authentication) -> {});
     filter.setFailureHandler(new AuthenticationEntryPointFailureHandler(entry));
     return stateless(http)
         // These routes accept an explicit API-key header and never authenticate browser sessions.
-        .csrf(c -> c.ignoringRequestMatchers("/api/keys", "/api/keys/*", "/api/deliveries"))
+        .csrf(c -> c.ignoringRequestMatchers(admin, delivery))
         .exceptionHandling(e -> e.authenticationEntryPoint(entry))
         .addFilterBefore(filter, LogoutFilter.class)
         .authorizeHttpRequests(a -> a
             .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-            .requestMatchers(POST, "/api/keys")
-                .hasAuthority(ROLE_NAME_ADMIN)
-            .requestMatchers(DELETE, "/api/keys/*")
-                .hasAuthority(ROLE_NAME_ADMIN)
-            .requestMatchers(POST, "/api/deliveries").hasAnyAuthority(ROLE_NAME_USER, ROLE_NAME_ADMIN)
-            .requestMatchers(GET, "/api/files").hasAuthority(ROLE_NAME_ADMIN)
-            .requestMatchers(GET, "/protected/hello").authenticated()
+            .requestMatchers(admin).hasAuthority(ROLE_NAME_ADMIN)
+            .requestMatchers(delivery).hasAnyAuthority(ROLE_NAME_USER, ROLE_NAME_ADMIN)
             .requestMatchers(GET, "/", "/jobs", "/jobs/table", "/web/jobs.xhtml", "/web/index.xhtml",
                 "/api/jobs", "/api/jobs/*", "/api/logs/*", "/ilidata.xml", "/ilimodels.xml",
                 "/ilisite.xml", "/files/*/*", "/css/**", "/js/**", "/favicon.ico", "/ping",
-                "/public/hello", "/actuator/health/**").permitAll()
+                "/actuator/health/**").permitAll()
             .anyRequest().denyAll())
         .build();
   }
