@@ -145,8 +145,8 @@ class ProductionContainerTest extends PostgresSupport {
               app.execInContainer(
                       "sh",
                       "-c",
-                      "id -u; test -s /datahub/Demo/sample.xtf; test -s"
-                          + " /datahub/Demo/sample.xtf.log && test -s /datahub/Demo/Sample.xtf")
+                      "test -s /datahub/Demo/sample.xtf && test -s /datahub/Demo/sample.xtf.log"
+                          + " && test -s /datahub/Demo/Sample.xtf")
                   .getExitCode())
           .isZero();
       assertThat(app.execInContainer("java", "-version").getStderr()).contains("version \"25");
