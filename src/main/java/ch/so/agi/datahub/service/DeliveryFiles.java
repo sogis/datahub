@@ -104,6 +104,10 @@ public class DeliveryFiles {
       if (previous == null) Files.deleteIfExists(target);
       else replace(previous, target);
     } catch (IOException rollback) {
+      if (previous != null) {
+        previous.keep = true;
+        log.error("Could not restore {}; retained backup at {}", target, previous.path);
+      }
       failure.addSuppressed(rollback);
     }
   }
@@ -114,8 +118,15 @@ public class DeliveryFiles {
           PosixFilePermissions.fromString("rwxrwxr-x")));
       // The process umask can mask group write even when supplied at creation.
       // Set only the missing bit, preserving the group inherited from a setgid mount.
-      if (!Files.getPosixFilePermissions(path).contains(PosixFilePermission.GROUP_WRITE))
-        Files.setAttribute(path, "unix:mode", (int) Files.getAttribute(path, "unix:mode") | 0020);
+      var permissions = Files.getPosixFilePermissions(path);
+      if (!permissions.contains(PosixFilePermission.GROUP_WRITE)) {
+        if (path.getFileSystem().supportedFileAttributeViews().contains("unix")) {
+          Files.setAttribute(path, "unix:mode", (int) Files.getAttribute(path, "unix:mode") | 0020);
+        } else {
+          permissions.add(PosixFilePermission.GROUP_WRITE);
+          Files.setPosixFilePermissions(path, permissions);
+        }
+      }
     } else {
       Files.createDirectory(path);
     }
@@ -155,12 +166,20 @@ public class DeliveryFiles {
   }
 
   private static void replace(StagedFile staged, Path target) throws IOException {
-    Files.move(staged.path(), target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    Files.move(staged.path, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
   }
 
-  private record StagedFile(Path path) implements AutoCloseable {
+  private static final class StagedFile implements AutoCloseable {
+    private final Path path;
+    private boolean keep;
+
+    private StagedFile(Path path) {
+      this.path = path;
+    }
+
     @Override
     public void close() {
+      if (keep) return;
       try {
         Files.deleteIfExists(path);
       } catch (IOException e) {
@@ -176,7 +195,14 @@ public class DeliveryFiles {
     }
   }
 
-  static void segment(String value) {
+  public static void publicationSegment(String value) {
+    segment(value);
+    // Spring Security's HTTP firewall rejects these in download path segments.
+    if (value.contains("%") || value.contains(";"))
+      throw new IllegalArgumentException("Invalid download path segment");
+  }
+
+  private static void segment(String value) {
     if (value == null || value.isBlank() || value.equals(".") || value.equals("..")
         || value.contains("/") || value.contains("\\")
         || value.codePoints().anyMatch(Character::isISOControl))

@@ -5,6 +5,7 @@ import ch.interlis.iom_j.Iom_jObject;
 import ch.interlis.iom_j.xtf.XtfWriter;
 import ch.interlis.iox_j.*;
 import ch.so.agi.datahub.config.AppProperties;
+import ch.so.agi.datahub.service.DeliveryFiles;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -44,9 +45,17 @@ public class IlidataService {
                 ORDER BY theme, operat
                 """.formatted(p.logSchema()));
         for (var row : rows) {
+          String theme = (String) row.get("theme");
+          String operat = (String) row.get("operat");
+          try {
+            DeliveryFiles.publicationSegment(theme);
+            DeliveryFiles.publicationSegment(operat);
+          } catch (IllegalArgumentException invalidPath) {
+            continue;
+          }
           var entry =
               new Iom_jObject("DatasetIdx16.DataIndex.DatasetMetadata", Integer.toString(tid++));
-          entry.setattrvalue("id", row.get("operat") + "." + row.get("theme"));
+          entry.setattrvalue("id", operat + "." + theme);
           entry.setattrvalue("version", (String) row.get("jobid"));
           entry.setattrvalue("owner", "https://agi.so.ch");
           entry.setattrvalue("technicalContact", "https://agi.so.ch");
@@ -65,8 +74,8 @@ public class IlidataService {
                       : ";version=" + row.get("transfer_version")));
           var file = new Iom_jObject("DatasetIdx16.File", null);
           file.setattrvalue("path", "files/"
-              + UriUtils.encodePathSegment((String) row.get("theme"), StandardCharsets.UTF_8) + "/"
-              + UriUtils.encodePathSegment((String) row.get("operat"), StandardCharsets.UTF_8) + ".xtf");
+              + UriUtils.encodePathSegment(theme, StandardCharsets.UTF_8) + "/"
+              + UriUtils.encodePathSegment(operat, StandardCharsets.UTF_8) + ".xtf");
           data.addattrobj("file", file);
           entry.addattrobj("files", data);
           writer.write(new ObjectEvent(entry));

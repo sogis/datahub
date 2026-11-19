@@ -12,7 +12,7 @@ Die Datenbankadministration legt vorab die Gruppenrolle `datahub` an und weist s
 Laufzeitidentität zu. Der Schema-Owner benötigt das Recht, Schemas in der Datenbank anzulegen.
 `./gradlew generateSchema` erzeugt `build/schema/config.sql` und `build/schema/log.sql`.
 Die Konfigurations-DDL enthält zusätzlich den zusammengesetzten Operat-Index aus
-`sql/operat-unique.sql`, den ili2pg 5.5.2 für die INTERLIS-Regel mit einer Beziehung nicht erzeugt.
+`sql/config-constraints.sql`, den ili2pg 5.5.2 für die INTERLIS-Regel mit einer Beziehung nicht erzeugt.
 
 ```sh
 ./gradlew generateSchema
@@ -26,7 +26,7 @@ der zu installierenden Datahub-Version aufrufen. Dazu das ausführbare Release-J
 kann mit `docker create` und `docker cp` entnommen werden. Aus dem passenden Commit
 erzeugt `./gradlew bootJar` das JAR unter `build/libs/*-exec.jar`. `JDBC_URL` für dieselbe Datenbank
 setzen, etwa `jdbc:postgresql://db.example:5432/datahub`. `SCHEMA_OWNER_PASSWORD` aus dem
-Secret-Speicher laden. Da Java das Passwort als Prozessargument erhält, den Befehl in einer
+Secret-Speicher laden. JobRunr und ili2pg erhalten das Passwort als Prozessargument. Beide Befehle in einer
 geschützten Betriebssitzung ohne Shell-Tracing ausführen.
 
 ```sh
@@ -53,17 +53,22 @@ Organisationen verweisen, Operate zudem auf vorhandene Themen. Ein Fehler beim A
 eines eindeutigen Indexes oder Fremdschlüssels bricht die SQL-Transaktion ab.
 
 Enthält die Installation bereits die Spalte `deliveries_delivery.processing_status`, wurde
-das R0-Schema eingerichtet. Auf einer bereits modernisierten Neuinstallation genügt für die
-Operat-Eindeutigkeit `psql -X -v ON_ERROR_STOP=1 -f sql/operat-unique.sql` als Schema-Owner.
+das R0-Schema eingerichtet. Auf einer bereits aktualisierten Installation die fehlenden Konfigurationsregeln als
+Schema-Owner ergänzen. Den Befehl nach der Vorprüfung und bei gestoppter Anwendung ausführen.
+
+```sh
+psql -X -v ON_ERROR_STOP=1 --single-transaction -f sql/config-constraints.sql
+```
 
 1. Annahme am Gateway pausieren, laufende Lieferungen vollständig abarbeiten und die bisherige
    Anwendung samt Workern und Cleanup stoppen. Historische JobRunr-Zeitpläne entfernen und
    fehlgeschlagene Altläufe sichten.
-2. Einen vollständigen `pg_dump -Fc`, die Rollendefinitionen und konsistente Sicherungen der Arbeits-
-   und Zielablage erstellen. Alte Image-Referenz, Konfiguration und den Wiederherstellungspunkt
-   festhalten.
+2. Mit `pg_dump -Fc -f "$DATAHUB_DB_DUMP"` die gesamte Datenbank sichern.
+   `DATAHUB_DB_DUMP` ist der Pfad zur Sicherungsdatei in der geschützten Backup-Ablage.
+   Rollendefinitionen sowie Arbeits- und Zielablage am selben Wiederherstellungspunkt sichern.
+   Alte Image-Referenz und Konfiguration festhalten.
 3. `psql -X -v ON_ERROR_STOP=1 -f sql/upgrade-r0.sql` als Schema-Owner ausführen. Das Skript
-   lädt `operat-unique.sql` aus demselben Verzeichnis, prüft den Jobbestand und lehnt einen
+   lädt `config-constraints.sql` aus demselben Verzeichnis, prüft den Jobbestand und lehnt einen
    zweiten Lauf ab. Lieferungen, Key-Hashes und Widerrufszeitpunkte bleiben erhalten.
    Früher unvollständig ausgestellte Keys werden gesperrt. Vorhandene XTF-Dateien bleiben am
    bisherigen Ort. Für modernisierte Lieferungen bleiben die Protokollpfade und die einfachen
@@ -91,16 +96,19 @@ Operat-Eindeutigkeit `psql -X -v ON_ERROR_STOP=1 -f sql/operat-unique.sql` als S
 
 5. In `core_theme.expected_models` je Thema die zulässigen Modellnamen mit Semikolon trennen.
    Bestehende Themen ohne Modellliste bleiben gespeichert, bis zur Pflege pausiert ihre Annahme.
-   Transferdateien des historischen Datahub ohne Modellnachweis sind direkt abrufbar. Eine neue gültige Lieferung
-   nimmt das Dataset in `ilidata.xml` auf.
+   Transferdateien des historischen Datahub bleiben direkt abrufbar. War die letzte Übernahme
+   ungültig oder fehlt ihr Modellnachweis, erscheint das Dataset erst nach einer neuen gültigen
+   Übernahme wieder in `ilidata.xml`.
 6. Das neue Image starten und zunächst bei pausierter Annahme Health, einen bestehenden Key,
    öffentliche Historie und Protokolle prüfen. Danach Annahme öffnen und eine kontrollierte
    Lieferung samt Zieldatei prüfen.
 
 Bei einem Fehler vor dem Commit des SQL-Upgrades rollt PostgreSQL das Skript zurück. Für einen
-Rückfall nach dem Commit zuerst die Annahme sperren und das neue Image stoppen. Datenbank und
-beide Ablagen aus demselben Sicherungspunkt auf einem sauberen Ziel wiederherstellen und das
-bisherige Image mit seiner Konfiguration starten. Falls bereits neue Lieferungen angenommen wurden,
+Rückfall nach dem Commit zuerst die Annahme sperren und das neue Image samt Workern stoppen.
+Die benötigten Rollen bereitstellen und mit
+`pg_restore --exit-on-error -d "$PGDATABASE" "$DATAHUB_DB_DUMP"` in eine leere Datenbank
+zurückspielen. Arbeits- und Zielablage aus demselben Sicherungspunkt wiederherstellen und
+das bisherige Image mit der dazugehörigen Konfiguration starten. Falls bereits neue Lieferungen angenommen wurden,
 deren Datenbankzeilen und Arbeitsdateien vor dem Rückfall sichern und nach der Wiederherstellung
 gezielt erneut einreichen.
 
@@ -115,7 +123,8 @@ Bei mehreren Instanzen verwenden Web und JobRunr dieselben Volumes. Bereits exis
 Arbeits- und Themenverzeichnisse vor dem Start mit abweichenden UIDs ebenfalls mit diesen
 Gruppenrechten versehen. Die Zielablage muss atomare Umbenennungen erlauben
 und unterschiedliche Schreibweisen und Unicode-Normalformen getrennt speichern. Das Thema
-bestimmt das Verzeichnis, das Operat den Dateinamen.
+bestimmt das Verzeichnis, das Operat den Dateinamen. In diesen Namen keine Schrägstriche,
+Backslashes, Prozentzeichen, Semikolons oder Steuerzeichen verwenden.
 Das Dockerfile erbt direkt vom gepinnten UBI9-OpenJDK-25-Runtime-Image. Das Basisimage kann Port 8443 als OCI-Metadatum deklarieren; der Datahub-Dienst veröffentlicht nur Port 8080. Das gepinnte Image enthält auf amd64 und arm64 das RPM `25.0.5.0.8-1.0.el9`. Red Hat nennt
 `25.0.5.1.2-1.1.el9` als korrigierten Stand. Deshalb bleibt die JVM-Minderung
 `-XX:-UseBASE64Intrinsics` aktiv. [Red Hat Security Advisory RHSA-2026:100571](https://access.redhat.com/errata/RHSA-2026:100571)
@@ -175,7 +184,9 @@ Vor der Übernahme speichert Datahub die Freigabeabsicht. PostgreSQL serialisier
 für denselben Zielpfad. Datahub stellt beide Dateien bereit und ersetzt dann das Prüfprotokoll
 und den XTF-Transfer über je eine atomare Umbenennung. Bei einem Fehler während des Dateitauschs
 oder beim anschliessenden Synchronisieren versucht Datahub, die vorherigen Dateien
-wiederherzustellen. Dafür wird vorab eine Kopie der vorhandenen Zieldateien angelegt. Eine bereits bestätigte neuere Publikation hat Vorrang
+wiederherzustellen. Dafür wird vorab eine Kopie der vorhandenen Zieldateien angelegt.
+Scheitert auch die Wiederherstellung, bleibt die Sicherung erhalten und Datahub protokolliert
+ihren Pfad. Eine bereits bestätigte neuere Publikation hat Vorrang
 vor älteren Jobs. Der Index folgt der letzten bestätigten Publikation mit Modellangaben.
 
 Dateisystem und Datenbank haben getrennte Commit-Grenzen. Bei einem Prozessabbruch zwischen

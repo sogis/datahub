@@ -53,8 +53,9 @@ class ProductionContainerTest extends PostgresSupport {
     Path bootstrapFile = Files.writeString(secrets.resolve("admin-key"), bootstrap);
     Files.setPosixFilePermissions(bootstrapFile, java.nio.file.attribute.PosixFilePermissions.fromString("r--r--r--"));
     int uid = java.util.concurrent.ThreadLocalRandom.current().nextInt(30000, 60000);
-    try (var app =
-        new GenericContainer<>(System.getProperty("app.productionImage"))
+    try (var mail = new GenericContainer<>("axllent/mailpit:v1.31.4").withExposedPorts(1025)
+            .withNetwork(NETWORK).withNetworkAliases("mail");
+        var app = new GenericContainer<>(System.getProperty("app.productionImage"))
             .withNetwork(NETWORK)
             .withExposedPorts(8080)
             .withCreateContainerCmdModifier(cmd -> {
@@ -85,6 +86,7 @@ class ProductionContainerTest extends PostgresSupport {
                 Wait.forHttp("/actuator/health")
                     .forPort(8080)
                     .withStartupTimeout(Duration.ofSeconds(60)))) {
+      mail.start();
       app.start();
       String base = "http://" + app.getHost() + ":" + app.getMappedPort(8080);
       var client = HttpClient.newHttpClient();

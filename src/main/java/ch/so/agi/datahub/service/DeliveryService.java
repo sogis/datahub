@@ -13,6 +13,8 @@ import org.jobrunr.scheduling.JobScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -28,14 +30,14 @@ public class DeliveryService {
   private final DeliveryFiles files;
   private final IliValidatorService validator;
   private final JobScheduler scheduler;
-  private final EmailService mail;
+  private final JavaMailSender mail;
   private final ResourceBundle messages;
   private final AppProperties properties;
   private final Clock clock;
 
   public DeliveryService(DeliveryAuthorizationService authorization, CayenneRuntime cayenne,
       DeliveryRepository deliveries, DeliveryFiles files, IliValidatorService validator,
-      JobScheduler scheduler, EmailService mail, ResourceBundle messages,
+      JobScheduler scheduler, JavaMailSender mail, ResourceBundle messages,
       AppProperties properties, Clock clock) {
     this.authorization = authorization;
     this.cayenne = cayenne;
@@ -54,8 +56,12 @@ public class DeliveryService {
     if (!properties.isAcceptDeliveries())
       throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Delivery acceptance paused");
     var target = authorization.resolve(theme, operat, actor);
-    DeliveryFiles.segment(target.theme());
-    DeliveryFiles.segment(target.operat());
+    try {
+      DeliveryFiles.publicationSegment(target.theme());
+      DeliveryFiles.publicationSegment(target.operat());
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Invalid configured delivery target");
+    }
     var id = UUID.randomUUID();
     files.saveInput(id, file.getInputStream());
 
@@ -144,10 +150,14 @@ public class DeliveryService {
     var id = delivery.id();
     String result = "SENT";
     try {
-      mail.send(delivery.email(),
-          messages.getString("deliveryEmailSubject").formatted(outcome, delivery.theme(), delivery.operat()),
-          messages.getString("deliveryEmailBody").formatted(
-              id, properties.publicUrl("/api/logs/" + id), properties.publicUrl("/jobs")));
+      var message = new SimpleMailMessage();
+      message.setFrom(properties.getMailFrom());
+      message.setTo(delivery.email());
+      message.setSubject(messages.getString("deliveryEmailSubject")
+          .formatted(outcome, delivery.theme(), delivery.operat()));
+      message.setText(messages.getString("deliveryEmailBody")
+          .formatted(id, properties.publicUrl("/api/logs/" + id), properties.publicUrl("/jobs")));
+      mail.send(message);
     } catch (RuntimeException e) {
       result = "FAILED";
       log.warn("Result email could not be sent for delivery {}", id);

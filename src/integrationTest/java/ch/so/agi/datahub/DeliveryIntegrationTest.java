@@ -134,6 +134,16 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThat(status(valid)).isEqualTo("DELIVERED");
     assertThat(Files.readString(TARGET)).isEqualTo(valid());
     assertThat(request("/jobs", "GET", null).body()).contains("Übernahme", "DELIVERED");
+    assertThat(request("/api/jobs", "GET", null).statusCode()).isEqualTo(200);
+    var filtered = request("/jobs/table?organisation=Supplier&theme=De&operat=samp"
+        + "&status=SUCCEEDED&validationStatus=DONE&sort=operat", "GET", null);
+    assertThat(filtered.body()).contains(valid, "DELIVERED").doesNotContain(dtd, "INVALID");
+    assertThat(request("/web/jobs.xhtml", "GET", null).headers().firstValue("Location"))
+        .hasValueSatisfying(location -> assertThat(location).endsWith("/jobs"));
+    assertThat(request("/files/Demo/sample.xtf.log", "GET", null).body())
+        .isEqualTo(Files.readString(TARGET.resolveSibling("sample.xtf.log")));
+    assertThat(request("/ilimodels.xml", "GET", null).statusCode()).isEqualTo(200);
+    assertThat(request("/ilisite.xml", "GET", null).statusCode()).isEqualTo(200);
     assertThat(request("/ilidata.xml", "GET", null).body())
         .contains("DatahubDemo", "sample.Demo", "version=2.3");
     jdbc.update("DELETE FROM " + JOBS + " WHERE id=?", valid);
@@ -143,13 +153,19 @@ class DeliveryIntegrationTest extends PostgresSupport {
     jdbc.update("UPDATE " + DELIVERIES + " SET finished_at=now() - interval '4 days' WHERE jobid=?", valid);
     assertThat(request("/api/logs/" + valid, "GET", null).statusCode()).isEqualTo(410);
     assertThat(request("/api/jobs/" + valid, "GET", null).body()).contains("Log retention expired");
-    new CleanerService(jdbc, transactions, files, properties, clock).cleanUp();
+    new CleanerService(jdbc, files, properties, clock).cleanUp();
     assertThat(Files.exists(files.input(UUID.fromString(valid)))).isFalse();
     assertThat(Files.readString(TARGET)).isEqualTo(valid());
   }
 
   @Test
-  void publishedIndexPathResolvesToTheTransferWithSpacesAndAHash() throws Exception {
+  void publishedIndexPathsMatchThePublicDownloadRoutes() throws Exception {
+    for (String unavailable : List.of("Areal;1", "Areal%1")) {
+      jdbc.update("INSERT INTO test_config.core_operat(aname,theme_r,organisation_r) VALUES (?,1002,1000)",
+          unavailable);
+      assertThat(post("/api/deliveries", upload(unavailable, valid()), supplier).statusCode())
+          .isEqualTo(503);
+    }
     jdbc.update("INSERT INTO test_config.core_operat(aname,theme_r,organisation_r) VALUES (?,1002,1000)",
         "Areal #1");
     var response = post("/api/deliveries", upload("Areal #1", valid()), supplier);
@@ -192,6 +208,10 @@ class DeliveryIntegrationTest extends PostgresSupport {
     deliveries.process(replacement);
     assertThat(request("/ilidata.xml", "GET", null).body())
         .contains(replacement).doesNotContain(previous);
+
+    // Older database versions could publish an XTF without retaining its model metadata.
+    jdbc.update("UPDATE " + DELIVERIES + " SET result_models=NULL WHERE jobid=?", replacement);
+    assertThat(request("/ilidata.xml", "GET", null).body()).doesNotContain(previous, replacement);
   }
 
   @Test
@@ -202,7 +222,7 @@ class DeliveryIntegrationTest extends PostgresSupport {
         + " SET processing_status='PUBLICATION_FAILED', finished_at=now() - interval '4 days'"
         + " WHERE jobid=?", failed);
     jdbc.update("UPDATE " + JOBS + " SET state='SCHEDULED' WHERE id=?", failed);
-    var cleaner = new CleanerService(jdbc, transactions, files, properties, clock);
+    var cleaner = new CleanerService(jdbc, files, properties, clock);
     cleaner.cleanUp();
     assertThat(input).exists();
 
@@ -220,6 +240,13 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThat(input).doesNotExist();
     assertThat(jdbc.queryForObject("SELECT artifacts_expired FROM " + DELIVERIES
         + " WHERE jobid=?", Boolean.class, failed)).isTrue();
+
+    String interrupted = submit(valid());
+    jdbc.update("UPDATE " + JOBS + " SET state='FAILED',"
+        + " updatedat=(now() AT TIME ZONE 'UTC') - interval '4 days' WHERE id=?", interrupted);
+    cleaner.cleanUp();
+    assertThat(status(interrupted)).isEqualTo("FAILED");
+    assertThat(files.input(UUID.fromString(interrupted))).doesNotExist();
 
     UUID orphan = UUID.randomUUID();
     Path orphanDirectory = files.input(orphan).getParent();

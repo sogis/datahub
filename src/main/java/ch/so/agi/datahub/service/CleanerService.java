@@ -12,22 +12,19 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @ConditionalOnProperty(name = "app.cleanerEnabled", havingValue = "true")
 public class CleanerService {
   private static final Logger log = LoggerFactory.getLogger(CleanerService.class);
   private final JdbcTemplate jdbc;
-  private final TransactionTemplate transactions;
   private final DeliveryFiles files;
   private final AppProperties properties;
   private final Clock clock;
 
-  public CleanerService(JdbcTemplate jdbc, TransactionTemplate transactions, DeliveryFiles files,
+  public CleanerService(JdbcTemplate jdbc, DeliveryFiles files,
       AppProperties properties, Clock clock) {
     this.jdbc = jdbc;
-    this.transactions = transactions;
     this.files = files;
     this.properties = properties;
     this.clock = clock;
@@ -49,33 +46,24 @@ public class CleanerService {
     var cutoff = properties.artifactCutoff(clock);
     for (String id : jdbc.queryForList("SELECT d.jobid " + eligible, String.class, zone, cutoff)) {
       try {
-        transactions.executeWithoutResult(status -> {
-          // A retry holding this lock owns the input. Recheck eligibility after the initial scan.
-          if (jdbc.queryForList("SELECT d.jobid " + eligible + " AND d.jobid=? FOR UPDATE OF d SKIP LOCKED",
-              String.class, zone, cutoff, id).isEmpty()) return;
-          try {
-            files.delete(UUID.fromString(id));
-          } catch (IOException | IllegalArgumentException e) {
-            log.warn("Could not clean up artifacts for delivery {}", id, e);
-            return;
-          }
-          jdbc.update("""
-              UPDATE %s SET artifacts_expired=true,
-                processing_status=CASE processing_status
-                  WHEN 'PENDING' THEN 'FAILED'
-                  WHEN 'PUBLISHING' THEN 'PUBLICATION_FAILED'
-                  ELSE processing_status END
-              WHERE jobid=?
-              """.formatted(table), id);
-        });
-      } catch (org.springframework.dao.DataAccessException e) {
-        log.warn("Could not record cleanup for delivery {}", id, e);
+        // A retry holding this lock owns the input. Commit expiry before removing files.
+        int expired = jdbc.update("""
+            UPDATE %s SET artifacts_expired=true,
+              processing_status=CASE processing_status
+                WHEN 'PENDING' THEN 'FAILED'
+                WHEN 'PUBLISHING' THEN 'PUBLICATION_FAILED'
+                ELSE processing_status END
+            WHERE jobid IN (SELECT d.jobid %s AND d.jobid=? FOR UPDATE OF d SKIP LOCKED)
+            """.formatted(table, eligible), zone, cutoff, id);
+        if (expired != 0) files.delete(UUID.fromString(id));
+      } catch (IOException | IllegalArgumentException | org.springframework.dao.DataAccessException e) {
+        log.warn("Could not clean up artifacts for delivery {}", id, e);
       }
     }
-    cleanOrphans(table);
+    cleanUnclaimedDirectories(table);
   }
 
-  private void cleanOrphans(String table) {
+  private void cleanUnclaimedDirectories(String table) {
     Path root = Path.of(properties.getWorkDirectory());
     if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return;
     var cutoff = Instant.now(clock).minus(properties.getArtifactRetention());
@@ -107,10 +95,11 @@ public class CleanerService {
             }
           }
           if (recent) continue;
-          Boolean registered = jdbc.queryForObject(
-              "SELECT EXISTS (SELECT 1 FROM " + table + " WHERE jobid=?)",
+          // Retry file removal if a previous cleanup committed expiry but did not finish.
+          Boolean inUse = jdbc.queryForObject(
+              "SELECT EXISTS (SELECT 1 FROM " + table + " WHERE jobid=? AND artifacts_expired IS NOT TRUE)",
               Boolean.class, id.toString());
-          if (!Boolean.TRUE.equals(registered)) files.delete(id);
+          if (!Boolean.TRUE.equals(inUse)) files.delete(id);
         } catch (IOException e) {
           log.warn("Could not inspect or clean orphan upload {}", id, e);
         }

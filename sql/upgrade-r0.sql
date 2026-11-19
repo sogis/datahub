@@ -22,24 +22,7 @@ BEGIN
 END $$;
 
 ALTER TABLE agi_datahub_config_v1.core_theme ADD COLUMN IF NOT EXISTS expected_models varchar(2048);
-CREATE UNIQUE INDEX IF NOT EXISTS core_organisation_aname_key
-    ON agi_datahub_config_v1.core_organisation(aname);
-CREATE UNIQUE INDEX IF NOT EXISTS core_theme_aname_key
-    ON agi_datahub_config_v1.core_theme(aname);
-\ir operat-unique.sql
-
--- Use the same foreign keys as a fresh ili2pg schema. Older DDL omitted these.
-ALTER TABLE agi_datahub_config_v1.core_apikey
-    DROP CONSTRAINT IF EXISTS core_apikey_organisation_r_fkey,
-    ADD CONSTRAINT core_apikey_organisation_r_fkey FOREIGN KEY (organisation_r)
-        REFERENCES agi_datahub_config_v1.core_organisation DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE agi_datahub_config_v1.core_operat
-    DROP CONSTRAINT IF EXISTS core_operat_organisation_r_fkey,
-    DROP CONSTRAINT IF EXISTS core_operat_theme_r_fkey,
-    ADD CONSTRAINT core_operat_organisation_r_fkey FOREIGN KEY (organisation_r)
-        REFERENCES agi_datahub_config_v1.core_organisation DEFERRABLE INITIALLY DEFERRED,
-    ADD CONSTRAINT core_operat_theme_r_fkey FOREIGN KEY (theme_r)
-        REFERENCES agi_datahub_config_v1.core_theme DEFERRABLE INITIALLY DEFERRED;
+\ir config-constraints.sql
 
 ALTER TABLE agi_datahub_log_v1.deliveries_delivery
     ADD COLUMN processing_status varchar(20),

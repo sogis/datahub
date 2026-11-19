@@ -25,10 +25,15 @@ Modell. Beide Lieferungen erzeugen ein Prüfprotokoll.
 
 ### Lokalen Admin-Key einrichten und Dateien ansehen
 
-Falls Datahub schon läuft, stoppe die App mit `Ctrl+C`. Führe die folgenden Befehle im
-Repository aus. `mktemp` legt eine Datei an, die nur dein Benutzerkonto lesen und schreiben
-kann. `uuidgen` erzeugt die beiden UUIDs, die `printf` im Format `KEY_ID.SECRET` in die Datei
-schreibt.
+Falls die lokale Datenbank schon eine Admin-Organisation enthält, überspringe den folgenden
+Befehlsblock. Starte Datahub wie oben beschrieben und verwende für die Anmeldung den vorhandenen
+Admin-Key. Falls es noch keinen Admin gibt und der konfigurierte Admin-Name bereits vergeben
+ist, setze beim Start zusätzlich `ADMIN_ACCOUNT_NAME` auf einen freien Organisationsnamen.
+
+Für den Bootstrap stoppst du eine laufende App mit `Ctrl+C` und führst die Befehle im
+Repository aus. Wenn ein Befehl fehlschlägt, behebe den Fehler, bevor du weitergehst.
+`mktemp` legt eine Datei an, die nur dein Benutzerkonto lesen und schreiben kann. `uuidgen`
+erzeugt die beiden UUIDs, die `printf` im Format `KEY_ID.SECRET` in die Datei schreibt.
 
 ```sh
 ./gradlew devSeed
@@ -41,20 +46,19 @@ ADMIN_KEY_FILE="$datahub_admin_key_file" \
   ./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 
-Beim Start speichert Datahub die Schlüssel-ID und einen Hash des Secrets in der lokalen
-Datenbank. Falls dort bereits eine Admin-Organisation existiert, verwende deren vorhandenen
-Schlüssel. Der Bootstrap überspringt die Anlage auch, wenn der konfigurierte Admin-Name bereits
-vergeben ist. Nach erfolgreicher Anmeldung kannst du den Schlüssel im Passwortmanager sichern,
-die temporäre Datei löschen und die App künftig ohne `ADMIN_KEY_FILE` starten.
-
 1. Führe den obigen `curl`-Aufruf mit `dev/valid.xtf` und dem Demo-Lieferanten-Key in einem
-   zweiten Terminal aus. Warte unter [Jobs](http://localhost:8080/jobs) auf die erfolgreiche
-   Verarbeitung.
+   zweiten Terminal aus dem Repository aus. Warte unter [Jobs](http://localhost:8080/jobs)
+   auf die erfolgreiche Verarbeitung.
 2. Öffne [den Ordner Demo im Dateibrowser](http://localhost:8080/ui/files?path=Demo). Gib in
-   der HTTP-Basic-Anmeldung die erste UUID aus der Admin-Key-Datei als Benutzername und die
-   zweite UUID als Passwort ein.
+   der HTTP-Basic-Anmeldung die UUID vor dem Punkt als Benutzername und die UUID nach dem
+   Punkt als Passwort ein. Beim Bootstrap findest du beide UUIDs in der Datei am
+   ausgegebenen Pfad.
 3. Im Ordner `Demo` kannst du `sample.xtf` und `sample.xtf.log` herunterladen. Auf dem
    Dateisystem liegen sie unter `build/dev/target/Demo/`.
+
+Nach erfolgreicher Anmeldung kannst du den neuen Schlüssel im Passwortmanager sichern, die
+temporäre Datei löschen und die App künftig ohne `ADMIN_KEY_FILE` starten. Datahub speichert
+die Schlüssel-ID und einen Hash des Secrets in der lokalen Datenbank.
 
 ### Lokale Dienste stoppen oder zurücksetzen
 

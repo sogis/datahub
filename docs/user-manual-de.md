@@ -16,7 +16,7 @@ Status dieser Lieferung. Fehlende, ungültige, abgelaufene oder widerrufene API-
 Lieferberechtigungen `403`. Doppelte Multipart-Felder und widersprüchliche Themen- oder
 Operat-Angaben ergeben `400`. Für neue Clients sind Multipart-Felder die einzige benötigte Quelle
 für Thema und Operat. API-Keys ausschliesslich im Header übermitteln. Leere Dateien ergeben
-`400`, zu grosse Uploads `413` und eine pausierte Annahme oder fehlende Modellkonfiguration
+`400`, zu grosse Uploads `413` und eine pausierte Annahme oder fehlerhafte Ziel- oder Modellkonfiguration
 `503`.
 
 ## Status, Protokoll und Ablage

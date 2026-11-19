@@ -15,16 +15,12 @@ public abstract class PostgresSupport {
   protected static final Network NETWORK = Network.newNetwork();
   protected static final PostgreSQLContainer DATABASE =
       new PostgreSQLContainer(DockerImageName.parse("sogis/postgis:16-3.4").asCompatibleSubstituteFor("postgres")).withNetwork(NETWORK).withNetworkAliases("database");
-  protected static final GenericContainer<?> MAIL =
-      new GenericContainer<>("axllent/mailpit:v1.31.4").withExposedPorts(1025, 8025)
-          .withNetwork(NETWORK).withNetworkAliases("mail");
   protected static final Path ROOT;
 
   static {
     try {
       ROOT = Files.createTempDirectory("datahub-postgres-tests-");
       DATABASE.start();
-      MAIL.start();
       initialize("test");
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

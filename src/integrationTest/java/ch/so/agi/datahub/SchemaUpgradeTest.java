@@ -27,8 +27,8 @@ class SchemaUpgradeTest extends PostgresSupport {
     jdbc.execute("CREATE ROLE datahub");
     DATABASE.copyFileToContainer(MountableFile.forClasspathResource("historical-schema.sql"), "/tmp/historical.sql");
     DATABASE.copyFileToContainer(MountableFile.forHostPath(Path.of("sql/upgrade-r0.sql")), "/tmp/upgrade.sql");
-    DATABASE.copyFileToContainer(MountableFile.forHostPath(Path.of("sql/operat-unique.sql")),
-        "/tmp/operat-unique.sql");
+    DATABASE.copyFileToContainer(MountableFile.forHostPath(Path.of("sql/config-constraints.sql")),
+        "/tmp/config-constraints.sql");
     assertThat(psql("/tmp/historical.sql").getExitCode()).isZero();
 
     var encoder = new BCryptPasswordEncoder();
@@ -92,6 +92,7 @@ class SchemaUpgradeTest extends PostgresSupport {
         INSERT INTO agi_datahub_config_v1.core_operat(aname,theme_r,organisation_r)
         VALUES ('sample',1001,1000)
         """)).isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+    assertThat(psql("/tmp/config-constraints.sql").getExitCode()).isZero();
     new DatabaseCreator(source, "agi_datahub_jobrunr_v1.", PostgresStorageProvider.class).runMigrations();
 
     for (String topic : new String[]{"Config", "Log"}) {
