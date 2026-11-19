@@ -20,14 +20,16 @@ import org.testcontainers.utility.MountableFile;
 
 class SchemaUpgradeTest extends PostgresSupport {
   @Test
-  void upgradesMainWithoutLosingHistoryOrActiveAndRevokedKeys() throws Exception {
+  void upgradesHistoricalSchemaWithoutLosingHistoryOrActiveAndRevokedKeys() throws Exception {
     var source = new DriverManagerDataSource(
         DATABASE.getJdbcUrl(), DATABASE.getUsername(), DATABASE.getPassword());
     var jdbc = new JdbcTemplate(source);
     jdbc.execute("CREATE ROLE datahub");
-    DATABASE.copyFileToContainer(MountableFile.forClasspathResource("main-schema.sql"), "/tmp/main.sql");
+    DATABASE.copyFileToContainer(MountableFile.forClasspathResource("historical-schema.sql"), "/tmp/historical.sql");
     DATABASE.copyFileToContainer(MountableFile.forHostPath(Path.of("sql/upgrade-r0.sql")), "/tmp/upgrade.sql");
-    assertThat(psql("/tmp/main.sql").getExitCode()).isZero();
+    DATABASE.copyFileToContainer(MountableFile.forHostPath(Path.of("sql/config-constraints.sql")),
+        "/tmp/config-constraints.sql");
+    assertThat(psql("/tmp/historical.sql").getExitCode()).isZero();
 
     var encoder = new BCryptPasswordEncoder();
     var secret = UUID.randomUUID();
@@ -42,6 +44,11 @@ class SchemaUpgradeTest extends PostgresSupport {
         INSERT INTO agi_datahub_config_v1.core_apikey(apikey,createdat,organisation_r,revokedat)
         VALUES (?,CURRENT_TIMESTAMP,1000,NULL),(?,CURRENT_TIMESTAMP,1000,CURRENT_TIMESTAMP)
         """, ApiKeyFormat.buildStoredValue(keyId, keyHash), ApiKeyFormat.buildStoredValue(revokedId, keyHash));
+    jdbc.update("INSERT INTO agi_datahub_config_v1.core_theme(t_id,aname) VALUES (1001,'Demo'),(1002,'Other')");
+    jdbc.update("""
+        INSERT INTO agi_datahub_config_v1.core_operat(aname,theme_r,organisation_r)
+        VALUES ('sample',1001,1000),('sample',1002,1000)
+        """);
     String delivery = UUID.randomUUID().toString();
     jdbc.update("""
         INSERT INTO agi_datahub_log_v1.deliveries_delivery(jobid,deliverydate,isvalid,isdelivered,organisation,theme,operat)
@@ -71,6 +78,21 @@ class SchemaUpgradeTest extends PostgresSupport {
     jdbc.update("UPDATE agi_datahub_jobrunr_v1.jobrunr_jobs SET state='SUCCEEDED' WHERE id=?", delivery);
     var applied = psql("/tmp/upgrade.sql");
     assertThat(applied.getExitCode()).withFailMessage(applied.getStderr()).isZero();
+    var repeated = psql("/tmp/upgrade.sql");
+    assertThat(repeated.getExitCode()).isNotZero();
+    assertThat(repeated.getStderr()).contains("upgrade has already been applied");
+    assertThat(jdbc.queryForList("SELECT aname FROM agi_datahub_config_v1.core_organisation", String.class))
+        .containsExactly("Supplier");
+    assertThat(jdbc.queryForList("SELECT aname FROM agi_datahub_config_v1.core_operat", String.class))
+        .containsExactly("sample", "sample");
+    assertThatThrownBy(() -> jdbc.update(
+        "INSERT INTO agi_datahub_config_v1.core_theme(aname) VALUES ('Demo')"))
+        .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+    assertThatThrownBy(() -> jdbc.update("""
+        INSERT INTO agi_datahub_config_v1.core_operat(aname,theme_r,organisation_r)
+        VALUES ('sample',1001,1000)
+        """)).isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+    assertThat(psql("/tmp/config-constraints.sql").getExitCode()).isZero();
     new DatabaseCreator(source, "agi_datahub_jobrunr_v1.", PostgresStorageProvider.class).runMigrations();
 
     for (String topic : new String[]{"Config", "Log"}) {
@@ -102,6 +124,13 @@ class SchemaUpgradeTest extends PostgresSupport {
           UNION ALL SELECT thisclass FROM agi_datahub_log_v1.t_ili2db_inheritance WHERE thisclass=?
         ) obsolete
         """, Integer.class, oldAttempt, oldAttempt, oldAttempt)).isZero();
+
+    assertThat(jdbc.queryForObject("""
+        SELECT count(*) FROM pg_constraint
+        WHERE connamespace='agi_datahub_config_v1'::regnamespace AND contype='f'
+          AND conrelid IN ('agi_datahub_config_v1.core_apikey'::regclass,
+                           'agi_datahub_config_v1.core_operat'::regclass)
+        """, Integer.class)).isEqualTo(3);
 
     var properties = new AppProperties();
     var keys = new ApiKeyHeaderAuthenticationService(jdbc, properties, encoder, Clock.systemUTC());

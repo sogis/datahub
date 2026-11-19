@@ -23,10 +23,51 @@ Die Lieferungs-ID steht in `Operation-Location`. Das Ergebnis erscheint unter
 `dev/invalid.xtf` enthält einen fachlichen Fehler. `dev/other-model.xtf` gehört zu einem fremden
 Modell. Beide Lieferungen erzeugen ein Prüfprotokoll.
 
+### Lokalen Admin-Key einrichten und Dateien ansehen
+
+Falls die lokale Datenbank schon eine Admin-Organisation enthält, überspringe den folgenden
+Befehlsblock. Starte Datahub wie oben beschrieben und verwende für die Anmeldung den vorhandenen
+Admin-Key. Falls es noch keinen Admin gibt und der konfigurierte Admin-Name bereits vergeben
+ist, setze beim Start zusätzlich `ADMIN_ACCOUNT_NAME` auf einen freien Organisationsnamen.
+
+Für den Bootstrap stoppst du eine laufende App mit `Ctrl+C` und führst die Befehle im
+Repository aus. Wenn ein Befehl fehlschlägt, behebe den Fehler, bevor du weitergehst.
+`mktemp` legt eine Datei an, die nur dein Benutzerkonto lesen und schreiben kann. `uuidgen`
+erzeugt die beiden UUIDs, die `printf` im Format `KEY_ID.SECRET` in die Datei schreibt.
+
+```sh
+./gradlew devSeed
+
+datahub_admin_key_file=$(mktemp "${TMPDIR:-/tmp}/datahub-admin.XXXXXXXX")
+printf '%s.%s\n' "$(uuidgen)" "$(uuidgen)" > "$datahub_admin_key_file"
+printf 'Admin-Key-Datei: %s\n' "$datahub_admin_key_file"
+
+ADMIN_KEY_FILE="$datahub_admin_key_file" \
+  ./gradlew bootRun --args='--spring.profiles.active=dev'
+```
+
+1. Führe den obigen `curl`-Aufruf mit `dev/valid.xtf` und dem Demo-Lieferanten-Key in einem
+   zweiten Terminal aus dem Repository aus. Warte unter [Jobs](http://localhost:8080/jobs)
+   auf die erfolgreiche Verarbeitung.
+2. Öffne [den Ordner Demo im Dateibrowser](http://localhost:8080/ui/files?path=Demo). Gib in
+   der HTTP-Basic-Anmeldung die UUID vor dem Punkt als Benutzername und die UUID nach dem
+   Punkt als Passwort ein. Beim Bootstrap findest du beide UUIDs in der Datei am
+   ausgegebenen Pfad.
+3. Im Ordner `Demo` kannst du `sample.xtf` und `sample.xtf.log` herunterladen. Auf dem
+   Dateisystem liegen sie unter `build/dev/target/Demo/`.
+
+Nach erfolgreicher Anmeldung kannst du den neuen Schlüssel im Passwortmanager sichern, die
+temporäre Datei löschen und die App künftig ohne `ADMIN_KEY_FILE` starten. Datahub speichert
+die Schlüssel-ID und einen Hash des Secrets in der lokalen Datenbank.
+
+### Lokale Dienste stoppen oder zurücksetzen
+
 `./gradlew devDown` stoppt die lokalen Dienste. Die Datenbank-Initialisierung läuft beim ersten
 Start eines neuen Compose-Volumes. Ein bereits benutztes Volume entweder wie eine bestehende
 Installation aktualisieren oder, wenn es nur entbehrliche Demodaten enthält, mit `./gradlew devReset`
-löschen und `devSeed` erneut ausführen.
+löschen und `devSeed` erneut ausführen. `devSeed` migriert bestehende Volumes nicht.
+`cdbimport` erst gegen das aktuelle Schema ausführen, da es die Mappings aus dem physischen
+Stand der verbundenen Datenbank aktualisiert.
 
 ## INTERLIS, PostgreSQL und Cayenne
 
@@ -36,8 +77,9 @@ löschen und `devSeed` erneut ausführen.
    Compose-Volume und richtet die JobRunr-Tabellen ein.
 4. `./gradlew cdbimport cgen` ausführen. `cdbimport` liest standardmässig die lokale
    Compose-Datenbank. `-PcayenneJdbcUrl=jdbc:postgresql://127.0.0.1:PORT/edit` wählt eine andere
-   lokale Datenbank mit denselben Schemanamen. Angepasste Mappings und generierten Java-Code
-   gemeinsam einchecken.
+   lokale Datenbank mit denselben Schemanamen. Für eine unveränderte Generierung
+   `git diff --exit-code -- src/main/resources/cayenne src/main/java/ch/so/agi/datahub/cayenne`
+   ausführen. Geänderte Mappings und generierten Java-Code gemeinsam einchecken.
 
 ## Verifikation
 
@@ -48,8 +90,8 @@ löschen und `devSeed` erneut ausführen.
 ```
 
 `integrationTest` verwendet PostgreSQL mit Testcontainers. Es prüft Annahme und Autorisierung über
-HTTP, XTF-Validierung, wiederholte Verarbeitung, Lieferungshistorie und den Upgrade-Pfad von
-`main`. `e2eTest` baut das Produktionsimage mit demselben Dockerfile wie die Auslieferung.
+HTTP, XTF-Validierung, wiederholte Verarbeitung, Lieferungshistorie und das Upgrade des
+historischen Schemas aus `7df15c5`. `e2eTest` baut das Produktionsimage mit demselben Dockerfile wie die Auslieferung.
 Es startet den Container mit einer zufälligen UID, einem schreibgeschützten Root-Dateisystem und
 gemounteten Ablagen, reicht eine Lieferung per HTTP ein und wartet auf JobRunr, Übernahme und SMTP.
 Die CI führt beide Testaufgaben und die Cayenne-Generierungsprüfung aus.

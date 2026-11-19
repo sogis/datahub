@@ -12,6 +12,11 @@ dependencies {
         inputs.file('dev/SO_AGI_Datahub_20240403.ili')
         def ddl = layout.buildDirectory.file("schema/${model}.sql").get().asFile
         outputs.file(ddl)
+        if (model == 'config') {
+            def configConstraints = file('sql/config-constraints.sql')
+            inputs.file(configConstraints)
+            doLast { ddl.append('\n' + configConstraints.text, 'UTF-8') }
+        }
         doFirst { ddl.parentFile.mkdirs() }
         args '--createscript', ddl.absolutePath, '--modeldir', 'dev',
                 '--models', "SO_AGI_Datahub_${model.capitalize()}_20240403",

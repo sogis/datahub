@@ -53,8 +53,9 @@ class ProductionContainerTest extends PostgresSupport {
     Path bootstrapFile = Files.writeString(secrets.resolve("admin-key"), bootstrap);
     Files.setPosixFilePermissions(bootstrapFile, java.nio.file.attribute.PosixFilePermissions.fromString("r--r--r--"));
     int uid = java.util.concurrent.ThreadLocalRandom.current().nextInt(30000, 60000);
-    try (var app =
-        new GenericContainer<>(System.getProperty("app.productionImage"))
+    try (var mail = new GenericContainer<>("axllent/mailpit:v1.31.4").withExposedPorts(1025)
+            .withNetwork(NETWORK).withNetworkAliases("mail");
+        var app = new GenericContainer<>(System.getProperty("app.productionImage"))
             .withNetwork(NETWORK)
             .withExposedPorts(8080)
             .withCreateContainerCmdModifier(cmd -> {
@@ -70,8 +71,6 @@ class ProductionContainerTest extends PostgresSupport {
             .withEnv("CONFIG_DB_SCHEMA", "container_config")
             .withEnv("LOG_DB_SCHEMA", "container_log")
             .withEnv("JOBRUNR_DB_SCHEMA", "container_jobs.")
-            .withEnv("WORK_DIRECTORY", "/work")
-            .withEnv("TARGET_DIRECTORY", "/datahub")
             .withEnv("PREFERRED_ILI_REPO", "/models")
             .withEnv("APP_DEFAULTILIREPOSITORIES", "false")
             .withEnv("MAIL_ENABLED", "true")
@@ -87,6 +86,7 @@ class ProductionContainerTest extends PostgresSupport {
                 Wait.forHttp("/actuator/health")
                     .forPort(8080)
                     .withStartupTimeout(Duration.ofSeconds(60)))) {
+      mail.start();
       app.start();
       String base = "http://" + app.getHost() + ":" + app.getMappedPort(8080);
       var client = HttpClient.newHttpClient();
@@ -146,7 +146,9 @@ class ProductionContainerTest extends PostgresSupport {
                       "sh",
                       "-c",
                       "test -s /datahub/Demo/sample.xtf && test -s /datahub/Demo/sample.xtf.log"
-                          + " && test -s /datahub/Demo/Sample.xtf")
+                          + " && test -s /datahub/Demo/Sample.xtf && test -s /datahub/Demo/Sample.xtf.log"
+                          + " && find /datahub/Demo -group 0 -perm -0020 | grep -q ."
+                          + " && find /work -mindepth 1 -maxdepth 1 -type d -group 0 -perm -0020 | grep -q .")
                   .getExitCode())
           .isZero();
       assertThat(app.execInContainer("java", "-version").getStderr()).contains("version \"25");
@@ -158,6 +160,8 @@ class ProductionContainerTest extends PostgresSupport {
           .contains("-XX:-UseBASE64Intrinsics");
       assertThat(app.execInContainer("sh", "-c", "test ! -w /opt/app && test ! -w /opt/app/application.jar")
           .getExitCode()).isZero();
+      assertThat(app.execInContainer("stat", "-c", "%a", "/opt/app/application.jar").getStdout().strip())
+          .isEqualTo("444");
       assertThat(app.getLogs()).doesNotContain(key, bootstrap, "Template not found", "Using generated security password");
     }
   }

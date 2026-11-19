@@ -3,9 +3,11 @@ package ch.so.agi.datahub.controller;
 import ch.so.agi.datahub.model.JobResponse;
 import ch.so.agi.datahub.service.JobResponseService;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@ConditionalOnWebApplication
 @RestController
 @RequestMapping("/api/jobs")
 public class JobController {

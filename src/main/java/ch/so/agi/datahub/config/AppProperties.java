@@ -56,7 +56,6 @@ public class AppProperties {
   private String adminAccountName = "AGI SO";
   private String adminAccountMail = "admin@example.test";
   private boolean createDirectories = true;
-  private boolean cleanerEnabled = true;
   private int jobResponseListLimit = 300;
   private java.time.Duration artifactRetention = java.time.Duration.ofDays(3);
 
@@ -180,14 +179,6 @@ public class AppProperties {
 
   public void setCreateDirectories(boolean value) {
     this.createDirectories = value;
-  }
-
-  public boolean isCleanerEnabled() {
-    return cleanerEnabled;
-  }
-
-  public void setCleanerEnabled(boolean value) {
-    this.cleanerEnabled = value;
   }
 
   public int getJobResponseListLimit() {

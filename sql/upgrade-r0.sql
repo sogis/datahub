@@ -2,12 +2,18 @@
 \set ON_ERROR_STOP on
 BEGIN;
 
-LOCK TABLE agi_datahub_config_v1.core_apikey, agi_datahub_config_v1.core_theme,
+LOCK TABLE agi_datahub_config_v1.core_apikey, agi_datahub_config_v1.core_organisation,
+    agi_datahub_config_v1.core_theme,
     agi_datahub_config_v1.core_operat, agi_datahub_log_v1.deliveries_delivery,
     agi_datahub_jobrunr_v1.jobrunr_jobs IN ACCESS EXCLUSIVE MODE;
 
 DO $$
 BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_schema='agi_datahub_log_v1' AND table_name='deliveries_delivery'
+               AND column_name='processing_status') THEN
+    RAISE EXCEPTION 'The R0 schema upgrade has already been applied.';
+  END IF;
   IF EXISTS (SELECT 1 FROM agi_datahub_jobrunr_v1.jobrunr_jobs
              WHERE state NOT IN ('SUCCEEDED', 'FAILED', 'DELETED'))
      OR EXISTS (SELECT 1 FROM agi_datahub_jobrunr_v1.jobrunr_recurring_jobs) THEN
@@ -16,8 +22,7 @@ BEGIN
 END $$;
 
 ALTER TABLE agi_datahub_config_v1.core_theme ADD COLUMN IF NOT EXISTS expected_models varchar(2048);
-CREATE UNIQUE INDEX IF NOT EXISTS core_operat_theme_name_key
-    ON agi_datahub_config_v1.core_operat(theme_r, aname);
+\ir config-constraints.sql
 
 ALTER TABLE agi_datahub_log_v1.deliveries_delivery
     ADD COLUMN processing_status varchar(20),
@@ -117,7 +122,7 @@ DELETE FROM agi_datahub_log_v1.t_ili2db_inheritance
 WHERE thisclass ~ '^SO_AGI_Datahub_Log_20240403[.]Deliveries[.](ValidationAttempt|DatasetPublication|Notification)$'
    OR baseclass ~ '^SO_AGI_Datahub_Log_20240403[.]Deliveries[.](ValidationAttempt|DatasetPublication|Notification)$';
 
--- main's setup_gdi.sql created the JobRunr 6 tables with an empty migration ledger.
+-- The historical setup_gdi.sql (7df15c5) created JobRunr 6 tables with an empty ledger.
 INSERT INTO agi_datahub_jobrunr_v1.jobrunr_migrations(id,script,installedon)
 SELECT baseline.id, baseline.script, '2026-11-19T00:00:00Z'
 FROM (VALUES

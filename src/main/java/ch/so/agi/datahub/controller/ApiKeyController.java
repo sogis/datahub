@@ -2,12 +2,14 @@ package ch.so.agi.datahub.controller;
 
 import ch.so.agi.datahub.auth.KeyManagementService;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+@ConditionalOnWebApplication
 @RestController
 @RequestMapping("/api/keys")
 public class ApiKeyController {

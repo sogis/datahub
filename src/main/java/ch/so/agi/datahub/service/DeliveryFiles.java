@@ -5,13 +5,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
 
 @Service
 public class DeliveryFiles {
+  private static final Logger log = LoggerFactory.getLogger(DeliveryFiles.class);
   private final AppProperties properties;
 
   public DeliveryFiles(AppProperties properties) {
@@ -21,9 +25,18 @@ public class DeliveryFiles {
   public void saveInput(UUID id, InputStream input) throws IOException {
     try (input) {
       var path = input(id);
-      Files.createDirectory(path.getParent());
-      atomicCopy(input, path);
-      sync(path.getParent().getParent());
+      createSharedDirectory(path.getParent());
+      try {
+        atomicCopy(input, path);
+        sync(path.getParent().getParent());
+      } catch (IOException | RuntimeException failure) {
+        try {
+          FileSystemUtils.deleteRecursively(path.getParent());
+        } catch (IOException cleanup) {
+          failure.addSuppressed(cleanup);
+        }
+        throw failure;
+      }
     }
   }
 
@@ -52,44 +65,89 @@ public class DeliveryFiles {
   void publish(UUID id, String theme, String operat) throws IOException {
     var file = resolve(properties.getTargetDirectory(), theme, operat + ".xtf");
     var result = resolve(properties.getTargetDirectory(), theme, operat + ".xtf.log");
-    Files.createDirectories(file.getParent());
+    try {
+      createSharedDirectory(file.getParent());
+    } catch (FileAlreadyExistsException e) {
+      if (!Files.isDirectory(file.getParent(), LinkOption.NOFOLLOW_LINKS)) throw e;
+    }
     var directory = file.getParent();
-    try (var stagedInput = stage(input(id), directory);
-         var stagedLog = stage(log(id), directory);
-         var previousLog = Files.isRegularFile(result, LinkOption.NOFOLLOW_LINKS) ? stage(result, directory) : null) {
+    sync(directory.getParent());
+    String prefix = ".datahub-" + id + "-";
+    try (var stagedInput = stage(input(id), directory, prefix);
+         var stagedLog = stage(log(id), directory, prefix);
+         var previousInput = backup(file, prefix);
+         var previousLog = backup(result, prefix)) {
       replace(stagedLog, result);
+      boolean replacedInput = false;
       try {
         replace(stagedInput, file);
-      } catch (IOException failure) {
+        replacedInput = true;
+        sync(directory);
+      } catch (IOException | RuntimeException failure) {
+        if (replacedInput) restore(previousInput, file, failure);
+        restore(previousLog, result, failure);
         try {
-          if (previousLog == null) Files.deleteIfExists(result);
-          else replace(previousLog, result);
           sync(directory);
-        } catch (IOException rollback) {
+        } catch (IOException | RuntimeException rollback) {
           failure.addSuppressed(rollback);
         }
         throw failure;
       }
-      sync(directory);
     }
-    sync(directory.getParent());
+  }
+
+  private static StagedFile backup(Path target, String prefix) throws IOException {
+    return Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) ? stage(target, target.getParent(), prefix) : null;
+  }
+
+  private static void restore(StagedFile previous, Path target, Exception failure) {
+    try {
+      if (previous == null) Files.deleteIfExists(target);
+      else replace(previous, target);
+    } catch (IOException | RuntimeException rollback) {
+      if (previous != null) {
+        previous.keep = true;
+        log.error("Could not restore {}; retained backup at {}", target, previous.path);
+      }
+      failure.addSuppressed(rollback);
+    }
+  }
+
+  private static void createSharedDirectory(Path path) throws IOException {
+    if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      Files.createDirectory(path, PosixFilePermissions.asFileAttribute(
+          PosixFilePermissions.fromString("rwxrwxr-x")));
+      // Restore group access masked by umask, keeping an inherited setgid bit.
+      if (path.getFileSystem().supportedFileAttributeViews().contains("unix")) {
+        int mode = (int) Files.getAttribute(path, "unix:mode");
+        if ((mode & 0070) != 0070) Files.setAttribute(path, "unix:mode", mode | 0070);
+      } else {
+        var permissions = Files.getPosixFilePermissions(path);
+        permissions.add(PosixFilePermission.GROUP_READ);
+        permissions.add(PosixFilePermission.GROUP_WRITE);
+        permissions.add(PosixFilePermission.GROUP_EXECUTE);
+        Files.setPosixFilePermissions(path, permissions);
+      }
+    } else {
+      Files.createDirectory(path);
+    }
   }
 
   static void atomicCopy(InputStream source, Path target) throws IOException {
-    try (var staged = stage(source, target.getParent())) {
+    try (var staged = stage(source, target.getParent(), ".datahub-")) {
       replace(staged, target);
       sync(target.getParent());
     }
   }
 
-  private static StagedFile stage(Path source, Path directory) throws IOException {
+  private static StagedFile stage(Path source, Path directory, String prefix) throws IOException {
     try (var input = Files.newInputStream(source, LinkOption.NOFOLLOW_LINKS)) {
-      return stage(input, directory);
+      return stage(input, directory, prefix);
     }
   }
 
-  private static StagedFile stage(InputStream source, Path directory) throws IOException {
-    var temp = Files.createTempFile(directory, ".datahub-", ".tmp");
+  private static StagedFile stage(InputStream source, Path directory, String prefix) throws IOException {
+    var temp = Files.createTempFile(directory, prefix, ".tmp");
     try {
       try (var output = Files.newOutputStream(temp)) {
         source.transferTo(output);
@@ -109,13 +167,25 @@ public class DeliveryFiles {
   }
 
   private static void replace(StagedFile staged, Path target) throws IOException {
-    Files.move(staged.path(), target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    Files.move(staged.path, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
   }
 
-  private record StagedFile(Path path) implements AutoCloseable {
+  private static final class StagedFile implements AutoCloseable {
+    private final Path path;
+    private boolean keep;
+
+    private StagedFile(Path path) {
+      this.path = path;
+    }
+
     @Override
-    public void close() throws IOException {
-      Files.deleteIfExists(path);
+    public void close() {
+      if (keep) return;
+      try {
+        Files.deleteIfExists(path);
+      } catch (IOException e) {
+        log.warn("Could not remove staging file {}", path, e);
+      }
     }
   }
 
@@ -126,7 +196,14 @@ public class DeliveryFiles {
     }
   }
 
-  static void segment(String value) {
+  public static void publicationSegment(String value) {
+    segment(value);
+    // Spring Security's HTTP firewall rejects these in download path segments.
+    if (value.contains("%") || value.contains(";"))
+      throw new IllegalArgumentException("Invalid download path segment");
+  }
+
+  private static void segment(String value) {
     if (value == null || value.isBlank() || value.equals(".") || value.equals("..")
         || value.contains("/") || value.contains("\\")
         || value.codePoints().anyMatch(Character::isISOControl))

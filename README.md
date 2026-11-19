@@ -3,7 +3,7 @@
 Datahub nimmt INTERLIS-Lieferungen für autorisierte Themen und Operate entgegen. JobRunr führt die
 Validierung aus und PostgreSQL hält die Lieferungshistorie. Gültige Lieferungen erscheinen unter
 `Thema/Operat.xtf` mit dem zugehörigen Protokoll. Status, Prüfprotokolle und die JTE/HTMX-Übersicht
-sind öffentlich. Administratoren verwalten API-Keys.
+sind öffentlich. Administratoren verwalten API-Keys und können die Zielablage durchsuchen.
 
 ## Lokal starten
 

@@ -4,8 +4,6 @@ import ch.so.agi.datahub.config.AppProperties;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -17,8 +15,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 @Controller
 public class IlidataController {
-  private Logger logger = LoggerFactory.getLogger(this.getClass());
-
   private final AppProperties properties;
 
   private final IlidataService ilidataService;

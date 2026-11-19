@@ -8,6 +8,7 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='datahub_read') THEN
+    GRANT USAGE ON SCHEMA agi_datahub_jobrunr_v1 TO datahub_read;
     GRANT SELECT ON agi_datahub_jobrunr_v1.jobrunr_jobs_stats TO datahub_read;
   END IF;
 END $$;

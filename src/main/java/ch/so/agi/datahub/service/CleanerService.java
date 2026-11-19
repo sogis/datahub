@@ -2,10 +2,12 @@ package ch.so.agi.datahub.service;
 
 import ch.so.agi.datahub.config.AppProperties;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,12 +19,15 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(name = "app.cleanerEnabled", havingValue = "true")
 public class CleanerService {
   private static final Logger log = LoggerFactory.getLogger(CleanerService.class);
+  private static final Pattern TARGET_STAGING = Pattern.compile(
+      "\\.datahub-([a-f0-9-]{36})-[0-9]+\\.tmp");
   private final JdbcTemplate jdbc;
   private final DeliveryFiles files;
   private final AppProperties properties;
   private final Clock clock;
 
-  public CleanerService(JdbcTemplate jdbc, DeliveryFiles files, AppProperties properties, Clock clock) {
+  public CleanerService(JdbcTemplate jdbc, DeliveryFiles files,
+      AppProperties properties, Clock clock) {
     this.jdbc = jdbc;
     this.files = files;
     this.properties = properties;
@@ -33,24 +38,63 @@ public class CleanerService {
   public void cleanUp() {
     var table = properties.logSchema() + ".deliveries_delivery";
     var jobs = properties.jobSchema() + ".jobrunr_jobs";
-    for (String id : jdbc.queryForList("SELECT d.jobid FROM " + table
-        + " d WHERE d.finished_at<? AND d.artifacts_expired IS NOT TRUE"
-        + " AND d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED','FAILED','PUBLICATION_FAILED')"
-        + " AND (d.processing_status IN ('INVALID','SUPERSEDED','DELIVERED')"
-        + " OR NOT EXISTS (SELECT 1 FROM " + jobs + " j WHERE j.id=d.jobid::char(36)"
-        + " AND j.state NOT IN ('SUCCEEDED','FAILED','DELETED')))",
-        String.class, properties.artifactCutoff(clock))) {
+    var eligible = """
+        FROM %s d LEFT JOIN %s j ON j.id=d.jobid::char(36)
+        WHERE d.artifacts_expired IS NOT TRUE
+          AND (j.state IS NULL OR j.state IN ('SUCCEEDED','FAILED','DELETED'))
+          AND COALESCE(d.finished_at,
+                CASE WHEN j.state IN ('FAILED','DELETED')
+                  THEN timezone(?, j.updatedat AT TIME ZONE 'UTC') END) < ?
+        """.formatted(table, jobs);
+    var zone = clock.getZone().getId();
+    var cutoff = properties.artifactCutoff(clock);
+    for (String id : jdbc.queryForList("SELECT d.jobid " + eligible, String.class, zone, cutoff)) {
       try {
-        files.delete(UUID.fromString(id));
-        jdbc.update("UPDATE " + table + " SET artifacts_expired=true WHERE jobid=?", id);
-      } catch (IOException | IllegalArgumentException e) {
+        // A retry holding this lock owns the input. Commit expiry before removing files.
+        int expired = jdbc.update("""
+            UPDATE %s SET artifacts_expired=true,
+              processing_status=CASE processing_status
+                WHEN 'PENDING' THEN 'FAILED'
+                WHEN 'PUBLISHING' THEN 'PUBLICATION_FAILED'
+                ELSE processing_status END
+            WHERE jobid IN (SELECT d.jobid %s AND d.jobid=? FOR UPDATE OF d SKIP LOCKED)
+            """.formatted(table, eligible), zone, cutoff, id);
+        if (expired != 0) files.delete(UUID.fromString(id));
+      } catch (IOException | IllegalArgumentException | org.springframework.dao.DataAccessException e) {
         log.warn("Could not clean up artifacts for delivery {}", id, e);
       }
     }
-    cleanOrphans(table);
+    cleanUnclaimedDirectories(table);
+    cleanPublishedStaging(table);
   }
 
-  private void cleanOrphans(String table) {
+  private void cleanPublishedStaging(String table) {
+    Path root = Path.of(properties.getTargetDirectory());
+    if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return;
+    var cutoff = Instant.now(clock).minus(properties.getArtifactRetention());
+    try (var files = Files.find(root, 2, (path, attrs) -> attrs.isRegularFile()
+        && attrs.lastModifiedTime().toInstant().isBefore(cutoff))) {
+      files.forEach(path -> {
+        var name = TARGET_STAGING.matcher(path.getFileName().toString());
+        if (root.relativize(path).getNameCount() != 2 || !name.matches()) return;
+        var published = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM " + table
+            + " WHERE jobid=? AND processing_status IN ('DELIVERED','SUPERSEDED'))",
+            Boolean.class, name.group(1));
+        // A failed publication may still need this copy as its only recovery source.
+        if (Boolean.TRUE.equals(published)) {
+          try {
+            Files.deleteIfExists(path);
+          } catch (IOException e) {
+            log.warn("Could not remove obsolete staging file {}", path, e);
+          }
+        }
+      });
+    } catch (IOException | UncheckedIOException e) {
+      log.warn("Could not inspect publication staging files", e);
+    }
+  }
+
+  private void cleanUnclaimedDirectories(String table) {
     Path root = Path.of(properties.getWorkDirectory());
     if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return;
     var cutoff = Instant.now(clock).minus(properties.getArtifactRetention());
@@ -82,10 +126,11 @@ public class CleanerService {
             }
           }
           if (recent) continue;
-          Boolean registered = jdbc.queryForObject(
-              "SELECT EXISTS (SELECT 1 FROM " + table + " WHERE jobid=?)",
+          // Retry file removal if a previous cleanup committed expiry but did not finish.
+          Boolean inUse = jdbc.queryForObject(
+              "SELECT EXISTS (SELECT 1 FROM " + table + " WHERE jobid=? AND artifacts_expired IS NOT TRUE)",
               Boolean.class, id.toString());
-          if (!Boolean.TRUE.equals(registered)) files.delete(id);
+          if (!Boolean.TRUE.equals(inUse)) files.delete(id);
         } catch (IOException e) {
           log.warn("Could not inspect or clean orphan upload {}", id, e);
         }
