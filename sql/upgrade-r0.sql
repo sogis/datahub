@@ -101,6 +101,22 @@ DELETE FROM agi_datahub_log_v1.t_ili2db_classname WHERE sqlname IN ('validation_
 DELETE FROM agi_datahub_log_v1.t_ili2db_table_prop WHERE tablename IN ('validation_attempt','dataset_publication','notification');
 DELETE FROM agi_datahub_log_v1.t_ili2db_column_prop WHERE tablename IN ('validation_attempt','dataset_publication','notification');
 
+DELETE FROM agi_datahub_config_v1.t_ili2db_column_prop
+WHERE tablename='core_apikey' AND columnname='issuance_state';
+DELETE FROM agi_datahub_log_v1.t_ili2db_column_prop
+WHERE tablename='deliveries_delivery' AND columnname IN
+    ('operat_id','key_id','attempt_id','execution_status','validation_status',
+     'publication_status','publication_tries','publication_next_at');
+DELETE FROM agi_datahub_config_v1.t_ili2db_meta_attrs
+WHERE ilielement ~ '^SO_AGI_Datahub_(Config|Log)_20240403([.]|$)';
+DELETE FROM agi_datahub_log_v1.t_ili2db_meta_attrs
+WHERE ilielement ~ '^SO_AGI_Datahub_(Config|Log)_20240403([.]|$)';
+DELETE FROM agi_datahub_log_v1.t_ili2db_trafo
+WHERE iliname ~ '^SO_AGI_Datahub_Log_20240403[.]Deliveries[.](ValidationAttempt|DatasetPublication|Notification)([.]|$)';
+DELETE FROM agi_datahub_log_v1.t_ili2db_inheritance
+WHERE thisclass ~ '^SO_AGI_Datahub_Log_20240403[.]Deliveries[.](ValidationAttempt|DatasetPublication|Notification)$'
+   OR baseclass ~ '^SO_AGI_Datahub_Log_20240403[.]Deliveries[.](ValidationAttempt|DatasetPublication|Notification)$';
+
 -- main's setup_gdi.sql created the JobRunr 6 tables with an empty migration ledger.
 INSERT INTO agi_datahub_jobrunr_v1.jobrunr_migrations(id,script,installedon)
 SELECT baseline.id, baseline.script, '2026-11-19T00:00:00Z'

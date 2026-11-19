@@ -33,10 +33,10 @@ public class IlidataService {
             jdbc.queryForList(
                 """
                 SELECT * FROM (
-                    SELECT DISTINCT ON (lower(normalize(theme)), lower(normalize(operat))) *
+                    SELECT DISTINCT ON (theme, operat) *
                     FROM %s.deliveries_delivery
                     WHERE isvalid AND processing_status <> 'SUPERSEDED'
-                    ORDER BY lower(normalize(theme)), lower(normalize(operat)), t_id DESC
+                    ORDER BY theme, operat, t_id DESC
                 ) d WHERE processing_status='DELIVERED' AND result_models IS NOT NULL
                 ORDER BY theme, operat
                 """.formatted(p.logSchema()));

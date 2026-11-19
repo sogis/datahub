@@ -82,7 +82,9 @@ OpenJDK 25 und startet mit `1001:0`. Unter OpenShift kann eine zufällige UID mi
 werden. Das Root-Dateisystem kann schreibgeschützt bleiben. Zwei persistente Volumes an `/work` und
 `/datahub` sowie ein beschreibbares temporäres Dateisystem an `/tmp` mounten. Die Volumes müssen
 die Arbeits- und Zielverzeichnisse mit Gruppenrechten bereitstellen. Bei mehreren Instanzen
-verwenden Web und JobRunr dieselben Volumes. Die Zielablage muss atomare Umbenennungen erlauben.
+verwenden Web und JobRunr dieselben Volumes. Die Zielablage muss atomare Umbenennungen erlauben
+und unterschiedliche Schreibweisen und Unicode-Normalformen getrennt speichern. Das Thema
+bestimmt das Verzeichnis, das Operat den Dateinamen.
 Die separate Dateisystemstufe übernimmt UBI9 und entfernt den vom Basis-Image geerbten OCI-Port 8443. Das Image belässt die JVM-Minderung `-XX:-UseBASE64Intrinsics` für CVE-2026-114938.
 
 | Einstellung | Verwendung |
@@ -111,6 +113,8 @@ JobRunr-Eintrag einer angenommenen Lieferung oder begonnenen Übernahme, stellt 
 unter derselben ID wieder her.
 Technische Fehler wiederholt JobRunr. Eine fehlgeschlagene Übernahme kann nach Beheben der
 Ursache im internen Dashboard über denselben Job erneut angestossen werden. Die Prüfeingabe bleibt dafür erhalten.
+Jobs aus Versionen vor R0 bleiben als Historie erhalten. Eine fehlgeschlagene Altlieferung bei
+Bedarf mit der gesicherten Transferdatei neu einreichen.
 
 Vor der Übernahme speichert Datahub die Freigabeabsicht. PostgreSQL serialisiert die Übernahme
 für identische Zielpfade. Datahub legt beide Dateien vollständig bereit und ersetzt dann das

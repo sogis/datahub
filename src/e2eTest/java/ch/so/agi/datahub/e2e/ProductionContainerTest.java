@@ -33,9 +33,8 @@ class ProductionContainerTest extends PostgresSupport {
             Long.class);
     jdbc.update(
         "INSERT INTO container_config.core_operat(aname,organisation_r,theme_r)"
-            + " VALUES('sample',?,?)",
-        org,
-        theme);
+            + " VALUES('sample',?,?),('Sample',?,?)",
+        org, theme, org, theme);
     var id = UUID.randomUUID();
     var secret = UUID.randomUUID();
     String key = ApiKeyFormat.buildApiKey(id, secret);
@@ -96,7 +95,9 @@ class ProductionContainerTest extends PostgresSupport {
               HttpRequest.newBuilder(URI.create(base + "/jobs")).GET().build(),
               HttpResponse.BodyHandlers.ofString());
       assertThat(page.statusCode()).withFailMessage(page.body()).isEqualTo(200);
-      assertThat(page.body()).contains("Übernahme", "/css/datahub.css", "/js/htmx.min.js");
+      assertThat(page.body()).contains("Übernahme", "/css/datahub.css", "/js/htmx.min.js",
+          "<option value=\"date-desc\" selected", "<option value=\"operat\">")
+          .doesNotContain("selected=\"false\"");
       var admin = client.send(HttpRequest.newBuilder(URI.create(base + "/api/files"))
           .header("X-API-KEY", bootstrap).GET().build(), HttpResponse.BodyHandlers.ofString());
       assertThat(admin.statusCode()).isEqualTo(200);
@@ -115,15 +116,17 @@ class ProductionContainerTest extends PostgresSupport {
               + "\r\n--"
               + boundary
               + "--\r\n";
-      var response =
-          client.send(
-              HttpRequest.newBuilder(URI.create(base + "/api/deliveries"))
-                  .header("X-API-KEY", key)
-                  .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                  .POST(HttpRequest.BodyPublishers.ofString(body))
-                  .build(),
-              HttpResponse.BodyHandlers.ofString());
-      assertThat(response.statusCode()).withFailMessage(response.body()).isEqualTo(202);
+      for (String operat : List.of("sample", "Sample")) {
+        var response = client.send(
+            HttpRequest.newBuilder(URI.create(base + "/api/deliveries"))
+                .header("X-API-KEY", key)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofString(body.replace("\r\nsample\r\n",
+                    "\r\n" + operat + "\r\n")))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).withFailMessage(response.body()).isEqualTo(202);
+      }
       await()
           .atMost(Duration.ofSeconds(50))
           .untilAsserted(
@@ -134,13 +137,16 @@ class ProductionContainerTest extends PostgresSupport {
                                   + " processing_status='DELIVERED' AND"
                                   + " notification_status='SENT'",
                               Integer.class))
-                      .isEqualTo(1));
+                      .isEqualTo(2));
+      var index = client.send(HttpRequest.newBuilder(URI.create(base + "/ilidata.xml")).GET().build(),
+          HttpResponse.BodyHandlers.ofString());
+      assertThat(index.body()).contains("sample.Demo", "Sample.Demo");
       assertThat(
               app.execInContainer(
                       "sh",
                       "-c",
                       "id -u; test -s /datahub/Demo/sample.xtf; test -s"
-                          + " /datahub/Demo/sample.xtf.log")
+                          + " /datahub/Demo/sample.xtf.log && test -s /datahub/Demo/Sample.xtf")
                   .getExitCode())
           .isZero();
       assertThat(app.execInContainer("java", "-version").getStderr()).contains("version \"25");

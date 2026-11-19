@@ -51,14 +51,13 @@ public class DeliveryRepository {
   void lockTarget(Delivery delivery) {
     // Lock the filenames, since a configuration row may be replaced while old jobs still exist.
     jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtextextended("
-        + "lower(normalize(?)) || '/' || lower(normalize(?)), 0))",
+        + "? || '/' || ?, 0))",
         delivery.theme(), delivery.operat());
   }
 
   boolean hasNewerPublication(Delivery delivery) {
     return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM " + table
-        + " WHERE t_id>? AND isvalid AND lower(normalize(theme))=lower(normalize(?))"
-        + " AND lower(normalize(operat))=lower(normalize(?)))",
+        + " WHERE t_id>? AND isvalid AND theme=? AND operat=?)",
         Boolean.class, delivery.sequence(), delivery.theme(), delivery.operat()));
   }
 

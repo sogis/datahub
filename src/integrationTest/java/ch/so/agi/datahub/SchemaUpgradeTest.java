@@ -58,6 +58,13 @@ class SchemaUpgradeTest extends PostgresSupport {
         VALUES ('SO_AGI_Datahub_Config_20240403.Core.Theme.expectedModels','expected_models','core_theme')
         """);
 
+    String oldAttempt = "SO_AGI_Datahub_Log_20240403.Deliveries.ValidationAttempt";
+    jdbc.update("INSERT INTO agi_datahub_log_v1.t_ili2db_meta_attrs VALUES (?, 'obsolete', 'obsolete')",
+        oldAttempt);
+    jdbc.update("INSERT INTO agi_datahub_log_v1.t_ili2db_trafo VALUES (?, 'obsolete', 'obsolete')",
+        oldAttempt);
+    jdbc.update("INSERT INTO agi_datahub_log_v1.t_ili2db_inheritance(thisclass) VALUES (?)", oldAttempt);
+
     var refused = psql("/tmp/upgrade.sql");
     assertThat(refused.getExitCode()).isNotZero();
     assertThat(refused.getStderr()).contains("Drain active JobRunr jobs");
@@ -87,6 +94,14 @@ class SchemaUpgradeTest extends PostgresSupport {
         SELECT sqlname FROM agi_datahub_config_v1.t_ili2db_attrname
         WHERE iliname='SO_AGI_Datahub_Config_20240403.Core.Theme.expected_models'
         """, String.class)).isEqualTo("expected_models");
+
+    assertThat(jdbc.queryForObject("""
+        SELECT count(*) FROM (
+          SELECT ilielement FROM agi_datahub_log_v1.t_ili2db_meta_attrs WHERE ilielement=?
+          UNION ALL SELECT iliname FROM agi_datahub_log_v1.t_ili2db_trafo WHERE iliname=?
+          UNION ALL SELECT thisclass FROM agi_datahub_log_v1.t_ili2db_inheritance WHERE thisclass=?
+        ) obsolete
+        """, Integer.class, oldAttempt, oldAttempt, oldAttempt)).isZero();
 
     var properties = new AppProperties();
     var keys = new ApiKeyHeaderAuthenticationService(jdbc, properties, encoder, Clock.systemUTC());

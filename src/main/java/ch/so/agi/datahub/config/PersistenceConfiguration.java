@@ -5,7 +5,6 @@ import ch.so.agi.datahub.auth.ApiKeyFormat;
 import ch.so.agi.datahub.cayenne.*;
 import java.nio.file.*;
 import java.time.*;
-import java.util.*;
 import javax.sql.DataSource;
 import org.apache.cayenne.CayenneRuntime;
 import org.apache.cayenne.query.ObjectSelect;
@@ -34,12 +33,11 @@ public class PersistenceConfiguration {
       if (!p.getAdminKeyFile().isBlank()) {
         var parts = ApiKeyFormat.parseApiKey(Files.readString(Path.of(p.getAdminKeyFile())).strip())
             .orElseThrow(() -> new IllegalArgumentException("Invalid bootstrap API key file"));
-        cayenne.performInTransaction(() -> {
-          var ctx = cayenne.newContext();
-          if (ObjectSelect.query(CoreOrganisation.class)
-              .where(CoreOrganisation.AROLE.eq(AppConstants.ROLE_NAME_ADMIN)
-                  .orExp(CoreOrganisation.ANAME.eq(p.getAdminAccountName())))
-              .selectFirst(ctx) != null) return null;
+        var ctx = cayenne.newContext();
+        if (ObjectSelect.query(CoreOrganisation.class)
+            .where(CoreOrganisation.AROLE.eq(AppConstants.ROLE_NAME_ADMIN)
+                .orExp(CoreOrganisation.ANAME.eq(p.getAdminAccountName())))
+            .selectFirst(ctx) == null) {
           var org = ctx.newObject(CoreOrganisation.class);
           org.setAname(p.getAdminAccountName());
           org.setArole(AppConstants.ROLE_NAME_ADMIN);
@@ -50,8 +48,7 @@ public class PersistenceConfiguration {
           key.setCreatedat(LocalDateTime.now(clock));
           key.setOrganisationR(org);
           ctx.commitChanges();
-          return null;
-        });
+        }
       }
       if (p.isCreateDirectories()) {
         Files.createDirectories(Path.of(p.getWorkDirectory()));
