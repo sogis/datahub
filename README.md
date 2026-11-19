@@ -25,4 +25,4 @@ entsteht aus INTERLIS mit ili2pg 5.5.2, das Java-Mapping mit Cayenne 5.0-RC1.
 
 - [Benutzerhandbuch](docs/user-manual-de.md)
 - [Entwicklerhandbuch](docs/develop-manual-de.md)
-- [Betriebshandbuch und Upgrade](docs/admin-manual-de.md)
+- [Betriebshandbuch](docs/admin-manual-de.md)

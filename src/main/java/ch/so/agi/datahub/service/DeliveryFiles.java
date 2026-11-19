@@ -48,16 +48,6 @@ public class DeliveryFiles {
     return resolve(properties.getWorkDirectory(), properties.getFolderPrefix() + id, id + ".log");
   }
 
-  public Path legacyLog(UUID id, String relative) throws IOException {
-    if (!relative.matches("attempts/[0-9a-f-]{36}-[0-9]+/result\\.log"))
-      throw new IOException("Invalid legacy log reference");
-    Path directory = input(id).getParent();
-    Path result = directory.resolve(relative);
-    for (Path path = result; !path.equals(directory); path = path.getParent())
-      if (Files.isSymbolicLink(path)) throw new IOException("Symbolic links are not permitted");
-    return result;
-  }
-
   public void delete(UUID id) throws IOException {
     FileSystemUtils.deleteRecursively(input(id).getParent());
   }

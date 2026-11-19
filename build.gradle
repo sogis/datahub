@@ -95,7 +95,6 @@ tasks.register('integrationTest', Test) {
     classpath = sourceSets.integrationTest.runtimeClasspath
     shouldRunAfter test
     dependsOn 'generateSchema'
-    systemProperty 'app.ili2pgClasspath', configurations.ili2pg.asPath
     useJUnitPlatform()
 }
 tasks.named('check') { dependsOn 'integrationTest', 'e2eTest' }

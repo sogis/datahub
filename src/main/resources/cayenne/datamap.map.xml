@@ -42,7 +42,6 @@
 		<dbAttribute name="isdelivered" type="BIT" length="1"/>
 		<dbAttribute name="isvalid" type="BIT" length="1"/>
 		<dbAttribute name="jobid" type="VARCHAR" mandatory="true" length="36"/>
-		<dbAttribute name="legacy_log" type="VARCHAR" length="100"/>
 		<dbAttribute name="notification_status" type="VARCHAR" length="20"/>
 		<dbAttribute name="operat" type="VARCHAR" mandatory="true" length="512"/>
 		<dbAttribute name="organisation" type="VARCHAR" mandatory="true" length="512"/>
@@ -88,7 +87,6 @@
 		<objAttribute name="isdelivered" type="java.lang.Boolean" dbAttributePath="isdelivered"/>
 		<objAttribute name="isvalid" type="java.lang.Boolean" dbAttributePath="isvalid"/>
 		<objAttribute name="jobid" type="java.lang.String" dbAttributePath="jobid"/>
-		<objAttribute name="legacyLog" type="java.lang.String" dbAttributePath="legacy_log"/>
 		<objAttribute name="notificationStatus" type="java.lang.String" dbAttributePath="notification_status"/>
 		<objAttribute name="operat" type="java.lang.String" dbAttributePath="operat"/>
 		<objAttribute name="organisation" type="java.lang.String" dbAttributePath="organisation"/>

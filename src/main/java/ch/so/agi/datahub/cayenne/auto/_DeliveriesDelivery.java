@@ -33,7 +33,6 @@ public abstract class _DeliveriesDelivery extends PersistentObject {
     public static final BaseProperty<Boolean> ISDELIVERED = PropertyFactory.createBase("isdelivered", Boolean.class);
     public static final BaseProperty<Boolean> ISVALID = PropertyFactory.createBase("isvalid", Boolean.class);
     public static final StringProperty<String> JOBID = PropertyFactory.createString("jobid", String.class);
-    public static final StringProperty<String> LEGACY_LOG = PropertyFactory.createString("legacyLog", String.class);
     public static final StringProperty<String> NOTIFICATION_STATUS = PropertyFactory.createString("notificationStatus", String.class);
     public static final StringProperty<String> OPERAT = PropertyFactory.createString("operat", String.class);
     public static final StringProperty<String> ORGANISATION = PropertyFactory.createString("organisation", String.class);
@@ -54,7 +53,6 @@ public abstract class _DeliveriesDelivery extends PersistentObject {
     protected Boolean isdelivered;
     protected Boolean isvalid;
     protected String jobid;
-    protected String legacyLog;
     protected String notificationStatus;
     protected String operat;
     protected String organisation;
@@ -146,16 +144,6 @@ public abstract class _DeliveriesDelivery extends PersistentObject {
     public String getJobid() {
         beforePropertyRead("jobid");
         return this.jobid;
-    }
-
-    public void setLegacyLog(String legacyLog) {
-        beforePropertyWrite("legacyLog", this.legacyLog, legacyLog);
-        this.legacyLog = legacyLog;
-    }
-
-    public String getLegacyLog() {
-        beforePropertyRead("legacyLog");
-        return this.legacyLog;
     }
 
     public void setNotificationStatus(String notificationStatus) {
@@ -291,8 +279,6 @@ public abstract class _DeliveriesDelivery extends PersistentObject {
                 return this.isvalid;
             case "jobid":
                 return this.jobid;
-            case "legacyLog":
-                return this.legacyLog;
             case "notificationStatus":
                 return this.notificationStatus;
             case "operat":
@@ -350,9 +336,6 @@ public abstract class _DeliveriesDelivery extends PersistentObject {
                 break;
             case "jobid":
                 this.jobid = (String)val;
-                break;
-            case "legacyLog":
-                this.legacyLog = (String)val;
                 break;
             case "notificationStatus":
                 this.notificationStatus = (String)val;

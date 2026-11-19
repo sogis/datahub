@@ -131,7 +131,6 @@ VERSION "2026-11-19"  =
       updated_at : INTERLIS.XMLDateTime;
       finished_at : INTERLIS.XMLDateTime;
       artifacts_expired : BOOLEAN;
-      legacy_log : TEXT*100;
       UNIQUE jobId;
     END Delivery;
   END Deliveries;

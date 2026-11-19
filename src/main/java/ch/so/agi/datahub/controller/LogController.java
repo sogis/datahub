@@ -43,7 +43,7 @@ public class LogController {
     if (delivery == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown delivery");
     if (p.artifactsExpired(delivery.getArtifactsExpired(), delivery.getFinishedAt(), clock))
       throw new ResponseStatusException(HttpStatus.GONE, "Log retention expired");
-    Path log = delivery.getLegacyLog() == null ? files.log(id) : files.legacyLog(id, delivery.getLegacyLog());
+    Path log = files.log(id);
     if (!Files.isRegularFile(log))
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Log is not available");
     return ResponseEntity.ok()

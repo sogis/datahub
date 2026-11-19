@@ -63,9 +63,9 @@ die Schlüssel-ID und einen Hash des Secrets in der lokalen Datenbank.
 ### Lokale Dienste stoppen oder zurücksetzen
 
 `./gradlew devDown` stoppt die lokalen Dienste. Die Datenbank-Initialisierung läuft beim ersten
-Start eines neuen Compose-Volumes. Ein bereits benutztes Volume entweder wie eine bestehende
-Installation aktualisieren oder, wenn es nur entbehrliche Demodaten enthält, mit `./gradlew devReset`
-löschen und `devSeed` erneut ausführen. `devSeed` migriert bestehende Volumes nicht.
+Start eines neuen Compose-Volumes. Wenn ein älteres Volume nur entbehrliche Demodaten enthält,
+kannst du es mit `./gradlew devReset` löschen und `devSeed` erneut ausführen.
+`devSeed` migriert bestehende Volumes nicht.
 `cdbimport` erst gegen das aktuelle Schema ausführen, da es die Mappings aus dem physischen
 Stand der verbundenen Datenbank aktualisiert.
 
@@ -81,6 +81,33 @@ Stand der verbundenen Datenbank aktualisiert.
    `git diff --exit-code -- src/main/resources/cayenne src/main/java/ch/so/agi/datahub/cayenne`
    ausführen. Geänderte Mappings und generierten Java-Code gemeinsam einchecken.
 
+## GDI-Setup neu erzeugen
+
+Bei Änderungen am Schema, an der JobRunr-Version oder an den Grants die Betriebsdatei
+`sql/setup_gdi.sql` neu erzeugen. Der eigene Compose-Projektname startet mit einem frischen
+PostgreSQL-Volume. Die Dev-Ports müssen dazu frei sein. `devSeed` und die
+Anwendung würden Lieferanten, Schlüssel oder andere Laufzeitdaten anlegen.
+
+```sh
+export COMPOSE_PROJECT_NAME=datahub-gdi-setup-$$
+./gradlew devUp
+docker compose -f dev/docker-compose.yml exec -T edit-db pg_dump \
+  -U postgres -d edit --no-owner --no-privileges \
+  --schema=agi_datahub_config_v1 --schema=agi_datahub_log_v1 \
+  --schema=agi_datahub_jobrunr_v1 > build/schema/gdi-dump.sql
+{
+  printf '%s\n' '-- Generated from ili2pg and JobRunr. See docs/develop-manual-de.md.' \
+    '\set ON_ERROR_STOP on' 'BEGIN;'
+  cat build/schema/gdi-dump.sql sql/grants.sql
+  printf '\n%s\n' 'COMMIT;'
+} > build/schema/setup_gdi.sql
+```
+
+Den vollständigen Dump verwenden, damit INTERLIS-Metadaten und JobRunr-Migrationsjournal
+enthalten sind. Den Entwurf auf einer leeren PostgreSQL-16-Datenbank nach Betriebshandbuch
+prüfen und danach als `sql/setup_gdi.sql` einchecken. Zum Aufräumen im selben Terminal
+`./gradlew devReset` ausführen und danach `COMPOSE_PROJECT_NAME` wieder freigeben.
+
 ## Verifikation
 
 ```sh
@@ -90,8 +117,8 @@ Stand der verbundenen Datenbank aktualisiert.
 ```
 
 `integrationTest` verwendet PostgreSQL mit Testcontainers. Es prüft Annahme und Autorisierung über
-HTTP, XTF-Validierung, wiederholte Verarbeitung, Lieferungshistorie und das Upgrade des
-historischen Schemas aus `7df15c5`. `e2eTest` baut das Produktionsimage mit demselben Dockerfile wie die Auslieferung.
+HTTP, XTF-Validierung, wiederholte Verarbeitung und Lieferungshistorie. `e2eTest` baut das
+Produktionsimage mit demselben Dockerfile wie die Auslieferung.
 Es startet den Container mit einer zufälligen UID, einem schreibgeschützten Root-Dateisystem und
 gemounteten Ablagen, reicht eine Lieferung per HTTP ein und wartet auf JobRunr, Übernahme und SMTP.
 Die CI führt beide Testaufgaben und die Cayenne-Generierungsprüfung aus.

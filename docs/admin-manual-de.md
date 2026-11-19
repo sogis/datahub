@@ -2,115 +2,34 @@
 
 ## Neue Datenbank
 
-Die Befehle in diesem Handbuch werden im Repository-Root ausgeführt. Für `psql` die
-Zieldatenbank und den Schema-Owner über `PGHOST`, `PGPORT`, `PGDATABASE` und `PGUSER`
-festlegen. Die Zugangsdaten über eine geschützte Passwortdatei (`PGPASSFILE`, Modus 0600)
-oder ein anderes in PostgreSQL eingerichtetes Verfahren bereitstellen. Die Beispiele verwenden
-die drei Standardschemas.
+`sql/setup_gdi.sql` richtet die drei Standardschemas für Konfiguration, Lieferhistorie und
+JobRunr in einer leeren PostgreSQL-16-Datenbank ein. Die Datei enthält die INTERLIS-Metadaten
+und das JobRunr-Migrationsjournal. Vor dem Start der Anwendung führt die
+Datenbankadministration das Skript einmal aus.
 
-Die Datenbankadministration legt vorab die Gruppenrolle `datahub` an und weist sie der
-Laufzeitidentität zu. Der Schema-Owner benötigt das Recht, Schemas in der Datenbank anzulegen.
-`./gradlew generateSchema` erzeugt `build/schema/config.sql` und `build/schema/log.sql`.
-Die Konfigurations-DDL enthält zusätzlich den zusammengesetzten Operat-Index aus
-`sql/config-constraints.sql`, den ili2pg 5.5.2 für die INTERLIS-Regel mit einer Beziehung nicht erzeugt.
+Die Datenbankadministration stellt die Gruppenrolle `datahub` bereit und weist sie der
+Laufzeitidentität zu. Die Identität, die das Skript ausführt, benötigt das Recht, Schemas in der
+Datenbank anzulegen und bei Bedarf die Gruppenrollen `datahub_read` und `datahub_write` zu
+erstellen. Bereits vorhandene Gruppenrollen werden wiederverwendet.
 
-```sh
-./gradlew generateSchema
-psql -X -v ON_ERROR_STOP=1 -f build/schema/config.sql -f build/schema/log.sql \
-  -c 'CREATE SCHEMA agi_datahub_jobrunr_v1'
-```
-
-Für Neuinstallation und Upgrade den JobRunr-Tabellenersteller offline mit den Bibliotheken
-der zu installierenden Datahub-Version aufrufen. Dazu das ausführbare Release-JAR
-(`DATAHUB_JAR`) verwenden. Das JAR liegt im Image unter `/opt/app/application.jar` und
-kann mit `docker create` und `docker cp` entnommen werden. Aus dem passenden Commit
-erzeugt `./gradlew bootJar` das JAR unter `build/libs/*-exec.jar`. `JDBC_URL` für dieselbe Datenbank
-setzen, etwa `jdbc:postgresql://db.example:5432/datahub`. `SCHEMA_OWNER_PASSWORD` aus dem
-Secret-Speicher laden. JobRunr und ili2pg erhalten das Passwort als Prozessargument. Beide Befehle in einer
-geschützten Betriebssitzung ohne Shell-Tracing ausführen.
+Im Repository-Root ausführen. `PGHOST`, `PGPORT`, `PGDATABASE` und `PGUSER` legen das Ziel
+fest. Bei Passwortauthentifizierung kann eine geschützte Passwortdatei (`PGPASSFILE`, Modus
+0600) verwendet werden. Einen aktuellen PostgreSQL-16-Client oder neueren Client verwenden.
 
 ```sh
-JOBRUNR_LIBDIR=$(mktemp -d)
-unzip -q "$DATAHUB_JAR" 'BOOT-INF/lib/*' -d "$JOBRUNR_LIBDIR"
-JOBRUNR_CLASSPATH="$JOBRUNR_LIBDIR/BOOT-INF/lib/*"
-java -cp "$JOBRUNR_CLASSPATH" org.jobrunr.storage.sql.common.DatabaseCreator \
-  "$JDBC_URL" "$PGUSER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
-psql -X -v ON_ERROR_STOP=1 -f sql/grants.sql
+psql -X -f sql/setup_gdi.sql
 ```
 
-`sql/grants.sql` erteilt der Rolle `datahub` Zugriff auf Tabellen und Sequenzen. Die bereits
-vorhandene optionale Rolle `datahub_read` erhält Zugriff auf die JobRunr-Statistik. Vor dem
-Anwendungsstart müssen die JobRunr-Tabellen vorhanden sein.
+`datahub` erhält Zugriff auf Tabellen und Sequenzen in allen drei Schemas. `datahub_read` darf
+alle Tabellen in diesen Schemas lesen, einschliesslich der API-Key-Hashes. `datahub_write`
+erhält zusätzlich zum Lesen Schreib- und Sequenzrechte im Konfigurationsschema. Die Vergabe
+der Gruppenmitgliedschaften liegt bei der Datenbankadministration.
 
-## Bestehende Datenbank aktualisieren
-
-Dieser einmalige Ablauf gilt für den historischen Datahub vor der Modernisierung
-(Referenz `7df15c5`, `sql/setup_gdi.sql`) und für Installationen des damaligen
-Modernisierungsbranches vor R0. Auf einer Wiederherstellungskopie proben.
-Doppelte Organisations- oder Themennamen und doppelte Operatnamen innerhalb eines Themas
-vor dem Wechsel fachlich bereinigen. API-Keys und Operate müssen auf vorhandene
-Organisationen verweisen, Operate zudem auf vorhandene Themen. Ein Fehler beim Anlegen
-eines eindeutigen Indexes oder Fremdschlüssels bricht die SQL-Transaktion ab.
-
-Enthält die Installation bereits die Spalte `deliveries_delivery.processing_status`, wurde
-das R0-Schema eingerichtet. Auf einer bereits aktualisierten Installation die fehlenden Konfigurationsregeln als
-Schema-Owner ergänzen. Den Befehl nach der Vorprüfung und bei gestoppter Anwendung ausführen.
-
-```sh
-psql -X -v ON_ERROR_STOP=1 --single-transaction -f sql/config-constraints.sql
-```
-
-1. Annahme am Gateway pausieren, laufende Lieferungen vollständig abarbeiten und die bisherige
-   Anwendung samt Workern und Cleanup stoppen. Historische JobRunr-Zeitpläne entfernen und
-   fehlgeschlagene Altläufe sichten.
-2. Mit `pg_dump -Fc -f "$DATAHUB_DB_DUMP"` die gesamte Datenbank sichern.
-   `DATAHUB_DB_DUMP` ist der Pfad zur Sicherungsdatei in der geschützten Backup-Ablage.
-   Rollendefinitionen sowie Arbeits- und Zielablage am selben Wiederherstellungspunkt sichern.
-   Alte Image-Referenz und Konfiguration festhalten.
-3. `psql -X -v ON_ERROR_STOP=1 -f sql/upgrade-r0.sql` als Schema-Owner ausführen. Das Skript
-   lädt `config-constraints.sql` aus demselben Verzeichnis, prüft den Jobbestand und lehnt einen
-   zweiten Lauf ab. Lieferungen, Key-Hashes und Widerrufszeitpunkte bleiben erhalten.
-   Früher unvollständig ausgestellte Keys werden gesperrt. Vorhandene XTF-Dateien bleiben am
-   bisherigen Ort. Für modernisierte Lieferungen bleiben die Protokollpfade und die einfachen
-   Modell- und Validatorangaben erhalten.
-4. Die Modellmetadaten mit ili2pg 5.5.2 neu registrieren und danach JobRunr offline mit dem oben
-   beschriebenen Tabellenersteller aktualisieren. Das SQL registriert die bereits vorhandenen
-   historischen JobRunr-Tabellen im Migrationsjournal. Der Tabellenersteller spielt die
-   ausstehenden Bibliotheksmigrationen ein. `ILI2PG_JAR` ist das JAR aus der entpackten
-   ili2pg-5.5.2-Distribution samt benachbartem `libs/`. Die Verbindungswerte stammen aus
-   derselben Betriebssitzung wie im Abschnitt für neue Datenbanken.
-
-   ```sh
-   for spec in Config:config Log:log; do
-     java -jar "$ILI2PG_JAR" --schemaimport \
-       --dbhost "$PGHOST" --dbport "$PGPORT" --dbdatabase "$PGDATABASE" \
-       --dbusr "$PGUSER" --dbpwd "$SCHEMA_OWNER_PASSWORD" \
-       --modeldir dev --models "SO_AGI_Datahub_${spec%:*}_20240403" \
-       --dbschema "agi_datahub_${spec#*:}_v1" --nameByTopic --createFk --createFkIdx \
-       --createUnique --createImportTabs --createMetaInfo || exit 1
-   done
-   java -cp "$JOBRUNR_CLASSPATH" org.jobrunr.storage.sql.common.DatabaseCreator \
-     "$JDBC_URL" "$PGUSER" "$SCHEMA_OWNER_PASSWORD" agi_datahub_jobrunr_v1.
-   psql -X -v ON_ERROR_STOP=1 -f sql/grants.sql
-   ```
-
-5. In `core_theme.expected_models` je Thema die zulässigen Modellnamen mit Semikolon trennen.
-   Bestehende Themen ohne Modellliste bleiben gespeichert, bis zur Pflege pausiert ihre Annahme.
-   Transferdateien des historischen Datahub bleiben direkt abrufbar. War die letzte Übernahme
-   ungültig oder fehlt ihr Modellnachweis, erscheint das Dataset erst nach einer neuen gültigen
-   Übernahme wieder in `ilidata.xml`.
-6. Das neue Image starten und zunächst bei pausierter Annahme Health, einen bestehenden Key,
-   öffentliche Historie und Protokolle prüfen. Danach Annahme öffnen und eine kontrollierte
-   Lieferung samt Zieldatei prüfen.
-
-Bei einem Fehler vor dem Commit des SQL-Upgrades rollt PostgreSQL das Skript zurück. Für einen
-Rückfall nach dem Commit zuerst die Annahme sperren und das neue Image samt Workern stoppen.
-Die benötigten Rollen bereitstellen und mit
-`pg_restore --exit-on-error -d "$PGDATABASE" "$DATAHUB_DB_DUMP"` in eine leere Datenbank
-zurückspielen. Arbeits- und Zielablage aus demselben Sicherungspunkt wiederherstellen und
-das bisherige Image mit der dazugehörigen Konfiguration starten. Falls bereits neue Lieferungen angenommen wurden,
-deren Datenbankzeilen und Arbeitsdateien vor dem Rückfall sichern und nach der Wiederherstellung
-gezielt erneut einreichen.
+Bei einem Fehler rollt PostgreSQL die Installation zurück. Für einen Wechsel von einer
+bestehenden Installation die neue Datenbank separat einrichten. Vor der Umschaltung die
+bisherige Datenbank mit `pg_dump -Fc` und die Arbeits- und Zielablage am selben
+Wiederherstellungspunkt sichern. Für einen Rückfall die bisherige Anwendung mit diesen
+Daten und ihrer bisherigen Konfiguration starten. Das Setup übernimmt keine Bestandsdaten.
 
 ## Container und Konfiguration
 
@@ -172,8 +91,6 @@ JobRunr-Eintrag einer angenommenen Lieferung oder begonnenen Übernahme, stellt 
 unter derselben ID wieder her.
 Technische Fehler wiederholt JobRunr. Eine fehlgeschlagene Übernahme kann nach Beheben der
 Ursache im internen Dashboard über denselben Job erneut angestossen werden. Die Prüfeingabe bleibt dafür erhalten.
-Jobs aus Versionen vor R0 bleiben als Historie erhalten. Eine fehlgeschlagene Altlieferung bei
-Bedarf mit der gesicherten Transferdatei neu einreichen.
 
 Während der Validierung hält die Anwendung eine PostgreSQL-Transaktion mit einer Sperre
 auf genau der Lieferungszeile. Damit erzeugt eine doppelte Ausführung keine konkurrierenden
@@ -208,4 +125,4 @@ Lieferungshistorie und veröffentlichte Lieferungsdateien bleiben erhalten.
 ## GDI-Infrastruktur
 
 Die installationsbezogene Infrastruktur beschreibt die [GDI-Dokumentation](https://github.com/sogis/dok/blob/dok/dok_funktionale_einheiten/Documents/datahub/datahub.md).
-Für Datenbank-Upgrade und Laufzeitkonfiguration gilt die Anleitung in diesem Handbuch.
+Für Datenbankinstallation und Laufzeitkonfiguration gilt die Anleitung in diesem Handbuch.
