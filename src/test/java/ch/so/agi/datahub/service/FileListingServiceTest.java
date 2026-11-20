@@ -42,6 +42,26 @@ class FileListingServiceTest {
         .hasMessageContaining("Invalid path");
   }
 
+  @Test
+  void rejectsSymlinksToFilesAndDirectoriesOutsideRoot() throws IOException {
+    Path root = Files.createDirectory(tempDir.resolve("root"));
+    Path outside = Files.createDirectory(tempDir.resolve("outside"));
+    Path file = Files.writeString(outside.resolve("sample.txt"), "content");
+    Files.createSymbolicLink(root.resolve("directory"), outside);
+    Files.createSymbolicLink(root.resolve("file.txt"), file);
+
+    FileListingService service = service(root);
+    assertThatThrownBy(() -> service.listEntries("directory"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid symlink");
+    assertThatThrownBy(() -> service.resolveFile("file.txt"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid symlink");
+    assertThatThrownBy(() -> service.resolveFile("directory/sample.txt"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid symlink");
+  }
+
   private static FileListingService service(Path root) {
     var properties = new ch.so.agi.datahub.config.AppProperties();
     properties.setTargetDirectory(root.toString());

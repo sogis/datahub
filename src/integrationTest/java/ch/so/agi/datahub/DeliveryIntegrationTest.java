@@ -72,6 +72,11 @@ class DeliveryIntegrationTest extends PostgresSupport {
     String upload = upload("sample", valid());
     assertThat(post("/api/deliveries", upload, null).statusCode()).isEqualTo(401);
     assertThat(post("/api/deliveries", upload, "invalid").statusCode()).isEqualTo(401);
+    var supplierKey = ApiKeyFormat.parseApiKey(supplier).orElseThrow();
+    var wrongSecret = new UUID(supplierKey.secret().getMostSignificantBits() ^ 1,
+        supplierKey.secret().getLeastSignificantBits());
+    assertThat(post("/api/deliveries", upload, ApiKeyFormat.buildApiKey(supplierKey.keyId(), wrongSecret))
+        .statusCode()).isEqualTo(401);
     assertThat(post("/api/deliveries?token=" + supplier, upload, null).statusCode()).isEqualTo(401);
     assertThat(send(HttpRequest.newBuilder(uri("/api/files"))
         .header("X-API-KEY", admin).header("X-API-KEY", admin)).statusCode()).isEqualTo(401);
@@ -95,6 +100,25 @@ class DeliveryIntegrationTest extends PostgresSupport {
   }
 
   @Test
+  void authorizesTheExactThemeAndOperat() throws Exception {
+    jdbc.update("""
+        INSERT INTO test_config.core_theme(t_id,aname,expected_models)
+        VALUES (1003,'Other','DatahubDemo')
+        """);
+    jdbc.update("""
+        INSERT INTO test_config.core_operat(aname,theme_r,organisation_r)
+        VALUES ('sample',1003,1001)
+        """);
+
+    String transfer = valid();
+    assertThat(post("/api/deliveries", upload("Other", "sample", transfer), supplier)
+        .statusCode()).isEqualTo(403);
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM " + DELIVERIES, Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM " + JOBS, Integer.class)).isZero();
+    assertThat(post("/api/deliveries", upload("sample", transfer), supplier).statusCode()).isEqualTo(202);
+  }
+
+  @Test
   void onlyAdminsIssueAndRevokeByPublicId() throws Exception {
     assertThat(post("/api/keys", part("organisation", "Supplier"), supplier).statusCode()).isEqualTo(403);
     var issued = post("/api/keys", part("organisation", "Supplier"), admin);
@@ -111,9 +135,24 @@ class DeliveryIntegrationTest extends PostgresSupport {
     assertThat(request("/api/files", "GET", supplier).statusCode()).isEqualTo(403);
     assertThat(request("/api/files", "GET", admin).statusCode()).isEqualTo(200);
     assertThat(request("/ui/files?token=" + admin, "GET", null).statusCode()).isEqualTo(401);
-    assertThat(browse(supplier).statusCode()).isEqualTo(403);
-    assertThat(browse(admin).statusCode()).isEqualTo(200);
+    assertThat(send(basicRequest("/ui/files", supplier)).statusCode()).isEqualTo(403);
+    assertThat(send(basicRequest("/ui/files", admin)).statusCode()).isEqualTo(200);
     assertThat(request("/new-unconfigured-endpoint", "GET", admin).statusCode()).isIn(401, 403);
+  }
+
+  @Test
+  void fileBrowserDownloadRequiresAdminBasicAuthentication() throws Exception {
+    byte[] content = {0, 1, (byte) 0xff};
+    Files.createDirectories(TARGET.getParent());
+    Files.write(TARGET, content);
+    String path = "/ui/files/download?path=Demo/sample.xtf";
+
+    assertThat(request(path, "GET", null).statusCode()).isEqualTo(401);
+    assertThat(send(basicRequest(path, supplier)).statusCode()).isEqualTo(403);
+    assertThat(request(path, "GET", admin).statusCode()).isEqualTo(401);
+    var download = client.send(basicRequest(path, admin).build(), HttpResponse.BodyHandlers.ofByteArray());
+    assertThat(download.statusCode()).isEqualTo(200);
+    assertThat(download.body()).isEqualTo(content);
   }
 
   @Test
@@ -371,10 +410,10 @@ class DeliveryIntegrationTest extends PostgresSupport {
     return Files.readString(Path.of("dev/valid.xtf"));
   }
 
-  private HttpResponse<String> browse(String key) throws Exception {
+  private HttpRequest.Builder basicRequest(String path, String key) {
     String credentials = Base64.getEncoder().encodeToString(
         key.replace('.', ':').getBytes(StandardCharsets.UTF_8));
-    return send(HttpRequest.newBuilder(uri("/ui/files")).header("Authorization", "Basic " + credentials));
+    return HttpRequest.newBuilder(uri(path)).header("Authorization", "Basic " + credentials);
   }
 
   private HttpResponse<String> request(String path, String method, String key) throws Exception {
@@ -402,7 +441,11 @@ class DeliveryIntegrationTest extends PostgresSupport {
   }
 
   private static String upload(String operat, String content) {
-    return part("theme", "Demo") + part("operat", operat)
+    return upload("Demo", operat, content);
+  }
+
+  private static String upload(String theme, String operat, String content) {
+    return part("theme", theme) + part("operat", operat)
         + "--" + BOUNDARY + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"input.xtf\"\r\n"
         + "Content-Type: application/octet-stream\r\n\r\n" + content + "\r\n";
   }
