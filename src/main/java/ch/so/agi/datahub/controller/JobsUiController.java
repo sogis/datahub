@@ -38,11 +38,6 @@ public class JobsUiController {
     return view(params, "jobs-table", request.getContextPath());
   }
 
-  @GetMapping({"/web/jobs.xhtml", "/web/index.xhtml"})
-  public String legacy() {
-    return "redirect:/jobs";
-  }
-
   private ModelAndView view(Map<String, String> params, String template, String context) {
     int page = 0;
     try {

@@ -76,7 +76,7 @@ public class WebSecurityConfig {
             .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
             .requestMatchers(admin).hasAuthority(ROLE_NAME_ADMIN)
             .requestMatchers(delivery).hasAnyAuthority(ROLE_NAME_USER, ROLE_NAME_ADMIN)
-            .requestMatchers(GET, "/", "/jobs", "/jobs/table", "/web/jobs.xhtml", "/web/index.xhtml",
+            .requestMatchers(GET, "/", "/jobs", "/jobs/table",
                 "/api/jobs", "/api/jobs/*", "/api/logs/*", "/ilidata.xml", "/ilimodels.xml",
                 "/ilisite.xml", "/files/*/*", "/css/**", "/js/**", "/favicon.ico", "/ping",
                 "/actuator/health/**").permitAll()

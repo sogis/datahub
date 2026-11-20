@@ -108,6 +108,8 @@ tasks.register('e2eTest', Test) {
     useJUnitPlatform()
     inputs.file('Dockerfile')
     inputs.file(tasks.bootJar.archiveFile)
+    inputs.files('sql/setup_gdi.sql', 'sql/grants.sql',
+            layout.buildDirectory.file('schema/config.sql'), layout.buildDirectory.file('schema/log.sql'))
     systemProperty 'app.productionImage', localImage
 }
 

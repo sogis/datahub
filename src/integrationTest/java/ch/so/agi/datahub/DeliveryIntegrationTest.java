@@ -138,8 +138,11 @@ class DeliveryIntegrationTest extends PostgresSupport {
     var filtered = request("/jobs/table?organisation=Supplier&theme=De&operat=samp"
         + "&status=SUCCEEDED&validationStatus=DONE&sort=operat", "GET", null);
     assertThat(filtered.body()).contains(valid, "DELIVERED").doesNotContain(dtd, "INVALID");
-    assertThat(request("/web/jobs.xhtml", "GET", null).headers().firstValue("Location"))
-        .hasValueSatisfying(location -> assertThat(location).endsWith("/jobs"));
+    for (String path : List.of("/web/jobs.xhtml", "/web/index.xhtml")) {
+      var removedRoute = request(path, "GET", null);
+      assertThat(removedRoute.statusCode()).isEqualTo(401);
+      assertThat(removedRoute.headers().firstValue("Location")).isEmpty();
+    }
     assertThat(request("/files/Demo/sample.xtf.log", "GET", null).body())
         .isEqualTo(Files.readString(TARGET.resolveSibling("sample.xtf.log")));
     assertThat(request("/ilimodels.xml", "GET", null).statusCode()).isEqualTo(200);

@@ -83,30 +83,19 @@ Stand der verbundenen Datenbank aktualisiert.
 
 ## GDI-Setup neu erzeugen
 
-Bei Änderungen am Schema, an der JobRunr-Version oder an den Grants die Betriebsdatei
-`sql/setup_gdi.sql` neu erzeugen. Der eigene Compose-Projektname startet mit einem frischen
-PostgreSQL-Volume. Die Dev-Ports müssen dazu frei sein. `devSeed` und die
-Anwendung würden Lieferanten, Schlüssel oder andere Laufzeitdaten anlegen.
+Bei Änderungen am INTERLIS-Modell, an der JobRunr-Version oder an den Grants die
+Betriebsdatei mit JDK 21 im Repository-Root neu erzeugen:
 
 ```sh
-export COMPOSE_PROJECT_NAME=datahub-gdi-setup-$$
-./gradlew devUp
-docker compose -f dev/docker-compose.yml exec -T edit-db pg_dump \
-  -U postgres -d edit --no-owner --no-privileges \
-  --schema=agi_datahub_config_v1 --schema=agi_datahub_log_v1 \
-  --schema=agi_datahub_jobrunr_v1 > build/schema/gdi-dump.sql
-{
-  printf '%s\n' '-- Generated from ili2pg and JobRunr. See docs/develop-manual-de.md.' \
-    '\set ON_ERROR_STOP on' 'BEGIN;'
-  cat build/schema/gdi-dump.sql sql/grants.sql
-  printf '\n%s\n' 'COMMIT;'
-} > build/schema/setup_gdi.sql
+./gradlew generateGdiSetupSql
 ```
 
-Den vollständigen Dump verwenden, damit INTERLIS-Metadaten und JobRunr-Migrationsjournal
-enthalten sind. Den Entwurf auf einer leeren PostgreSQL-16-Datenbank nach Betriebshandbuch
-prüfen und danach als `sql/setup_gdi.sql` einchecken. Zum Aufräumen im selben Terminal
-`./gradlew devReset` ausführen und danach `COMPOSE_PROJECT_NAME` wieder freigeben.
+Der Task verwendet die DDL aus `generateSchema` und die PostgreSQL-Migrationen der
+JobRunr-Version der Anwendung. Er schreibt `sql/setup_gdi.sql` mit Migrationsjournal und
+Grants. Die Erzeugung braucht keine laufende Datenbank und kein Docker. Die Datei auf einer
+leeren PostgreSQL-16-Datenbank nach Betriebshandbuch prüfen und zusammen mit den auslösenden
+Änderungen einchecken. Die CI spielt die Datei auf PostgreSQL ein und prüft die
+Tabellenspalten, die Grants und das JobRunr-Migrationsjournal.
 
 ## Verifikation
 

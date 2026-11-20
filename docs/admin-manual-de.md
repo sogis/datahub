@@ -86,6 +86,8 @@ erfolgreichen administrativen Zugriff die Bootstrap-Datei aus der Deployment-Kon
 
 ## Verarbeitung und Wiederherstellung
 
+Die öffentliche Jobübersicht ist unter `/jobs` erreichbar.
+
 Datahub speichert die Datei und registriert die Lieferung, bevor JobRunr sie übernimmt. Fehlt der
 JobRunr-Eintrag einer angenommenen Lieferung oder begonnenen Übernahme, stellt Datahub ihn
 unter derselben ID wieder her.

@@ -1,4 +1,4 @@
--- Append after the schema dump when generating setup_gdi.sql.
+-- Applied after all three schemas have been created.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'datahub_read') THEN

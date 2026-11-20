@@ -10,14 +10,72 @@ import java.net.http.*;
 import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
+import org.jobrunr.storage.sql.common.DatabaseMigrationsProvider;
+import org.jobrunr.storage.sql.common.migrations.SqlMigration;
+import org.jobrunr.storage.sql.postgres.PostgresStorageProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.containers.BindMode;
+import org.testcontainers.utility.MountableFile;
 import org.junit.jupiter.api.io.TempDir;
 
 class ProductionContainerTest extends PostgresSupport {
+  @Test
+  void generatedGdiSetupCreatesSchemasAndMigrationJournal() throws Exception {
+    var setup = Path.of("sql/setup_gdi.sql");
+    assertThat(Files.readString(setup)).endsWith(Files.readString(Path.of("sql/grants.sql")) + "\nCOMMIT;\n");
+    var role = DATABASE.execInContainer("psql", "-X", "-v", "ON_ERROR_STOP=1",
+        "-U", DATABASE.getUsername(), "-d", DATABASE.getDatabaseName(), "-c", "CREATE ROLE datahub");
+    assertThat(role.getExitCode()).withFailMessage(role.getStderr()).isZero();
+    DATABASE.copyFileToContainer(MountableFile.forHostPath(setup), "/tmp/gdi-setup.sql");
+    var install = DATABASE.execInContainer("psql", "-X", "-U", DATABASE.getUsername(),
+        "-d", DATABASE.getDatabaseName(), "-f", "/tmp/gdi-setup.sql");
+    assertThat(install.getExitCode()).withFailMessage(install.getStderr()).isZero();
+    var journal = DATABASE.execInContainer("psql", "-XAt", "-U", DATABASE.getUsername(),
+        "-d", DATABASE.getDatabaseName(), "-c",
+        "SELECT script FROM agi_datahub_jobrunr_v1.jobrunr_migrations ORDER BY script");
+    assertThat(journal.getExitCode()).withFailMessage(journal.getStderr()).isZero();
+    var migrations = new DatabaseMigrationsProvider(PostgresStorageProvider.class).getMigrations()
+        .map(SqlMigration::getFileName).filter(name -> name.endsWith(".sql")).sorted().toList();
+    assertThat(journal.getStdout().lines().toList()).isEqualTo(migrations);
+
+    // PostgresSupport created test_config and test_log from the current ili2pg output.
+    var shape = DATABASE.execInContainer("psql", "-XAt", "-U", DATABASE.getUsername(),
+        "-d", DATABASE.getDatabaseName(), "-c", """
+        WITH setup AS (
+          SELECT replace(replace(table_schema, 'agi_datahub_', ''), '_v1', '') AS model,
+              table_name, column_name, ordinal_position, data_type, udt_name, character_maximum_length,
+              numeric_precision, numeric_scale, datetime_precision, is_nullable
+          FROM information_schema.columns WHERE table_schema IN ('agi_datahub_config_v1', 'agi_datahub_log_v1')
+        ), generated AS (
+          SELECT replace(table_schema, 'test_', '') AS model,
+              table_name, column_name, ordinal_position, data_type, udt_name, character_maximum_length,
+              numeric_precision, numeric_scale, datetime_precision, is_nullable
+          FROM information_schema.columns WHERE table_schema IN ('test_config', 'test_log')
+        )
+        SELECT NOT EXISTS (
+          (SELECT * FROM setup EXCEPT SELECT * FROM generated)
+          UNION ALL
+          (SELECT * FROM generated EXCEPT SELECT * FROM setup)
+        )
+        AND EXISTS (
+          SELECT FROM pg_index
+          WHERE indexrelid = to_regclass('agi_datahub_config_v1.core_operat_theme_name_key')
+          AND indisunique
+        )
+        AND has_table_privilege('datahub', 'agi_datahub_jobrunr_v1.jobrunr_jobs', 'INSERT')
+        AND has_sequence_privilege('datahub', 'agi_datahub_log_v1.t_ili2db_seq', 'USAGE')
+        AND has_table_privilege('datahub_read', 'agi_datahub_config_v1.core_apikey', 'SELECT')
+        AND NOT has_table_privilege('datahub_read', 'agi_datahub_config_v1.core_apikey', 'INSERT')
+        AND has_table_privilege('datahub_write', 'agi_datahub_config_v1.core_theme', 'UPDATE')
+        AND NOT has_table_privilege('datahub_write', 'agi_datahub_log_v1.deliveries_delivery', 'UPDATE')
+        """);
+    assertThat(shape.getExitCode()).withFailMessage(shape.getStderr()).isZero();
+    assertThat(shape.getStdout().trim()).isEqualTo("t");
+  }
+
   @Test
   void productionImageRunsWithRandomUidPrecompiledTemplatesAndRealValidation(@TempDir Path secrets) throws Exception {
     var jdbc = initialize("container");
